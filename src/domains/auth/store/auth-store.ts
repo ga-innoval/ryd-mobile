@@ -47,7 +47,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   refreshAccessToken: async () => {
     const { refreshToken } = get();
-    if (!refreshToken) throw new Error("No hay refresh token");
+    if (!refreshToken) throw new Error("No refresh token found");
 
     const { access } = await refreshRequest(refreshToken);
     await secureStorage.setTokens(access, refreshToken);
