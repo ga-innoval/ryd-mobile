@@ -11,7 +11,8 @@
       "typedRoutes": true
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.innoval.ryd"
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +21,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.innoval.ryd"
     },
     "web": {
       "favicon": "./assets/favicon.png",
