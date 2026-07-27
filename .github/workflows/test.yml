@@ -26,5 +26,10 @@ jobs:
       - name: Correr tests
         run: npx jest --ci --coverage
 
+      - name: Generar tipos de Expo
+        run: npx expo customize tsconfig.json
+        env:
+          CI: 1
+
       - name: Type check
         run: npx tsc --noEmit
