@@ -20,13 +20,13 @@ jobs:
           node-version: 20
           cache: "npm"
 
-      - name: Instalar dependencias
+      - name: Install deps
         run: npm ci
 
-      - name: Correr tests
+      - name: Run tests
         run: npx jest --ci --coverage
 
-      - name: Generar tipos de Expo
+      - name: Generate expo types
         run: npx expo customize tsconfig.json
         env:
           CI: 1
