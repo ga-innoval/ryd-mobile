@@ -94,7 +94,10 @@ export function LoginForm() {
 
         <Button onPress={handleSubmit(onSubmit)} disabled={isPending} size="lg">
           {isPending ? (
-            <ActivityIndicator />
+            <>
+              <ActivityIndicator />
+              <Text className="font-bold">Iniciando...</Text>
+            </>
           ) : (
             <Text className="font-bold">Iniciar sesión</Text>
           )}
