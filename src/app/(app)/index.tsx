@@ -1,4 +1,4 @@
-import { LogoutButton } from "@/domains/auth/components/LogoutButton";
+import { LogoutButton } from "@/domains/auth/components/logout-button";
 import { View } from "react-native";
 
 export default function Index() {
