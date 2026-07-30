@@ -1,4 +1,4 @@
-import { authClient } from "@/lib/api-client";
+import { authClient } from "@/lib/auth-client";
 import { TokenPair } from "../types";
 
 export const loginRequest = (username: string, password: string) =>

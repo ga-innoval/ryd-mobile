@@ -1,20 +1,9 @@
 import axios from "axios";
 import { useAuthStore } from "@/domains/auth/store/auth-store";
-
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? "https://api.gainnoval.com/api";
+import { app } from "./app-metadata";
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-// client with no interceptors for auth only
-export const authClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: app.apiBaseUrl,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",

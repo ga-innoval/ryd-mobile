@@ -1,4 +1,6 @@
 import "../../global.css";
+import "@/lib/nativewind-interop";
+
 import { Slot } from "expo-router";
 import { PortalHost } from "@rn-primitives/portal";
 import { QueryClientProvider } from "@tanstack/react-query";

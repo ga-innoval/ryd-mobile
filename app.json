@@ -3,7 +3,7 @@
     "name": "ryd",
     "slug": "ryd",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "your-app-scheme",
@@ -31,7 +31,8 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-image"
     ]
   }
 }
