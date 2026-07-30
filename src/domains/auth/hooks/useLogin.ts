@@ -10,6 +10,6 @@ export function useLogin() {
     }: {
       username: string;
       password: string;
-    }) => login(username, password).catch((e) => console.log(e)),
+    }) => login(username, password),
   });
 }
