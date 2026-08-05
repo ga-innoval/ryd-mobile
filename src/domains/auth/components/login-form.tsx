@@ -1,17 +1,20 @@
-import { ActivityIndicator, View } from "react-native";
+import { useRef } from "react";
+import { ActivityIndicator, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
+import { AlertCircleIcon } from "lucide-react-native";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertTitle } from "@/components/ui/alert";
 import { loginSchema, type LoginFormValues } from "../schemas";
 import { useLogin } from "../hooks/useLogin";
-import { Alert, AlertTitle } from "@/components/ui/alert";
-import { AlertCircleIcon } from "lucide-react-native";
 
 export function LoginForm() {
+  const passwordInputRef = useRef<TextInput>(null);
+
   const {
     control,
     handleSubmit,
@@ -22,12 +25,16 @@ export function LoginForm() {
   });
   const { mutate, isPending, error: loginError } = useLogin();
 
+  const onEmailSubmitEditing = () => {
+    passwordInputRef.current?.focus();
+  };
+
   const onSubmit = (data: LoginFormValues) => {
     mutate(data, { onSuccess: () => router.replace("/") });
   };
 
   return (
-    <View className="p-6 gap-6 w-2/3">
+    <View className="p-6 gap-6 w-full max-w-xl">
       <View className="gap-2">
         <Text className="text-green-700 tracking-widest">BIENVENIDO</Text>
         <Text variant="h3">Inicio de sesión</Text>
@@ -63,6 +70,9 @@ export function LoginForm() {
                 placeholder="Tu nombre de usuario"
                 autoComplete="nickname"
                 autoCapitalize="none"
+                submitBehavior="submit"
+                returnKeyType="next"
+                onSubmitEditing={onEmailSubmitEditing}
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
@@ -82,8 +92,12 @@ export function LoginForm() {
             name="password"
             render={({ field: { onChange, onBlur, value } }) => (
               <Input
+                ref={passwordInputRef}
                 placeholder="*******"
                 secureTextEntry
+                returnKeyType="send"
+                autoCapitalize="none"
+                onSubmitEditing={handleSubmit(onSubmit)}
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
@@ -95,7 +109,7 @@ export function LoginForm() {
         <Button onPress={handleSubmit(onSubmit)} disabled={isPending} size="lg">
           {isPending ? (
             <>
-              <ActivityIndicator />
+              <ActivityIndicator className="text-white" />
               <Text className="font-bold">Iniciando...</Text>
             </>
           ) : (
