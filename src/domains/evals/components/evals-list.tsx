@@ -1,18 +1,16 @@
 import { Text } from "@/components/ui/text";
-import { memo, ReactNode, useCallback, useMemo } from "react";
+import { memo, ReactElement, type ReactNode, useCallback } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Icon } from "@/components/ui/icon";
 import {
   BoxIcon,
   ChevronRight,
-  CloudDownloadIcon,
   LeafIcon,
   LucideIcon,
 } from "lucide-react-native";
 import { cn } from "@/lib/utils";
 import { EVALS_POST_COSECHA } from "../lib/evals-post-cosecha";
-import { Button } from "@/components/ui/button";
 import { SyncStatus, type Evaluacion } from "../types";
 import { Badge } from "@/components/ui/badge";
 
@@ -89,7 +87,7 @@ const CardHeader = ({ item }: { item: Evaluacion }) => {
           <Badge variant={item.progress === 0 ? "secondary" : "success"}>
             <Text>
               {item.progress === 0
-                ? "Sin iniciar"
+                ? "Sin iniciar "
                 : `${item.progress * 100}% completado`}
             </Text>
           </Badge>
@@ -158,31 +156,18 @@ export const EvaluacionCard = memo(function EvaluacionCard({
   );
 });
 
-const EmptyState = () => {
-  return (
-    <View className="justify-center items-center gap-4 py-24">
-      <View className="items-center justify-center">
-        <Text variant={"large"}>Sin registros</Text>
-        <Text variant={"muted"}>
-          No hay evaluaciones registradas. Intenta descargar los datos.
-        </Text>
-      </View>
-      <Button>
-        <Icon as={CloudDownloadIcon} />
-        <Text>Descargar</Text>
-      </Button>
-    </View>
-  );
-};
-
-export const EvalsList = ({ data }: { data: Evaluacion[] }) => {
+export const EvalsList = ({
+  data,
+  EmptyStateComponent,
+}: {
+  data: Evaluacion[];
+  EmptyStateComponent?: ReactElement;
+}) => {
   const renderItem = useCallback(
     ({ item }: { item: Evaluacion }) => <EvaluacionCard item={item} />,
     [],
   );
   const renderItemSeparator = useCallback(() => <View className="h-4" />, []);
-  // utiliza useMemo porque se invoca una sola vez, sin props por invocación
-  const renderEmptyState = useMemo(() => <EmptyState />, []);
 
   return (
     <FlashList
@@ -191,7 +176,7 @@ export const EvalsList = ({ data }: { data: Evaluacion[] }) => {
       keyExtractor={(item) => item.id}
       data={data}
       ItemSeparatorComponent={renderItemSeparator}
-      ListEmptyComponent={renderEmptyState}
+      ListEmptyComponent={EmptyStateComponent}
     />
   );
 };
