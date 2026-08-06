@@ -8,17 +8,17 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        border: "hsl(var(--border))",
+        border: "rgba(44, 90, 39, 0.15)",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
+        background: "#f5f2eb",
+        foreground: "#1c2e1a",
         primary: {
           DEFAULT: "#2d5a27",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary))",
+          DEFAULT: "#e8f0e6",
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
@@ -30,7 +30,7 @@ module.exports = {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
+          DEFAULT: "#7cb87a",
           foreground: "hsl(var(--accent-foreground))",
         },
         popover: {

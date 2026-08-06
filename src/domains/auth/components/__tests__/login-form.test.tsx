@@ -1,10 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  userEvent,
-  waitFor,
-} from "@testing-library/react-native";
+import { render, userEvent, waitFor } from "@testing-library/react-native";
 import { LoginForm } from "../login-form";
 import { useLogin } from "../../hooks/useLogin";
 import { router } from "expo-router";

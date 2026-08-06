@@ -1,4 +1,4 @@
-import { Redirect, Slot } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 import { useAuthStore } from "@/domains/auth/store/auth-store";
 
@@ -14,5 +14,6 @@ export default function AppLayout() {
     );
   }
   if (!isAuthenticated) return <Redirect href="/login" />;
-  return <Slot />;
+
+  return <Stack />;
 }
