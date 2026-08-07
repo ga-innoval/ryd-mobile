@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { Input } from "@/components/ui/input";
@@ -8,17 +8,29 @@ import { useDebouncedValue } from "@/domains/evals/hooks/use-debounced-value";
 import { filterData } from "@/domains/evals/lib/filter-data";
 import { MOCK_EVALS_DATA } from "@/domains/evals/lib/mock-data";
 import { EvalsListHeader } from "@/domains/navigation/evals-list-header";
-
-const data = MOCK_EVALS_DATA;
+import type { Evaluacion } from "@/domains/evals/types";
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [data, setData] = useState<Evaluacion[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const debouncedQuery = useDebouncedValue(searchQuery, 300);
 
   const filteredData = useMemo(
     () => filterData(data, debouncedQuery),
     [data, debouncedQuery],
   );
+
+  const downloadData = useCallback(() => {
+    setIsLoading(true);
+
+    setTimeout(() => {
+      setData(MOCK_EVALS_DATA);
+      setIsLoading(false);
+    }, 1_000 * 2);
+  }, []);
+
+  const clearQuery = useCallback(() => setSearchQuery(""), []);
 
   const headerOptions = useMemo(
     () => ({
@@ -28,11 +40,12 @@ export default function Index() {
           loadedCount={filteredData.length}
           totalCount={data.length}
           hasPendingChanges={true}
-          isSyncing={false}
+          isSyncing={isLoading}
+          onSync={downloadData}
         />
       ),
     }),
-    [data.length, filteredData.length],
+    [data.length, filteredData.length, isLoading],
   );
 
   return (
@@ -56,7 +69,8 @@ export default function Index() {
           <EvalsEmptyState
             dataLength={data.length}
             searchQuery={searchQuery}
-            onClearQuery={() => setSearchQuery("")}
+            onClearQuery={clearQuery}
+            onDownloadData={downloadData}
           />
         }
       />
