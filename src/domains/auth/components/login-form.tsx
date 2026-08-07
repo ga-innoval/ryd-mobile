@@ -68,7 +68,7 @@ export function LoginForm() {
               <Input
                 id="username"
                 placeholder="Tu nombre de usuario"
-                autoComplete="nickname"
+                autoComplete="username"
                 autoCapitalize="none"
                 submitBehavior="submit"
                 returnKeyType="next"
