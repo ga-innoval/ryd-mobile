@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react-native";
 import * as React from "react";
 import { View } from "react-native";
+import Animated, { FadeInUp } from "react-native-reanimated";
 
 function Alert({
   className,
@@ -25,7 +26,8 @@ function Alert({
         variant === "destructive" && "text-destructive",
       )}
     >
-      <View
+      <Animated.View
+        entering={FadeInUp.duration(250)}
         role="alert"
         className={cn(
           "bg-card border-border relative w-full rounded-lg border px-4 pb-2 pt-3.5",
@@ -44,7 +46,7 @@ function Alert({
           />
         </View>
         {children}
-      </View>
+      </Animated.View>
     </TextClassContext.Provider>
   );
 }
