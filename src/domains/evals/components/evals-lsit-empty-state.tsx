@@ -8,12 +8,14 @@ interface EvalsListEmptyStateProps {
   dataLength: number;
   searchQuery: string;
   onClearQuery: () => void;
+  onDownloadData: () => void;
 }
 
 export function EvalsEmptyState({
   dataLength,
   searchQuery,
   onClearQuery,
+  onDownloadData,
 }: EvalsListEmptyStateProps) {
   if (dataLength === 0) {
     return (
@@ -21,7 +23,7 @@ export function EvalsEmptyState({
         icon={FileXIcon}
         title="No hay evaluaciones registradas"
         renderAction={() => (
-          <Button>
+          <Button onPress={onDownloadData}>
             <Icon as={CloudDownloadIcon} />
             <Text>Descargar</Text>
           </Button>
