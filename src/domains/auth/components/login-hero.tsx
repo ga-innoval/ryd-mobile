@@ -9,12 +9,12 @@ const blurhash = "L0AmbT0c~q4s5j4-%p~B_J-W54%E";
 
 export function LoginHero() {
   return (
-    <View className="relative flex-[0.7]">
+    <View className="relative flex-1">
       <Image
         source={require("../../../../assets/images/vinedo.jpg")}
         placeholder={{ blurhash }}
-        contentFit="cover"
         transition={1000}
+        contentFit="cover"
         className="flex-1 w-full"
       />
       <LinearGradient
@@ -28,7 +28,7 @@ export function LoginHero() {
       <View className="absolute inset-0 items-center justify-center">
         <View className="flex-row items-center gap-6">
           <View className="p-3 bg-white/20 rounded-full">
-            <Icon as={LeafIcon} className="p-4 text-green-400" />
+            <Icon as={LeafIcon} className="p-4 text-green-600" />
           </View>
           <Text variant="h1" className="text-white tracking-wide">
             Captura Experimental
