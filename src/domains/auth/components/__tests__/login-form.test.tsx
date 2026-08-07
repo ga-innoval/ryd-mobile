@@ -1,6 +1,6 @@
 import { render, userEvent, waitFor } from "@testing-library/react-native";
 import { LoginForm } from "../login-form";
-import { useLogin } from "../../hooks/useLogin";
+import { useLogin } from "../../hooks/use-login";
 import { router } from "expo-router";
 
 jest.mock("../../hooks/useLogin", () => ({

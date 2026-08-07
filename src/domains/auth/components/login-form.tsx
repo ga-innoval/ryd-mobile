@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { ActivityIndicator, TextInput, View } from "react-native";
+import { ActivityIndicator, Keyboard, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { AlertCircleIcon } from "lucide-react-native";
@@ -10,7 +10,7 @@ import { Text } from "@/components/ui/text";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { loginSchema, type LoginFormValues } from "../schemas";
-import { useLogin } from "../hooks/useLogin";
+import { useLogin } from "../hooks/use-login";
 
 export function LoginForm() {
   const passwordInputRef = useRef<TextInput>(null);
@@ -30,6 +30,7 @@ export function LoginForm() {
   };
 
   const onSubmit = (data: LoginFormValues) => {
+    Keyboard.dismiss();
     mutate(data, { onSuccess: () => router.replace("/") });
   };
 
@@ -68,7 +69,7 @@ export function LoginForm() {
               <Input
                 id="username"
                 placeholder="Tu nombre de usuario"
-                autoComplete="nickname"
+                autoComplete="username"
                 autoCapitalize="none"
                 submitBehavior="submit"
                 returnKeyType="next"
