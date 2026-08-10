@@ -3,7 +3,7 @@ import { LoginForm } from "../login-form";
 import { useLogin } from "../../hooks/use-login";
 import { router } from "expo-router";
 
-jest.mock("../../hooks/useLogin", () => ({
+jest.mock("../../hooks/use-login", () => ({
   useLogin: jest.fn(),
 }));
 jest.mock("expo-router", () => ({
