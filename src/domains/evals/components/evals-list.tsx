@@ -1,6 +1,6 @@
 import { Text } from "@/components/ui/text";
 import { memo, ReactElement, type ReactNode, useCallback } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Icon } from "@/components/ui/icon";
 import {
@@ -68,9 +68,10 @@ export const CardRecordSection = ({
         <Text className="font-medium uppercase">{label}</Text>
       </View>
       <ScrollView
+        showsHorizontalScrollIndicator={false}
         horizontal
-        className="ml-4"
-        contentContainerClassName="gap-4 flex-grow"
+        className="ml-4 -mr-6"
+        contentContainerClassName="gap-4 flex-grow pr-6"
       >
         {children}
       </ScrollView>
@@ -115,7 +116,7 @@ export const EvaluacionCard = memo(function EvaluacionCard({
   item: Evaluacion;
 }) {
   return (
-    <Pressable className="rounded-xl bg-card shadow-md shadow-black/5">
+    <View className="rounded-xl bg-card shadow-md shadow-black/5">
       <View className="rounded-xl border-2 border-border overflow-hidden">
         <CardHeader item={item} />
         <CardRecordSection
@@ -152,7 +153,7 @@ export const EvaluacionCard = memo(function EvaluacionCard({
           ))}
         </CardRecordSection>
       </View>
-    </Pressable>
+    </View>
   );
 });
 
