@@ -1,10 +1,12 @@
 import { create } from "zustand";
-import { secureStorage } from "../lib/secure-storage";
+import { secureStorage, storage } from "../lib/storage";
 import { loginRequest, refreshRequest } from "../api/auth.api";
+import type { User } from "../types";
 
 type AuthState = {
   accessToken: string | null;
   refreshToken: string | null;
+  user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   init: () => Promise<void>;
@@ -16,17 +18,20 @@ type AuthState = {
 export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   refreshToken: null,
+  user: null,
   isLoading: true,
   isAuthenticated: false,
 
   init: async () => {
-    const [access, refresh] = await Promise.all([
+    const [access, refresh, user] = await Promise.all([
       secureStorage.getAccessToken(),
       secureStorage.getRefreshToken(),
+      storage.getUser(),
     ]);
     set({
       accessToken: access,
       refreshToken: refresh,
+      user,
       isAuthenticated: !!access,
       isLoading: false,
     });
@@ -35,14 +40,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (username, password) => {
     const {
       token: { access, refresh },
+      id,
+      name,
+      username: remoteUsername,
+      initials,
     } = await loginRequest(username, password);
-    await secureStorage.setTokens(access, refresh);
-    set({ accessToken: access, refreshToken: refresh, isAuthenticated: true });
+    const user = { id, name, username: remoteUsername, initials };
+
+    await Promise.all([
+      await secureStorage.setTokens(access, refresh),
+      await storage.setUser(user),
+    ]);
+    set({
+      accessToken: access,
+      refreshToken: refresh,
+      user,
+      isAuthenticated: true,
+    });
   },
 
   logout: async () => {
-    await secureStorage.clearTokens();
-    set({ accessToken: null, refreshToken: null, isAuthenticated: false });
+    await Promise.all([
+      await secureStorage.clearTokens(),
+      await storage.clearUser(),
+    ]);
+    set({
+      accessToken: null,
+      refreshToken: null,
+      user: null,
+      isAuthenticated: false,
+    });
   },
 
   refreshAccessToken: async () => {

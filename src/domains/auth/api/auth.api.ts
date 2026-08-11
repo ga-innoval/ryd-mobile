@@ -1,9 +1,9 @@
 import { authClient } from "@/lib/auth-client";
-import { TokenPair } from "../types";
+import { LoginResponse } from "../types";
 
 export const loginRequest = (username: string, password: string) =>
   authClient
-    .post<TokenPair>("/api/token/", { username, password })
+    .post<LoginResponse>("/api/token/", { username, password })
     .then((r) => r.data);
 
 export const refreshRequest = (refresh: string) =>

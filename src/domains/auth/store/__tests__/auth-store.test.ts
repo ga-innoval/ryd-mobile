@@ -1,8 +1,8 @@
 import { loginRequest, refreshRequest } from "../../api/auth.api";
-import { secureStorage } from "../../lib/secure-storage";
+import { secureStorage } from "../../lib/storage";
 import { useAuthStore } from "../auth-store";
 
-jest.mock("../../lib/secure-storage");
+jest.mock("../../lib/storage");
 jest.mock("../../api/auth.api");
 
 afterEach(() => {
