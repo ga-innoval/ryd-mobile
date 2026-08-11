@@ -3,12 +3,14 @@ import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
+import { ActivityIndicator } from "react-native";
 
 interface EvalsListEmptyStateProps {
   dataLength: number;
   searchQuery: string;
   onClearQuery: () => void;
   onDownloadData: () => void;
+  downloading?: boolean;
 }
 
 export function EvalsEmptyState({
@@ -16,16 +18,21 @@ export function EvalsEmptyState({
   searchQuery,
   onClearQuery,
   onDownloadData,
+  downloading,
 }: EvalsListEmptyStateProps) {
   if (dataLength === 0) {
     return (
       <EmptyState
         icon={FileXIcon}
-        title="No hay evaluaciones registradas"
+        title="No hay evaluaciones registradas en tu dispositivo"
         renderAction={() => (
-          <Button onPress={onDownloadData}>
-            <Icon as={CloudDownloadIcon} />
-            <Text>Descargar</Text>
+          <Button disabled={downloading} onPress={onDownloadData}>
+            {downloading ? (
+              <ActivityIndicator className="text-white" />
+            ) : (
+              <Icon as={CloudDownloadIcon} />
+            )}
+            <Text>{downloading ? "Sincronizando..." : "Sincronizar"}</Text>
           </Button>
         )}
       />
