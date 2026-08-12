@@ -1,20 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
+import type { Evaluacion } from "@/domains/evals/types";
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { EvalsEmptyState } from "@/domains/evals/components/evals-lsit-empty-state";
 import { EvalsList } from "@/domains/evals/components/evals-list";
-import { useDebouncedValue } from "@/domains/evals/hooks/use-debounced-value";
-import { filterData } from "@/domains/evals/lib/filter-data";
 import { MOCK_EVALS_DATA } from "@/domains/evals/lib/mock-data";
 import { EvalsListHeader } from "@/domains/navigation/evals-list-header";
-import type { Evaluacion } from "@/domains/evals/types";
 import { EvalsListSearchBar } from "@/domains/evals/components/evals-list-searchbar";
+import { useSearchbar } from "@/domains/evals/hooks/use-searchbar";
+import { filterData } from "@/domains/evals/lib/filter-data";
 
 export default function Index() {
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [data, setData] = useState<Evaluacion[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const debouncedQuery = useDebouncedValue(searchQuery, 300);
+  const [data, setData] = useState<Evaluacion[]>([]);
+  const { searchQuery, debouncedQuery, setSearchQuery, clearQuery } =
+    useSearchbar();
 
   const filteredData = useMemo(
     () => filterData(data, debouncedQuery),
@@ -29,8 +29,6 @@ export default function Index() {
       setIsLoading(false);
     }, 1_000 * 2);
   }, []);
-
-  const clearQuery = useCallback(() => setSearchQuery(""), []);
 
   const headerOptions = useMemo(
     () => ({
