@@ -15,3 +15,17 @@ export interface Evaluacion {
   progress: number;
   syncStatus: SyncStatus;
 }
+
+export type MatchableField =
+  "name" | "campo" | "cuadro" | "programa" | "patron" | "anio";
+
+export interface FieldMatch {
+  field: MatchableField;
+  index: number;
+  length: number;
+}
+
+export interface EvaluacionWithMatch {
+  evalItem: Evaluacion;
+  match?: FieldMatch;
+}

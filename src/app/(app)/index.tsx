@@ -8,7 +8,7 @@ import { MOCK_EVALS_DATA } from "@/domains/evals/lib/mock-data";
 import { EvalsListHeader } from "@/domains/navigation/evals-list-header";
 import { EvalsListSearchBar } from "@/domains/evals/components/evals-list-searchbar";
 import { useSearchbar } from "@/domains/evals/hooks/use-searchbar";
-import { filterData } from "@/domains/evals/lib/filter-data";
+import { filterAndMatchData } from "@/domains/evals/lib/filter-data";
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -17,7 +17,7 @@ export default function Index() {
     useSearchbar();
 
   const filteredData = useMemo(
-    () => filterData(data, debouncedQuery),
+    () => filterAndMatchData(data, debouncedQuery),
     [data, debouncedQuery],
   );
 
@@ -61,7 +61,7 @@ export default function Index() {
         EmptyStateComponent={
           <EvalsEmptyState
             dataLength={data.length}
-            searchQuery={searchQuery}
+            searchQuery={debouncedQuery}
             onClearQuery={clearQuery}
             onDownloadData={downloadData}
             downloading={isLoading}
