@@ -1,10 +1,11 @@
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Leaf, RefreshCw } from "lucide-react-native";
+import { Leaf } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "@/components/user-menu";
+import { EvalsSyncButton } from "../evals/components/evals-sync-button";
 
 type AppHeaderProps = {
   section: string;
@@ -51,7 +52,7 @@ export function EvalsListHeader({
               isSyncing ? "flex" : "hidden",
             )}
           >
-            <View className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+            <View className="w-2 h-2 rounded-full bg-blue-400 animate-pulse-deep" />
             <Text className="text-primary-foreground/80 text-sm">
               Sincronizando
             </Text>
@@ -69,21 +70,7 @@ export function EvalsListHeader({
             </Text>
           </View>
 
-          <Pressable
-            onPress={onSync}
-            disabled={isSyncing}
-            accessibilityRole="button"
-            accessibilityLabel="Sincronizar cambios"
-            className="w-8 h-8 rounded-full bg-primary-foreground/15 items-center justify-center"
-          >
-            <View className={isSyncing ? "animate-spin" : "animate-none"}>
-              <Icon
-                as={RefreshCw}
-                size={16}
-                className="text-primary-foreground"
-              />
-            </View>
-          </Pressable>
+          <EvalsSyncButton onPress={onSync} loading={isSyncing} />
           <UserMenu />
         </View>
       </View>
