@@ -1,5 +1,5 @@
 import { loginRequest, refreshRequest } from "../../api/auth.api";
-import { secureStorage } from "../../lib/storage";
+import { secureStorage, storage } from "../../lib/storage";
 import { useAuthStore } from "../auth-store";
 
 jest.mock("../../lib/storage");
@@ -10,6 +10,7 @@ afterEach(() => {
   useAuthStore.setState({
     accessToken: null,
     refreshToken: null,
+    user: null,
     isLoading: false,
     isAuthenticated: false,
   });
@@ -22,6 +23,7 @@ describe("login()", () => {
         access: "access-token",
         refresh: "refresh-token",
       },
+      username: "user-name",
     });
 
     await useAuthStore.getState().login("user", "password");
@@ -34,6 +36,7 @@ describe("login()", () => {
 
     expect(useAuthStore.getState().accessToken).toBe("access-token");
     expect(useAuthStore.getState().refreshToken).toBe("refresh-token");
+    expect(useAuthStore.getState().user?.username).toBe("user-name");
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
   });
 
@@ -47,8 +50,10 @@ describe("login()", () => {
     ).rejects.toThrow();
 
     expect(secureStorage.setTokens).not.toHaveBeenCalled();
+    expect(storage.setUser).not.toHaveBeenCalled();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(useAuthStore.getState().accessToken).toBeNull();
+    expect(useAuthStore.getState().user).toBeNull();
   });
 });
 
@@ -58,6 +63,7 @@ describe("logout()", () => {
       accessToken: "old-token",
       refreshToken: "old-refresh",
       isAuthenticated: true,
+      user: { id: 1, name: "name", username: "user-name", initials: "u" },
     });
 
     await useAuthStore.getState().logout();
@@ -65,6 +71,7 @@ describe("logout()", () => {
     expect(secureStorage.clearTokens).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState().accessToken).toBeNull();
     expect(useAuthStore.getState().refreshToken).toBeNull();
+    expect(useAuthStore.getState().user).toBeNull();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 });
@@ -77,11 +84,13 @@ describe("init()", () => {
     (secureStorage.getRefreshToken as jest.Mock).mockResolvedValue(
       "stored-refresh",
     );
+    (storage.getUser as jest.Mock).mockResolvedValue({ username: "user-name" });
 
     await useAuthStore.getState().init();
 
     expect(useAuthStore.getState().accessToken).toBe("stored-access");
     expect(useAuthStore.getState().refreshToken).toBe("stored-refresh");
+    expect(useAuthStore.getState().user?.username).toBe("user-name");
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(useAuthStore.getState().isLoading).toBe(false);
   });
@@ -89,6 +98,7 @@ describe("init()", () => {
   test("won't update isAuthenticated (false) if no tokens found in secureStorage", async () => {
     (secureStorage.getAccessToken as jest.Mock).mockResolvedValue(null);
     (secureStorage.getRefreshToken as jest.Mock).mockResolvedValue(null);
+    (storage.getUser as jest.Mock).mockResolvedValue(null);
 
     await useAuthStore.getState().init();
 
