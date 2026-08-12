@@ -22,7 +22,7 @@ export function EvalsListSearchBar({
         value={query}
         onChangeText={onQueryChange}
         accessibilityLabel="Buscar evaluaciones"
-        placeholder="Buscar variedad, campo o cuadro..."
+        placeholder="Buscar variedad, campo o cuadro, programa, patrón o año"
         keyboardType="web-search"
         autoComplete="off"
         returnKeyType="send"

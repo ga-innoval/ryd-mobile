@@ -1,22 +1,29 @@
-import { Text } from "@/components/ui/text";
 import { memo, ReactElement, type ReactNode, useCallback } from "react";
 import { ScrollView, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
-import { Icon } from "@/components/ui/icon";
 import {
   BoxIcon,
   ChevronRight,
   LeafIcon,
   LucideIcon,
 } from "lucide-react-native";
+import { SyncStatus } from "../types";
+import type {
+  Evaluacion,
+  EvaluacionWithMatch,
+  FieldMatch,
+  MatchableField,
+} from "../types";
+import { Text } from "@/components/ui/text";
+import { Icon } from "@/components/ui/icon";
+import { Badge } from "@/components/ui/badge";
+import { HighlightedText } from "@/components/highlighted-text";
 import { cn } from "@/lib/utils";
 import { EVALS_POST_COSECHA } from "../lib/evals-post-cosecha";
-import { SyncStatus, type Evaluacion } from "../types";
-import { Badge } from "@/components/ui/badge";
 
 const DATA_FIELD_CONFIG: {
   label: string;
-  key: Exclude<keyof Evaluacion, "tratamientos" | "progress" | "syncStatus">;
+  key: MatchableField;
 }[] = [
   { label: "Campo", key: "campo" },
   { label: "Cuadro", key: "cuadro" },
@@ -28,13 +35,19 @@ const DATA_FIELD_CONFIG: {
 const DataField = ({
   label,
   value,
+  match,
 }: {
   label: string;
   value: string | number;
+  match?: FieldMatch;
 }) => (
   <View className="flex-row gap-2 items-center">
     <Text variant="muted">{label}</Text>
-    <Text className="font-medium">{value}</Text>
+    <HighlightedText
+      className="font-medium"
+      text={String(value)}
+      match={match}
+    />
   </View>
 );
 
@@ -79,12 +92,22 @@ export const CardRecordSection = ({
   );
 };
 
-const CardHeader = ({ item }: { item: Evaluacion }) => {
+const CardHeader = ({
+  item,
+  match,
+}: {
+  item: Evaluacion;
+  match?: FieldMatch;
+}) => {
   return (
     <View className="flex-row justify-between items-center pr-6">
       <View className="px-6 py-6 gap-2">
         <View className="flex-row gap-2">
-          <Text variant="large">{item.name}</Text>
+          <HighlightedText
+            variant="large"
+            text={item.name}
+            match={match?.field === "name" ? match : undefined}
+          />
           <Badge variant={item.progress === 0 ? "secondary" : "success"}>
             <Text>
               {item.progress === 0
@@ -101,7 +124,12 @@ const CardHeader = ({ item }: { item: Evaluacion }) => {
         </View>
         <View className="flex-row flex-wrap gap-6">
           {DATA_FIELD_CONFIG.map(({ label, key }) => (
-            <DataField key={key} label={label} value={item[key]} />
+            <DataField
+              key={key}
+              label={label}
+              value={item[key]}
+              match={match?.field === key ? match : undefined}
+            />
           ))}
         </View>
       </View>
@@ -112,13 +140,15 @@ const CardHeader = ({ item }: { item: Evaluacion }) => {
 
 export const EvaluacionCard = memo(function EvaluacionCard({
   item,
+  match,
 }: {
   item: Evaluacion;
+  match?: FieldMatch;
 }) {
   return (
     <View className="rounded-xl bg-card shadow-md shadow-black/5">
       <View className="rounded-xl border-2 border-border overflow-hidden">
-        <CardHeader item={item} />
+        <CardHeader item={item} match={match} />
         <CardRecordSection
           icon={LeafIcon}
           label="tratamiento"
@@ -161,11 +191,13 @@ export const EvalsList = ({
   data,
   EmptyStateComponent,
 }: {
-  data: Evaluacion[];
+  data: EvaluacionWithMatch[];
   EmptyStateComponent?: ReactElement;
 }) => {
   const renderItem = useCallback(
-    ({ item }: { item: Evaluacion }) => <EvaluacionCard item={item} />,
+    ({ item }: { item: EvaluacionWithMatch }) => (
+      <EvaluacionCard item={item.evalItem} match={item.match} />
+    ),
     [],
   );
   const renderItemSeparator = useCallback(() => <View className="h-4" />, []);
@@ -174,7 +206,7 @@ export const EvalsList = ({
     <FlashList
       contentContainerClassName="p-6 pb-10"
       renderItem={renderItem}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item) => item.evalItem.id}
       data={data}
       ItemSeparatorComponent={renderItemSeparator}
       ListEmptyComponent={EmptyStateComponent}
