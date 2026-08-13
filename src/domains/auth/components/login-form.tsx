@@ -102,6 +102,7 @@ export function LoginForm() {
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
+                submitBehavior="blurAndSubmit"
               />
             )}
           />
