@@ -54,7 +54,6 @@ export function UserMenu() {
           <View className="flex-row flex-wrap gap-3 py-0.5">
             <Button
               variant="outline"
-              size="sm"
               onPress={() => {
                 // TODO: Navigate to account settings screen
               }}

@@ -14,7 +14,6 @@ export function LogoutButton({ onLogOut, loading }: LogoutButtonProps) {
   return (
     <Button
       variant="outline"
-      size="sm"
       className="flex-1"
       onPress={onLogOut}
       disabled={loading}
