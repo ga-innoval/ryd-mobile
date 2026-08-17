@@ -1,49 +1,38 @@
-import { useCallback, useMemo, useState } from "react";
-import type { Evaluacion } from "@/domains/evals/types";
+import { useMemo } from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { EvalsEmptyState } from "@/domains/evals/components/evals-lsit-empty-state";
 import { EvalsList } from "@/domains/evals/components/evals-list";
-import { MOCK_EVALS_DATA } from "@/domains/evals/lib/mock-data";
 import { EvalsListHeader } from "@/domains/navigation/evals-list-header";
 import { EvalsListSearchBar } from "@/domains/evals/components/evals-list-searchbar";
 import { useSearchbar } from "@/domains/evals/hooks/use-searchbar";
 import { filterAndMatchData } from "@/domains/evals/lib/filter-data";
+import { DownloadStatus } from "@/domains/evals/types";
+import { useDownloadStatus } from "@/domains/evals/hooks/use-download-status";
+import { useEvalsDataStore } from "@/domains/evals/store/data-store";
 
 export default function Index() {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [data, setData] = useState<Evaluacion[]>([]);
   const { searchQuery, debouncedQuery, setSearchQuery, clearQuery } =
     useSearchbar();
+
+  const { data, fetching } = useEvalsDataStore();
+  const { triggerDownload, status } = useDownloadStatus();
 
   const filteredData = useMemo(
     () => filterAndMatchData(data, debouncedQuery),
     [data, debouncedQuery],
   );
 
-  const downloadData = useCallback(() => {
-    setIsLoading(true);
-
-    setTimeout(() => {
-      setData(MOCK_EVALS_DATA);
-      setIsLoading(false);
-    }, 1_000 * 2);
-  }, []);
-
   const headerOptions = useMemo(
     () => ({
       header: () => (
         <EvalsListHeader
-          section="Evaluaciones"
           loadedCount={filteredData.length}
           totalCount={data.length}
-          hasPendingChanges={true}
-          isSyncing={isLoading}
-          onSync={downloadData}
         />
       ),
     }),
-    [data.length, filteredData.length, isLoading],
+    [data.length, filteredData.length, fetching],
   );
 
   return (
@@ -63,8 +52,8 @@ export default function Index() {
             dataLength={data.length}
             searchQuery={debouncedQuery}
             onClearQuery={clearQuery}
-            onDownloadData={downloadData}
-            downloading={isLoading}
+            onDownloadData={triggerDownload}
+            downloading={status === DownloadStatus.downloading}
           />
         }
       />
