@@ -1,6 +1,10 @@
 export enum SyncStatus {
-  PEN = "PEN",
-  SYNC = "SYNC",
+  pending = "pending",
+  synced = "synced",
+  syncing = "syncing",
+  error = "error",
+  rejected_closed = "rejected_closed",
+  unsynced = "unsynced",
 }
 
 export interface Evaluacion {
@@ -28,4 +32,12 @@ export interface FieldMatch {
 export interface EvaluacionWithMatch {
   evalItem: Evaluacion;
   match?: FieldMatch;
+}
+
+export enum DownloadStatus {
+  pending = "pending",
+  downloaded = "downloaded",
+  downloading = "downloading",
+  error = "error",
+  notDownloaded = "notDownloaded",
 }
