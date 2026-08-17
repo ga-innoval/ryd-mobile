@@ -1,7 +1,8 @@
 import { Icon } from "@/components/ui/icon";
+import { IconButton } from "@/components/ui/icon-button";
 import { RefreshCwIcon } from "lucide-react-native";
 import { useEffect } from "react";
-import { Pressable, View, type PressableProps } from "react-native";
+import { type PressableProps } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -10,14 +11,19 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-interface EvalsSyncButtonProps extends PressableProps {
+interface SyncButtonProps extends PressableProps {
   loading?: boolean;
   onPress?: () => void;
 }
 
 const AnimatedIcon = Animated.createAnimatedComponent(Icon);
 
-export function EvalsSyncButton({ loading, onPress }: EvalsSyncButtonProps) {
+export function SyncButton({
+  loading,
+  disabled,
+  onPress,
+  ...props
+}: SyncButtonProps) {
   const rotation = useSharedValue(0);
 
   useEffect(() => {
@@ -37,21 +43,19 @@ export function EvalsSyncButton({ loading, onPress }: EvalsSyncButtonProps) {
   }));
 
   return (
-    <Pressable
-      className="w-8 h-8 rounded-full bg-primary-foreground/15 items-center justify-center"
-      disabled={loading}
+    <IconButton
+      disabled={loading || disabled}
       accessibilityRole="button"
       accessibilityLabel="Sincronizar cambios"
       onPress={onPress}
+      {...props}
     >
-      <View>
-        <AnimatedIcon
-          as={RefreshCwIcon}
-          size={16}
-          className="text-primary-foreground"
-          style={animatedStyle}
-        />
-      </View>
-    </Pressable>
+      <AnimatedIcon
+        as={RefreshCwIcon}
+        size={16}
+        className="text-primary-foreground"
+        style={animatedStyle}
+      />
+    </IconButton>
   );
 }
