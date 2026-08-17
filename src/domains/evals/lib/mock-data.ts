@@ -3,13 +3,14 @@ import { SyncStatus } from "../types";
 export const MOCK_EVALS_DATA = [
   {
     id: "b7974554-0a92-4a8a-a7d0-320bff0c163a",
-    name: "1004-Freedom",
+    name: "1004",
     campo: "Don Mario",
     cuadro: "4C",
     programa: "Temprano",
     patron: "Freedom",
     anio: 2022,
     progress: 0.4,
+    syncStatus: SyncStatus.synced,
     tratamientos: [
       {
         name: "naranja",
@@ -26,8 +27,46 @@ export const MOCK_EVALS_DATA = [
       {
         name: "portainjerto",
       },
+      {
+        name: "negro",
+      },
+      {
+        name: "rosa",
+      },
+      {
+        name: "amarillo",
+      },
+      {
+        name: "rojo",
+      },
+      {
+        name: "blanco",
+      },
+      {
+        name: "violeta",
+      },
+      {
+        name: "color1",
+      },
+      {
+        name: "color2",
+      },
+      {
+        name: "color3",
+      },
+      {
+        name: "color4",
+      },
+      {
+        name: "color5",
+      },
+      {
+        name: "color6",
+      },
+      {
+        name: "color7",
+      },
     ],
-    syncStatus: SyncStatus.PEN,
   },
   {
     id: "92a74b27-9d48-4ebf-8344-74d8f1a8f8f0",
@@ -39,7 +78,7 @@ export const MOCK_EVALS_DATA = [
     anio: 2021,
     progress: 0,
     tratamientos: [],
-    syncStatus: SyncStatus.SYNC,
+    syncStatus: SyncStatus.synced,
   },
   {
     id: "6f2fe29d-bc6e-4e8e-bd8d-b2602505b463",
@@ -64,7 +103,7 @@ export const MOCK_EVALS_DATA = [
         name: "amarillo",
       },
     ],
-    syncStatus: SyncStatus.SYNC,
+    syncStatus: SyncStatus.synced,
   },
   {
     id: "5ba78d90-a1bf-4327-aa1b-b1190a97cf80",
@@ -83,7 +122,7 @@ export const MOCK_EVALS_DATA = [
         name: "rojo",
       },
     ],
-    syncStatus: SyncStatus.SYNC,
+    syncStatus: SyncStatus.synced,
   },
   {
     id: "e5b347e7-a3cc-40e7-85a3-2288adabbf9a",
@@ -102,7 +141,7 @@ export const MOCK_EVALS_DATA = [
         name: "rojo",
       },
     ],
-    syncStatus: SyncStatus.SYNC,
+    syncStatus: SyncStatus.synced,
   },
   {
     id: "5adec592-eead-4d90-8890-f223874ddada",
@@ -121,6 +160,6 @@ export const MOCK_EVALS_DATA = [
         name: "rojo",
       },
     ],
-    syncStatus: SyncStatus.SYNC,
+    syncStatus: SyncStatus.synced,
   },
 ];

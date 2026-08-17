@@ -10,6 +10,6 @@ export const buildEvaluacion = (overrides = {}) => ({
   anio: 2026,
   tratamientos: [{ name: "Trat 1" }, { name: "Trat 2" }, { name: "Trat 3" }],
   progress: 0.1,
-  syncStatus: SyncStatus.PEN,
+  syncStatus: SyncStatus.pending,
   ...overrides,
 });
