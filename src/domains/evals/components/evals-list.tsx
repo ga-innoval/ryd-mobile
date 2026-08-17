@@ -7,13 +7,14 @@ import {
   LeafIcon,
   LucideIcon,
 } from "lucide-react-native";
-import { SyncStatus } from "../types";
-import type {
-  Evaluacion,
-  EvaluacionWithMatch,
-  FieldMatch,
-  MatchableField,
+import {
+  type EvaluacionWithMatch,
+  type FieldMatch,
+  type MatchableField,
+  type Evaluacion,
+  SyncStatus, //enum
 } from "../types";
+
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
@@ -115,7 +116,7 @@ const CardHeader = ({
                 : `${item.progress * 100}% completado`}
             </Text>
           </Badge>
-          {item.syncStatus === SyncStatus.PEN && (
+          {item.syncStatus === SyncStatus.pending && (
             <Badge className="bg-orange-300/20 border-orange-300 gap-1">
               <View className="rounded-full bg-orange-400 h-1.5 w-1.5" />
               <Text className="text-orange-600 font-medium">Pendiente</Text>
