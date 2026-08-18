@@ -1,6 +1,6 @@
-import { memo, ReactElement, type ReactNode, useCallback } from "react";
+import { memo, type ReactNode, useCallback } from "react";
 import { ScrollView, View } from "react-native";
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, FlashListProps } from "@shopify/flash-list";
 import {
   BoxIcon,
   ChevronRight,
@@ -12,7 +12,7 @@ import {
   type FieldMatch,
   type MatchableField,
   type Evaluacion,
-  SyncStatus, //enum
+  SyncStatus,
 } from "../types";
 
 import { Text } from "@/components/ui/text";
@@ -190,11 +190,8 @@ export const EvaluacionCard = memo(function EvaluacionCard({
 
 export const EvalsList = ({
   data,
-  EmptyStateComponent,
-}: {
-  data: EvaluacionWithMatch[];
-  EmptyStateComponent?: ReactElement;
-}) => {
+  ...props
+}: Omit<FlashListProps<EvaluacionWithMatch>, "renderItem">) => {
   const renderItem = useCallback(
     ({ item }: { item: EvaluacionWithMatch }) => (
       <EvaluacionCard item={item.evalItem} match={item.match} />
@@ -205,12 +202,12 @@ export const EvalsList = ({
 
   return (
     <FlashList
-      contentContainerClassName="p-6 pb-10"
+      contentContainerClassName="px-6 pb-10"
       renderItem={renderItem}
       keyExtractor={(item) => item.evalItem.id}
-      data={data}
       ItemSeparatorComponent={renderItemSeparator}
-      ListEmptyComponent={EmptyStateComponent}
+      data={data}
+      {...props}
     />
   );
 };
