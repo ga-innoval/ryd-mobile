@@ -1,4 +1,9 @@
-import { format, formatDistanceToNow, differenceInYears } from "date-fns";
+import {
+  format,
+  formatDistanceToNow,
+  differenceInYears,
+  formatDistanceToNowStrict,
+} from "date-fns";
 import { es } from "date-fns/locale";
 
 export const formatTimestamp = (lastSyncedAt: number) => {
@@ -10,5 +15,5 @@ export const formatTimestamp = (lastSyncedAt: number) => {
     return format(date, "PP", { locale: es });
   }
 
-  return formatDistanceToNow(date, { locale: es, addSuffix: true });
+  return formatDistanceToNowStrict(date, { locale: es, addSuffix: true });
 };
