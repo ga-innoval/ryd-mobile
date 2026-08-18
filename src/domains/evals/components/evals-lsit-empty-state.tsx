@@ -11,6 +11,7 @@ interface EvalsListEmptyStateProps {
   onClearQuery: () => void;
   onDownloadData: () => void;
   downloading?: boolean;
+  filterValue?: string;
 }
 
 export function EvalsEmptyState({
@@ -18,6 +19,7 @@ export function EvalsEmptyState({
   searchQuery,
   onClearQuery,
   onDownloadData,
+  filterValue,
   downloading,
 }: EvalsListEmptyStateProps) {
   if (dataLength === 0) {
@@ -52,6 +54,14 @@ export function EvalsEmptyState({
             Limpiar búsqueda
           </Text>
         )}
+      />
+    );
+  }
+  if (filterValue) {
+    return (
+      <EmptyState
+        icon={SearchXIcon}
+        title={`No hay plantaciones ${filterValue}`}
       />
     );
   }
