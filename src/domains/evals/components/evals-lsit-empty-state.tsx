@@ -32,7 +32,7 @@ export function EvalsEmptyState({
             ) : (
               <Icon as={CloudDownloadIcon} />
             )}
-            <Text>{downloading ? "Sincronizando..." : "Sincronizar"}</Text>
+            <Text>{downloading ? "Descargando..." : "Descargar"}</Text>
           </Button>
         )}
       />
