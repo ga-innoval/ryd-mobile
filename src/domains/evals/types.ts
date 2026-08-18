@@ -41,3 +41,10 @@ export enum DownloadStatus {
   error = "error",
   notDownloaded = "notDownloaded",
 }
+
+export enum FilterValues {
+  todas = "todas",
+  sinIniciar = "sin iniciar",
+  iniciadas = "iniciadas",
+  pendientes = "pendientes",
+}
