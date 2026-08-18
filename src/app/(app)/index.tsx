@@ -10,18 +10,21 @@ import { filterAndMatchData } from "@/domains/evals/lib/filter-data";
 import { DownloadStatus } from "@/domains/evals/types";
 import { useDownloadStatus } from "@/domains/evals/hooks/use-download-status";
 import { useEvalsDataStore } from "@/domains/evals/store/data-store";
+import { useEvalsFilter } from "@/domains/evals/hooks/use-filter";
+import { ListFilter } from "@/domains/evals/components/list-filter";
 
 export default function Index() {
-  const { searchQuery, debouncedQuery, setSearchQuery, clearQuery } =
-    useSearchbar();
-
   const { data, fetching } = useEvalsDataStore();
   const { triggerDownload, status } = useDownloadStatus();
 
-  const filteredData = useMemo(
+  const { searchQuery, debouncedQuery, setSearchQuery, clearQuery } =
+    useSearchbar();
+  const filteredByText = useMemo(
     () => filterAndMatchData(data, debouncedQuery),
     [data, debouncedQuery],
   );
+  const { selectedFilter, setSelectedFilter, filterItems, filteredData } =
+    useEvalsFilter(filteredByText);
 
   const headerOptions = useMemo(
     () => ({
@@ -33,6 +36,31 @@ export default function Index() {
       ),
     }),
     [data.length, filteredData.length, fetching],
+  );
+
+  const listHeaderComponent = useMemo(
+    () => (
+      <ListFilter
+        selectedItem={selectedFilter}
+        onItemPress={setSelectedFilter}
+        items={filterItems}
+      />
+    ),
+    [selectedFilter, filterItems],
+  );
+
+  const emptyStateComponent = useMemo(
+    () => (
+      <EvalsEmptyState
+        dataLength={data.length}
+        searchQuery={debouncedQuery}
+        onClearQuery={clearQuery}
+        onDownloadData={triggerDownload}
+        downloading={status === DownloadStatus.downloading}
+        filterValue={selectedFilter}
+      />
+    ),
+    [data.length, debouncedQuery, clearQuery, triggerDownload, status],
   );
 
   return (
@@ -47,15 +75,8 @@ export default function Index() {
       </View>
       <EvalsList
         data={filteredData}
-        EmptyStateComponent={
-          <EvalsEmptyState
-            dataLength={data.length}
-            searchQuery={debouncedQuery}
-            onClearQuery={clearQuery}
-            onDownloadData={triggerDownload}
-            downloading={status === DownloadStatus.downloading}
-          />
-        }
+        ListHeaderComponent={listHeaderComponent}
+        ListEmptyComponent={emptyStateComponent}
       />
     </View>
   );
