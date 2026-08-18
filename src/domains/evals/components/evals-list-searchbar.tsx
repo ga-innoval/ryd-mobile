@@ -28,6 +28,7 @@ export function EvalsListSearchBar({
         returnKeyType="send"
         autoCapitalize="none"
         autoCorrect={false}
+        cursorColor={"#ffff"}
       />
       {query && (
         <Pressable
