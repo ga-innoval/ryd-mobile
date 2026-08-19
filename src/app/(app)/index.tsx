@@ -57,7 +57,6 @@ export default function Index() {
         onClearQuery={clearQuery}
         onDownloadData={triggerDownload}
         downloading={status === DownloadStatus.downloading}
-        filterValue={selectedFilter}
       />
     ),
     [data.length, debouncedQuery, clearQuery, triggerDownload, status],
