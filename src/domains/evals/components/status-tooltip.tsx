@@ -25,6 +25,7 @@ export function StatusTooltip({
       <TooltipTrigger
         ref={triggerRef}
         className="flex-row items-center gap-1.5"
+        hitSlop={8}
       >
         {children}
       </TooltipTrigger>
