@@ -1,6 +1,13 @@
-import { memo, type ReactNode, useCallback } from "react";
+import {
+  forwardRef,
+  memo,
+  ReactElement,
+  type ReactNode,
+  useCallback,
+} from "react";
+import Animated from "react-native-reanimated";
 import { ScrollView, View } from "react-native";
-import { FlashList, FlashListProps } from "@shopify/flash-list";
+import { FlashList, FlashListProps, FlashListRef } from "@shopify/flash-list";
 import {
   BoxIcon,
   ChevronRight,
@@ -14,13 +21,13 @@ import {
   type Evaluacion,
   SyncStatus,
 } from "../types";
+import { cn } from "@/lib/utils";
 
+import { EVALS_POST_COSECHA } from "../lib/evals-post-cosecha";
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { HighlightedText } from "@/components/highlighted-text";
-import { cn } from "@/lib/utils";
-import { EVALS_POST_COSECHA } from "../lib/evals-post-cosecha";
 
 const DATA_FIELD_CONFIG: {
   label: string;
@@ -188,10 +195,16 @@ export const EvaluacionCard = memo(function EvaluacionCard({
   );
 });
 
-export const EvalsList = ({
-  data,
-  ...props
-}: Omit<FlashListProps<EvaluacionWithMatch>, "renderItem">) => {
+// Animated.createAnimatedComponent no preserva el genérico de FlashList<T>,
+// por eso el cast explícito del tipo del componente resultante.
+const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as <T>(
+  props: FlashListProps<T> & { ref?: React.Ref<FlashListRef<T>> },
+) => ReactElement;
+
+export const EvalsList = forwardRef<
+  FlashListRef<EvaluacionWithMatch>,
+  Omit<FlashListProps<EvaluacionWithMatch>, "renderItem">
+>(({ data, ...props }, ref) => {
   const renderItem = useCallback(
     ({ item }: { item: EvaluacionWithMatch }) => (
       <EvaluacionCard item={item.evalItem} match={item.match} />
@@ -201,7 +214,8 @@ export const EvalsList = ({
   const renderItemSeparator = useCallback(() => <View className="h-4" />, []);
 
   return (
-    <FlashList
+    <AnimatedFlashList
+      ref={ref}
       contentContainerClassName="px-6 pb-10"
       renderItem={renderItem}
       keyExtractor={(item) => item.evalItem.id}
@@ -210,4 +224,6 @@ export const EvalsList = ({
       {...props}
     />
   );
-};
+});
+
+EvalsList.displayName = "EvalsList";
