@@ -21,7 +21,7 @@ export function ScrollToTopButton({ onPress, style }: ScrollToTopButtonProps) {
         accessibilityLabel="Volver arriba"
         className="w-12 h-12 rounded-full bg-primary items-center justify-center shadow-lg"
       >
-        <Icon as={ArrowUpIcon} size={20} className="text-primary-foreground" />
+        <Icon as={ArrowUpIcon} size={24} className="text-primary-foreground" />
       </Pressable>
     </Animated.View>
   );
