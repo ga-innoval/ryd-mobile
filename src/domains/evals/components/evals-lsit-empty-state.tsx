@@ -3,7 +3,7 @@ import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, Pressable } from "react-native";
 
 interface EvalsListEmptyStateProps {
   dataLength: number;
@@ -44,13 +44,9 @@ export function EvalsEmptyState({
         icon={SearchXIcon}
         title={`Sin resultados para "${searchQuery}"`}
         renderAction={() => (
-          <Text
-            className="text-primary font-bold"
-            onPress={onClearQuery}
-            accessibilityRole="button"
-          >
-            Limpiar búsqueda
-          </Text>
+          <Pressable hitSlop={8} onPress={onClearQuery}>
+            <Text className="text-primary font-bold">Limpiar búsqueda</Text>
+          </Pressable>
         )}
       />
     );
