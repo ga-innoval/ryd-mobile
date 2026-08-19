@@ -13,6 +13,7 @@ module.exports = {
         ring: "hsl(var(--ring))",
         background: "#f5f2eb",
         foreground: "#1c2e1a",
+        leaf: "#50a345",
         primary: {
           DEFAULT: "#2d5a27",
           foreground: "hsl(var(--primary-foreground))",

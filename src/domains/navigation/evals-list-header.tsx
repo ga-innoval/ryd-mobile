@@ -24,7 +24,7 @@ export function EvalsListHeader({
     <View style={{ paddingTop: insets.top + 28 }} className="bg-primary">
       <View className="flex-row items-center justify-between px-6 h-14">
         <View className="flex-row items-center gap-2">
-          <Icon as={Leaf} size={18} className="text-green-400" />
+          <Icon as={Leaf} size={18} className="text-leaf" />
           <Text className="text-primary-foreground font-bold">
             Captura Experimental
           </Text>
