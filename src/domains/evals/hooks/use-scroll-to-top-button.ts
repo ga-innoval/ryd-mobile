@@ -8,7 +8,7 @@ import {
 } from "react-native-reanimated";
 
 const SHOW_THRESHOLD_PX = 150;
-const DIRECTION_SENSITIVITY_PX = 4;
+const DIRECTION_SENSITIVITY_PX = 4; // Para no contemplar micro-scrolls
 
 export function useScrollToTopButton<T>() {
   const listRef = useRef<FlashListRef<T>>(null);
@@ -18,18 +18,21 @@ export function useScrollToTopButton<T>() {
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
+      // Px que el usuario ha recorrido hacia abajo. (0 = top de la lista)
       const currentY = event.contentOffset.y;
+      // Diferencia de cuánto cambió el scroll desde la última vez que se ejecutó el handler.
+      // Si diff es positivo, el usuario scrolleó hacia abajo
       const diff = currentY - prevScrollY.value;
-      const pastThreshold = currentY > SHOW_THRESHOLD_PX;
-      const scrollingUp = diff < -DIRECTION_SENSITIVITY_PX;
 
-      // Se muestra en cuanto pasa el umbral (sin importar si sigue en
+      const pastThreshold = currentY > SHOW_THRESHOLD_PX;
+
+      // Se muestra en cuanto pasa el treshhold (sin importar si sigue en
       // movimiento, cubre el caso de llegar al fondo y detenerse ahí).
       // Se oculta solo si el usuario vuelve activamente hacia el top,
-      // o si ya está lo bastante cerca de él.
+      // o si ya está lo suficientemente cerca de él.
       if (pastThreshold) {
         isVisible.value = withTiming(1, { duration: 200 });
-      } else if (scrollingUp || !pastThreshold) {
+      } else {
         isVisible.value = withTiming(0, { duration: 200 });
       }
 
