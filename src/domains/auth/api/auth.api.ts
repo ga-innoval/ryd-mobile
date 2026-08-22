@@ -3,7 +3,7 @@ import { LoginResponse } from "../types";
 
 export const loginRequest = (username: string, password: string) =>
   authClient
-    .post<LoginResponse>("/api/token/", { username, password })
+    .post<LoginResponse>("/api/signin/", { username, password })
     .then((r) => r.data);
 
 export const refreshRequest = (refresh: string) =>

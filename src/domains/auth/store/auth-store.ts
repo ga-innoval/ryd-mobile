@@ -15,6 +15,13 @@ type AuthState = {
   refreshAccessToken: () => Promise<string>;
 };
 
+const getUserFullName = (firstName: string, lastName: string): string => {
+  if (!firstName || !lastName) {
+    return "";
+  }
+  return firstName + " " + lastName;
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   refreshToken: null,
@@ -41,11 +48,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const {
       token: { access, refresh },
       id,
-      name,
+      first_name,
+      last_name,
       username: remoteUsername,
       initials,
     } = await loginRequest(username, password);
-    const user = { id, name, username: remoteUsername, initials };
+    const user = {
+      id,
+      fullName: getUserFullName(first_name, last_name),
+      username: remoteUsername,
+      initials,
+    };
 
     await Promise.all([
       await secureStorage.setTokens(access, refresh),

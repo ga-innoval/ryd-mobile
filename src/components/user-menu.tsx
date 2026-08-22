@@ -45,7 +45,7 @@ export function UserMenu() {
               initials={user?.initials}
             />
             <View className="flex-1">
-              <Text className="font-medium leading-5">{user?.name}</Text>
+              <Text className="font-medium leading-5">{user?.fullName}</Text>
               <Text className="text-muted-foreground text-sm font-normal leading-4">
                 @{user?.username}
               </Text>
