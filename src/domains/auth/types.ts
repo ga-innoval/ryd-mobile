@@ -6,10 +6,15 @@ export interface TokenPair {
 }
 
 export interface User {
-  id: number;
-  name: string;
+  id: string;
+  fullName: string;
   username: string;
   initials: string;
 }
 
-export type LoginResponse = TokenPair & User;
+interface RemoteUser extends Omit<User, "fullName"> {
+  first_name: string;
+  last_name: string;
+}
+
+export type LoginResponse = TokenPair & RemoteUser;

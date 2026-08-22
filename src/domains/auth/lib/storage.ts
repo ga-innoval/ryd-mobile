@@ -23,8 +23,8 @@ export const secureStorage = {
 const USER_KEY = "auth_user";
 
 const userSchema = z.object({
-  id: z.number(),
-  name: z.string(),
+  id: z.string(),
+  fullName: z.string(),
   username: z.string(),
   initials: z.string(),
 });
