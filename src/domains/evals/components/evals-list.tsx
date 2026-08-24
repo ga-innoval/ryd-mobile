@@ -6,14 +6,9 @@ import {
   useCallback,
 } from "react";
 import Animated from "react-native-reanimated";
-import { ScrollView, View } from "react-native";
+import { RefreshControl, ScrollView, View } from "react-native";
 import { FlashList, FlashListProps, FlashListRef } from "@shopify/flash-list";
-import {
-  BoxIcon,
-  ChevronRight,
-  LeafIcon,
-  LucideIcon,
-} from "lucide-react-native";
+import { BoxIcon, LeafIcon, LucideIcon } from "lucide-react-native";
 import {
   type EvaluacionWithMatch,
   type FieldMatch,
@@ -28,6 +23,7 @@ import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { HighlightedText } from "@/components/highlighted-text";
+import { Separator } from "@/components/ui/separator";
 
 const DATA_FIELD_CONFIG: {
   label: string;
@@ -80,19 +76,22 @@ export const CardRecordSection = ({
   return (
     <View
       className={cn(
-        "flex-row h-24 px-6 items-center",
+        "flex-row h-24 px-4 items-center",
         SECTION_VARIANT_STYLES[variant],
       )}
     >
-      <View className="flex-row items-center gap-2 w-36">
+      <View className="flex-row items-center gap-1 w-36">
         <Icon as={icon} />
-        <Text className="font-medium uppercase">{label}</Text>
+        <Text variant="small" className="font-medium uppercase">
+          {label}
+        </Text>
       </View>
+      <Separator orientation="vertical" decorative className="h-16 -ml-1" />
       <ScrollView
         showsHorizontalScrollIndicator={false}
         horizontal
-        className="ml-4 -mr-6"
-        contentContainerClassName="gap-4 flex-grow pr-6"
+        className="-mr-6"
+        contentContainerClassName="gap-4 flex-grow pl-4 pr-6"
       >
         {children}
       </ScrollView>
@@ -109,7 +108,7 @@ const CardHeader = ({
 }) => {
   return (
     <View className="flex-row justify-between items-center pr-6">
-      <View className="px-6 py-6 gap-2">
+      <View className="px-4 py-4 gap-2">
         <View className="flex-row gap-2">
           <HighlightedText
             variant="large"
@@ -130,7 +129,7 @@ const CardHeader = ({
             </Badge>
           )}
         </View>
-        <View className="flex-row flex-wrap gap-6">
+        <View className="flex-row flex-wrap gap-4">
           {DATA_FIELD_CONFIG.map(({ label, key }) => (
             <DataField
               key={key}
@@ -141,7 +140,6 @@ const CardHeader = ({
           ))}
         </View>
       </View>
-      <Icon size={20} as={ChevronRight} />
     </View>
   );
 };
@@ -183,7 +181,7 @@ export const EvaluacionCard = memo(function EvaluacionCard({
             <View
               key={id}
               testID={`post-cosecha-${id}`}
-              className="rounded-xl border-2 border-border py-2 p-6 items-center"
+              className="rounded-xl border-2 border-border py-2 items-center w-28"
             >
               <Text className="font-medium">{title}</Text>
               <Text variant="muted">{subtitle}</Text>
@@ -216,11 +214,18 @@ export const EvalsList = forwardRef<
   return (
     <AnimatedFlashList
       ref={ref}
-      contentContainerClassName="px-6 pb-10"
+      contentContainerClassName="px-4 pb-10"
       renderItem={renderItem}
       keyExtractor={(item) => item.evalItem.id}
       ItemSeparatorComponent={renderItemSeparator}
       data={data}
+      refreshControl={
+        <RefreshControl
+          colors={["#2d5a27"]}
+          tintColor={"#7cb87a"}
+          refreshing={false}
+        />
+      }
       {...props}
     />
   );

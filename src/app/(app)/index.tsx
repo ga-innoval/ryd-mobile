@@ -76,7 +76,7 @@ export default function Index() {
   return (
     <View className="flex-1 bg-background">
       <Stack.Screen options={headerOptions} />
-      <View className="bg-primary px-6 pb-6">
+      <View className="bg-primary px-4 pb-4">
         <EvalsListSearchBar
           query={searchQuery}
           onQueryChange={setSearchQuery}

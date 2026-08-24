@@ -18,7 +18,7 @@ export function EmptyState({
   renderAction,
 }: EmptyStateProps) {
   return (
-    <View className="flex-1 items-center justify-center py-24 px-6 gap-2">
+    <View className="flex-1 items-center justify-center py-24 px-4 gap-2">
       {icon && <Icon as={icon} size={48} className="opacity-45 mb-1" />}
 
       <Text className="font-medium text-center">{title}</Text>
