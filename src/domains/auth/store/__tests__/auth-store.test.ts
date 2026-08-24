@@ -63,7 +63,12 @@ describe("logout()", () => {
       accessToken: "old-token",
       refreshToken: "old-refresh",
       isAuthenticated: true,
-      user: { id: 1, name: "name", username: "user-name", initials: "u" },
+      user: {
+        id: "c42b40e9-a770-4b34-b978-115c6547b751",
+        fullName: "full user name",
+        username: "user-name",
+        initials: "u",
+      },
     });
 
     await useAuthStore.getState().logout();
