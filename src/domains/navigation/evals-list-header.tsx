@@ -22,12 +22,10 @@ export function EvalsListHeader({
 
   return (
     <View style={{ paddingTop: insets.top + 28 }} className="bg-primary">
-      <View className="flex-row items-center justify-between px-6 h-14">
+      <View className="flex-row items-center justify-between px-4 h-14">
         <View className="flex-row items-center gap-2">
           <Icon as={Leaf} size={18} className="text-leaf" />
-          <Text className="text-primary-foreground font-bold">
-            Captura Experimental
-          </Text>
+          <Text className="text-primary-foreground font-bold">CapExp</Text>
           {section && (
             <>
               <Text className="text-primary-foreground/40">/</Text>

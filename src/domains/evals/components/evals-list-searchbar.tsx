@@ -18,7 +18,7 @@ export function EvalsListSearchBar({
     <View className="flex-row items-center bg-primary-foreground/15 border border-primary-foreground/30 rounded-xl px-4">
       <Icon className="text-primary-foreground/60" size={16} as={SearchIcon} />
       <Input
-        className="bg-transparent border-0 text-primary-foreground placeholder:text-primary-foreground/60 max-w-3xl"
+        className="bg-transparent border-0 text-primary-foreground placeholder:text-primary-foreground/60 flex-shrink"
         value={query}
         onChangeText={onQueryChange}
         accessibilityLabel="Buscar evaluaciones"
