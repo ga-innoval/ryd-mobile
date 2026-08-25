@@ -4,20 +4,12 @@ import { Text } from "@/components/ui/text";
 import { LoginHero } from "@/domains/auth/components/login-hero";
 import { LoginForm } from "@/domains/auth/components/login-form";
 import { app } from "@/lib/app-metadata";
-import { useScreenOrientation } from "@/hooks/use-screen-orientation";
 import { useLoginAnimations } from "@/domains/auth/hooks/use-login-animations";
-
-const HERO_HEIGHT = {
-  landscape: 320,
-  portrait: 640,
-};
+import { useHeroHeight } from "@/domains/auth/hooks/use-hero-height";
 
 export default function LoginPage() {
-  const { orientation } = useScreenOrientation();
-  const heroHeight = HERO_HEIGHT[orientation];
-
-  const { heroAnimatedStyle, formAnimatedStyle } =
-    useLoginAnimations(heroHeight);
+  const heroHeight = useHeroHeight();
+  const { heroAnimatedStyle, formAnimatedStyle } = useLoginAnimations();
 
   return (
     <View className="flex-1">
@@ -25,11 +17,11 @@ export default function LoginPage() {
         <LoginHero />
       </Animated.View>
       <Animated.View
-        className="flex-1 items-center justify-center"
+        className="flex-1 items-center justify-center bg-white"
         style={formAnimatedStyle}
       >
         <LoginForm />
-        <View className="p-6 items-center">
+        <View className="items-center">
           <Text variant="muted">
             {app.name} {app.version} © {app.developer}
           </Text>

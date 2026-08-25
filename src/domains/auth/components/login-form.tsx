@@ -35,7 +35,7 @@ export function LoginForm() {
   };
 
   return (
-    <View className="p-6 gap-6 w-full max-w-xl">
+    <View className="p-4 gap-4 w-full max-w-xl">
       <View className="gap-2">
         <Text className="text-green-700 tracking-widest">BIENVENIDO</Text>
         <Text variant="h3">Inicio de sesión</Text>

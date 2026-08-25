@@ -1,36 +1,21 @@
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import {
+  useAnimatedStyle,
   Extrapolation,
   interpolate,
-  useAnimatedStyle,
-  useDerivedValue,
 } from "react-native-reanimated";
 
-export function useLoginAnimations(heroHeight: number) {
-  const { progress } = useReanimatedKeyboardAnimation();
+export function useLoginAnimations() {
+  const { height, progress } = useReanimatedKeyboardAnimation();
 
-  const translateY = useDerivedValue(() =>
-    interpolate(progress.value, [0, 1], [0, -heroHeight], Extrapolation.CLAMP),
-  );
+  const heroAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: height.value }],
+    opacity: interpolate(progress.value, [0, 1], [1, 0], Extrapolation.CLAMP),
+  }));
 
-  const heroAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      progress.value,
-      [0, 1],
-      [1, 0],
-      Extrapolation.CLAMP,
-    );
-    return {
-      transform: [{ translateY: translateY.value }],
-      opacity,
-    };
-  });
-
-  const formAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: translateY.value }],
-    };
-  });
+  const formAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: height.value }],
+  }));
 
   return { heroAnimatedStyle, formAnimatedStyle };
 }
