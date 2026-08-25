@@ -81,7 +81,7 @@ export function SyncBlock({ disabled }: SyncBlockProps) {
   };
 
   return (
-    <>
+    <View className="flex-row items-center gap-2">
       {showSyncedTooltip ? (
         <StatusTooltip
           onOpenChange={handleTooltipOpenChange}
@@ -112,6 +112,6 @@ export function SyncBlock({ disabled }: SyncBlockProps) {
         onPress={triggerSync}
         disabled={disabled}
       />
-    </>
+    </View>
   );
 }
