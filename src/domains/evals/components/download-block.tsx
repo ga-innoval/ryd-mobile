@@ -1,3 +1,4 @@
+import { View } from "react-native";
 import { CloudDownloadIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { IconButton } from "@/components/ui/icon-button";
@@ -93,7 +94,7 @@ export function DownloadBlock({
   };
 
   return (
-    <>
+    <View className="flex-row items-center gap-2">
       <StatusTooltip
         triggerRef={triggerRef}
         onOpenChange={handleTooltipOpenChange}
@@ -126,6 +127,6 @@ export function DownloadBlock({
           className="text-primary-foreground"
         />
       </IconButton>
-    </>
+    </View>
   );
 }
