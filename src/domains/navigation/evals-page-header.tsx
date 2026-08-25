@@ -7,17 +7,17 @@ import { UserMenu } from "@/components/user-menu";
 import { SyncBlock } from "../evals/components/sync-block";
 import { DownloadBlock } from "../evals/components/download-block";
 
-type AppHeaderProps = {
+type EvalsPageHeaderProps = {
   section?: string;
   loadedCount?: number;
   totalCount: number;
 };
 
-export function EvalsListHeader({
+export function EvalsPageHeader({
   section,
   loadedCount,
   totalCount,
-}: AppHeaderProps) {
+}: EvalsPageHeaderProps) {
   const insets = useSafeAreaInsets();
 
   return (

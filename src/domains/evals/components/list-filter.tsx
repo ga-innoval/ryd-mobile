@@ -61,7 +61,7 @@ export function ListFilter({
   items,
 }: ListFilterProps) {
   return (
-    <View className="flex flex-row gap-2 py-3">
+    <View className="flex flex-row gap-2">
       {items.map(({ label, value, count }) => (
         <ToggleItem
           key={label}

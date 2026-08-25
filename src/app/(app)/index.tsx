@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { Stack } from "expo-router";
 import { EvalsEmptyState } from "@/domains/evals/components/evals-lsit-empty-state";
 import { EvalsList } from "@/domains/evals/components/evals-list";
-import { EvalsListHeader } from "@/domains/navigation/evals-list-header";
+import { EvalsPageHeader } from "@/domains/navigation/evals-page-header";
 import { EvalsListSearchBar } from "@/domains/evals/components/evals-list-searchbar";
 import { useSearchbar } from "@/domains/evals/hooks/use-searchbar";
 import { filterAndMatchData } from "@/domains/evals/lib/filter-data";
@@ -11,9 +11,9 @@ import { DownloadStatus, EvaluacionWithMatch } from "@/domains/evals/types";
 import { useDownloadStatus } from "@/domains/evals/hooks/use-download-status";
 import { useEvalsDataStore } from "@/domains/evals/store/data-store";
 import { useEvalsFilter } from "@/domains/evals/hooks/use-filter";
-import { ListFilter } from "@/domains/evals/components/list-filter";
 import { useScrollToTopButton } from "@/domains/evals/hooks/use-scroll-to-top-button";
 import { ScrollToTopButton } from "@/domains/evals/components/scroll-to-top-button";
+import { ListHeader } from "@/domains/evals/components/list-header";
 
 export default function Index() {
   const { data, fetching } = useEvalsDataStore();
@@ -40,7 +40,7 @@ export default function Index() {
   const headerOptions = useMemo(
     () => ({
       header: () => (
-        <EvalsListHeader
+        <EvalsPageHeader
           loadedCount={filteredData.length}
           totalCount={data.length}
         />
@@ -51,10 +51,10 @@ export default function Index() {
 
   const listHeaderComponent = useMemo(
     () => (
-      <ListFilter
-        selectedItem={selectedFilter}
-        onItemPress={setSelectedFilter}
-        items={filterItems}
+      <ListHeader
+        filterItems={filterItems}
+        selectedFilter={selectedFilter}
+        setSelectedFilter={setSelectedFilter}
       />
     ),
     [selectedFilter, filterItems],
