@@ -21,7 +21,7 @@ export function EvalsListHeader({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={{ paddingTop: insets.top + 28 }} className="bg-primary">
+    <View style={{ paddingTop: insets.top + 16 }} className="bg-primary">
       <View className="flex-row items-center justify-between px-4 h-14">
         <View className="flex-row items-center gap-2">
           <Icon as={Leaf} size={18} className="text-leaf" />
