@@ -163,9 +163,11 @@ export const EvaluacionCard = memo(function EvaluacionCard({
           {item.tratamientos.map((trat, index) => (
             <View
               key={trat.name + index}
-              className="w-16 h-16 rounded-xl items-center justify-center border-2 border-border"
+              className="w-28 h-16 rounded-xl items-center justify-center border-2 border-border flex-row relative overflow-hidden"
             >
-              <Text className="font-medium">{index + 1}</Text>
+              <Text numberOfLines={1} className="font-medium max-w-24">
+                {trat.name}
+              </Text>
             </View>
           ))}
           {item.tratamientos.length === 0 && (
@@ -181,7 +183,7 @@ export const EvaluacionCard = memo(function EvaluacionCard({
             <View
               key={id}
               testID={`post-cosecha-${id}`}
-              className="rounded-xl border-2 border-border py-2 items-center w-28"
+              className="w-28 rounded-xl border-2 border-border py-2 items-center"
             >
               <Text className="font-medium">{title}</Text>
               <Text variant="muted">{subtitle}</Text>
@@ -221,8 +223,8 @@ export const EvalsList = forwardRef<
       data={data}
       refreshControl={
         <RefreshControl
-          colors={["#2d5a27"]}
-          tintColor={"#7cb87a"}
+          colors={["#1c2e1a"]}
+          tintColor={"#1c2e1a"}
           refreshing={false}
         />
       }

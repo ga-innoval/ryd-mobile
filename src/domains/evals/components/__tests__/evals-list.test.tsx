@@ -28,14 +28,14 @@ describe("<EvaluacionCard />", () => {
 
   it("renders tratamiento items", async () => {
     const item = buildEvaluacion({
-      tratamiento: [{ name: "A" }, { name: "B" }, { name: "C" }],
+      tratamientos: [{ name: "A" }, { name: "B" }, { name: "C" }],
     });
 
     const { getByText } = await render(<EvaluacionCard item={item} />);
 
-    expect(getByText("1")).toBeOnTheScreen();
-    expect(getByText("2")).toBeOnTheScreen();
-    expect(getByText("3")).toBeOnTheScreen();
+    expect(getByText("A")).toBeOnTheScreen();
+    expect(getByText("B")).toBeOnTheScreen();
+    expect(getByText("C")).toBeOnTheScreen();
   });
 
   it("renders message if no tratamientos", async () => {
