@@ -24,7 +24,7 @@ export function EvalsEmptyState({
     return (
       <EmptyState
         icon={FileXIcon}
-        title="No hay evaluaciones registradas en tu dispositivo"
+        title="No hay plantaciones registradas en tu dispositivo"
         renderAction={() => (
           <Button disabled={downloading} onPress={onDownloadData}>
             {downloading ? (
