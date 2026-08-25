@@ -16,6 +16,7 @@ import type { TriggerRef } from "@rn-primitives/popover";
 import { SettingsIcon } from "lucide-react-native";
 import { useRef } from "react";
 import { View } from "react-native";
+import { app } from "@/lib/app-metadata";
 
 const POPOVER_CLOSE_DELAY_MS = 300;
 
@@ -40,18 +41,18 @@ export function UserMenu() {
         <View className="border-border gap-3 border-b p-3">
           <View className="flex-row items-center gap-3">
             <UserAvatar
-              className="size-10"
+              className="size-8"
               nickname={user?.username}
               initials={user?.initials}
             />
             <View className="flex-1">
               <Text className="font-medium leading-5">{user?.fullName}</Text>
-              <Text className="text-muted-foreground text-sm font-normal leading-4">
+              <Text className="text-muted-foreground text-sm font-normal leading-4 uppercase">
                 @{user?.username}
               </Text>
             </View>
           </View>
-          <View className="flex-row flex-wrap gap-3 py-0.5">
+          <View className="flex-row flex-wrap gap-3 py-1">
             <Button
               variant="outline"
               onPress={() => {
@@ -64,6 +65,9 @@ export function UserMenu() {
             </Button>
             <LogoutButton loading={loggingOut} onLogOut={onLogOut} />
           </View>
+          <Text className="text-muted-foreground/70 text-sm self-centar -my-1">
+            {app.name} v{app.version}
+          </Text>
         </View>
       </PopoverContent>
     </Popover>
