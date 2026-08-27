@@ -7,21 +7,13 @@ export enum SyncStatus {
   unsynced = "unsynced",
 }
 
-export interface Plant {
-  id: string;
-  name: string;
-  campo: string;
-  cuadro: string;
-  programa: string;
-  patron: string;
-  anio: string | number;
+export interface Plant extends PlantRecord {
   tratamientos: { name: string }[];
   progress: number;
-  syncStatus: SyncStatus;
 }
 
 export type MatchableField =
-  "name" | "campo" | "cuadro" | "programa" | "patron" | "anio";
+  "name" | "campo" | "cuadro" | "programa" | "portainjerto" | "anio";
 
 export interface FieldMatch {
   field: MatchableField;
@@ -47,4 +39,15 @@ export enum FilterValues {
   sinIniciar = "sin iniciar",
   iniciadas = "iniciadas",
   pendientes = "pendientes",
+}
+
+export interface PlantRecord {
+  id: string;
+  name: string;
+  campo: string;
+  cuadro: string;
+  programa: string;
+  portainjerto: string;
+  anio: number;
+  syncStatus: SyncStatus;
 }
