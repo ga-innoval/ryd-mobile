@@ -6,7 +6,7 @@ import {
   useCallback,
 } from "react";
 import Animated from "react-native-reanimated";
-import { RefreshControl, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { FlashList, FlashListProps, FlashListRef } from "@shopify/flash-list";
 import { BoxIcon, LeafIcon, LucideIcon } from "lucide-react-native";
 import {
@@ -32,7 +32,7 @@ const DATA_FIELD_CONFIG: {
   { label: "Campo", key: "campo" },
   { label: "Cuadro", key: "cuadro" },
   { label: "Programa", key: "programa" },
-  { label: "Patrón", key: "patron" },
+  { label: "Patrón", key: "portainjerto" },
   { label: "Año", key: "anio" },
 ];
 
@@ -215,13 +215,6 @@ export const List = forwardRef<
       keyExtractor={(item) => item.plantItem.id}
       ItemSeparatorComponent={renderItemSeparator}
       data={data}
-      refreshControl={
-        <RefreshControl
-          colors={["#1c2e1a"]}
-          tintColor={"#1c2e1a"}
-          refreshing={false}
-        />
-      }
       {...props}
     />
   );

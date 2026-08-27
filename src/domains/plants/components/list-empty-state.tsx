@@ -3,9 +3,11 @@ import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
-import { ActivityIndicator, Pressable } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
+import { PlantCardSkeleton } from "./plant-card-skeleton";
 
 interface ListEmptyStateProps {
+  isLoading: boolean;
   dataLength: number;
   searchQuery: string;
   onClearQuery: () => void;
@@ -14,12 +16,23 @@ interface ListEmptyStateProps {
 }
 
 export function ListEmptyState({
+  isLoading,
   dataLength,
   searchQuery,
   onClearQuery,
   onDownloadData,
   downloading,
 }: ListEmptyStateProps) {
+  if (isLoading) {
+    return (
+      <View className="gap-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <PlantCardSkeleton key={i} />
+        ))}
+      </View>
+    );
+  }
+
   if (dataLength === 0) {
     return (
       <EmptyState
