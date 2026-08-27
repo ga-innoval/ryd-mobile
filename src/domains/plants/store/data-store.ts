@@ -1,21 +1,21 @@
 import { create } from "zustand";
-import { Evaluacion } from "../types";
+import { Plant } from "../types";
 import { delay } from "@/lib/delay";
-import { MOCK_EVALS_DATA } from "../lib/mock-data";
+import { MOCK_PLANTS_DATA } from "../lib/mock-data";
 
-interface EvalsDataState {
-  data: Evaluacion[];
+interface PlantsDataState {
+  data: Plant[];
   fetching: boolean;
   fetchLocalData: () => Promise<void>;
 }
 
-export const useEvalsDataStore = create<EvalsDataState>((set) => ({
+export const usePlantsDataStore = create<PlantsDataState>((set) => ({
   data: [],
   fetching: false,
   fetchLocalData: async () => {
     set({ fetching: true });
     await delay(500);
     // to do: reemplazar por lectura real de expo-sqlite
-    set({ data: MOCK_EVALS_DATA, fetching: false });
+    set({ data: MOCK_PLANTS_DATA, fetching: false });
   },
 }));

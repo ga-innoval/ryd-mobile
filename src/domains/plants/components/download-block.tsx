@@ -118,7 +118,7 @@ export function DownloadBlock({
       <IconButton
         disabled={isDownloading}
         accessibilityRole="button"
-        accessibilityLabel="Descargar evaluaciones"
+        accessibilityLabel="Descargar plantaciones"
         onPress={handleDownload}
       >
         <Icon

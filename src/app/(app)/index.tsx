@@ -1,26 +1,26 @@
 import { useEffect, useMemo } from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
-import { EvalsEmptyState } from "@/domains/evals/components/evals-lsit-empty-state";
-import { EvalsList } from "@/domains/evals/components/evals-list";
-import { EvalsPageHeader } from "@/domains/navigation/evals-page-header";
-import { EvalsListSearchBar } from "@/domains/evals/components/evals-list-searchbar";
-import { useSearchbar } from "@/domains/evals/hooks/use-searchbar";
-import { filterAndMatchData } from "@/domains/evals/lib/filter-data";
-import { DownloadStatus, EvaluacionWithMatch } from "@/domains/evals/types";
-import { useDownloadStatus } from "@/domains/evals/hooks/use-download-status";
-import { useEvalsDataStore } from "@/domains/evals/store/data-store";
-import { useEvalsFilter } from "@/domains/evals/hooks/use-filter";
-import { useScrollToTopButton } from "@/domains/evals/hooks/use-scroll-to-top-button";
-import { ScrollToTopButton } from "@/domains/evals/components/scroll-to-top-button";
-import { ListHeader } from "@/domains/evals/components/list-header";
+import { ListEmptyState } from "@/domains/plants/components/list-empty-state";
+import { List } from "@/domains/plants/components/list";
+import { PlantsPageHeader } from "@/domains/navigation/plants-page-header";
+import { ListSearchBar } from "@/domains/plants/components/list-searchbar";
+import { useSearchbar } from "@/domains/plants/hooks/use-searchbar";
+import { filterAndMatchData } from "@/domains/plants/lib/filter-data";
+import { DownloadStatus, PlantWithMatch } from "@/domains/plants/types";
+import { useDownloadStatus } from "@/domains/plants/hooks/use-download-status";
+import { usePlantsDataStore } from "@/domains/plants/store/data-store";
+import { usePlantsFilter } from "@/domains/plants/hooks/use-plants-filter";
+import { useScrollToTopButton } from "@/domains/plants/hooks/use-scroll-to-top-button";
+import { ScrollToTopButton } from "@/domains/plants/components/scroll-to-top-button";
+import { ListHeader } from "@/domains/plants/components/list-header";
 
 export default function Index() {
-  const { data, fetching } = useEvalsDataStore();
+  const { data, fetching } = usePlantsDataStore();
   const { triggerDownload, status } = useDownloadStatus();
 
   const { listRef, scrollHandler, buttonAnimatedStyle, scrollToTop } =
-    useScrollToTopButton<EvaluacionWithMatch>();
+    useScrollToTopButton<PlantWithMatch>();
 
   const { searchQuery, debouncedQuery, setSearchQuery, clearQuery } =
     useSearchbar();
@@ -31,7 +31,7 @@ export default function Index() {
   );
 
   const { selectedFilter, setSelectedFilter, filterItems, filteredData } =
-    useEvalsFilter(filteredByText);
+    usePlantsFilter(filteredByText);
 
   useEffect(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
@@ -40,7 +40,7 @@ export default function Index() {
   const headerOptions = useMemo(
     () => ({
       header: () => (
-        <EvalsPageHeader
+        <PlantsPageHeader
           loadedCount={filteredData.length}
           totalCount={data.length}
         />
@@ -62,7 +62,7 @@ export default function Index() {
 
   const emptyStateComponent = useMemo(
     () => (
-      <EvalsEmptyState
+      <ListEmptyState
         dataLength={data.length}
         searchQuery={debouncedQuery}
         onClearQuery={clearQuery}
@@ -77,13 +77,13 @@ export default function Index() {
     <View className="flex-1 bg-background">
       <Stack.Screen options={headerOptions} />
       <View className="bg-primary px-4 pb-4">
-        <EvalsListSearchBar
+        <ListSearchBar
           query={searchQuery}
           onQueryChange={setSearchQuery}
           onCleaQuery={clearQuery}
         />
       </View>
-      <EvalsList
+      <List
         ref={listRef}
         data={filteredData}
         onScroll={scrollHandler}

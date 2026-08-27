@@ -1,6 +1,6 @@
 import type {
-  Evaluacion,
-  EvaluacionWithMatch,
+  Plant,
+  PlantWithMatch,
   FieldMatch,
   MatchableField,
 } from "../types";
@@ -21,7 +21,7 @@ const MATCHABLE_FIELDS: MatchableField[] = [
 ];
 
 export const findFirstMatch = (
-  item: Evaluacion,
+  item: Plant,
   query: string,
 ): FieldMatch | undefined => {
   const normalizedQuery = normalize(query);
@@ -38,19 +38,19 @@ export const findFirstMatch = (
 };
 
 export const filterAndMatchData = (
-  data: Evaluacion[],
+  data: Plant[],
   query: string,
-): EvaluacionWithMatch[] => {
+): PlantWithMatch[] => {
   const trimmed = query.trim();
 
   if (!trimmed) {
-    return data.map((evalItem) => ({ evalItem }));
+    return data.map((plantItem) => ({ plantItem }));
   }
 
   return data
-    .map((evalItem) => ({
-      evalItem,
-      match: findFirstMatch(evalItem, trimmed),
+    .map((plantItem) => ({
+      plantItem,
+      match: findFirstMatch(plantItem, trimmed),
     }))
     .filter((result) => result.match !== undefined);
 };

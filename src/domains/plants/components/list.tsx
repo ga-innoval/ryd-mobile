@@ -10,10 +10,10 @@ import { RefreshControl, ScrollView, View } from "react-native";
 import { FlashList, FlashListProps, FlashListRef } from "@shopify/flash-list";
 import { BoxIcon, LeafIcon, LucideIcon } from "lucide-react-native";
 import {
-  type EvaluacionWithMatch,
+  type PlantWithMatch,
   type FieldMatch,
   type MatchableField,
-  type Evaluacion,
+  type Plant,
   SyncStatus,
 } from "../types";
 import { cn } from "@/lib/utils";
@@ -99,13 +99,7 @@ export const CardRecordSection = ({
   );
 };
 
-const CardHeader = ({
-  item,
-  match,
-}: {
-  item: Evaluacion;
-  match?: FieldMatch;
-}) => {
+const CardHeader = ({ item, match }: { item: Plant; match?: FieldMatch }) => {
   return (
     <View className="flex-row justify-between items-center pr-6">
       <View className="px-4 py-4 gap-2">
@@ -144,11 +138,11 @@ const CardHeader = ({
   );
 };
 
-export const EvaluacionCard = memo(function EvaluacionCard({
+export const PlantCard = memo(function PlantCard({
   item,
   match,
 }: {
-  item: Evaluacion;
+  item: Plant;
   match?: FieldMatch;
 }) {
   return (
@@ -201,13 +195,13 @@ const AnimatedFlashList = Animated.createAnimatedComponent(FlashList) as <T>(
   props: FlashListProps<T> & { ref?: React.Ref<FlashListRef<T>> },
 ) => ReactElement;
 
-export const EvalsList = forwardRef<
-  FlashListRef<EvaluacionWithMatch>,
-  Omit<FlashListProps<EvaluacionWithMatch>, "renderItem">
+export const List = forwardRef<
+  FlashListRef<PlantWithMatch>,
+  Omit<FlashListProps<PlantWithMatch>, "renderItem">
 >(({ data, ...props }, ref) => {
   const renderItem = useCallback(
-    ({ item }: { item: EvaluacionWithMatch }) => (
-      <EvaluacionCard item={item.evalItem} match={item.match} />
+    ({ item }: { item: PlantWithMatch }) => (
+      <PlantCard item={item.plantItem} match={item.match} />
     ),
     [],
   );
@@ -218,7 +212,7 @@ export const EvalsList = forwardRef<
       ref={ref}
       contentContainerClassName="px-4 pb-10"
       renderItem={renderItem}
-      keyExtractor={(item) => item.evalItem.id}
+      keyExtractor={(item) => item.plantItem.id}
       ItemSeparatorComponent={renderItemSeparator}
       data={data}
       refreshControl={
@@ -233,4 +227,4 @@ export const EvalsList = forwardRef<
   );
 });
 
-EvalsList.displayName = "EvalsList";
+List.displayName = "List";
