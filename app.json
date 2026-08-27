@@ -41,7 +41,8 @@
         {
           "initialOrientation": "DEFAULT"
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "extra": {
       "router": {},
