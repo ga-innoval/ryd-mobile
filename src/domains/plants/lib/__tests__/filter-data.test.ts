@@ -53,7 +53,7 @@ describe("findFirstMatch", () => {
   it("respeta el orden de MATCHABLE_FIELDS cuando varios campos matchean", () => {
     // si el query aparece tanto en `name` como en `campo`, debe ganar
     // el que esté primero en MATCHABLE_FIELDS, no el primero alfabético/casual
-    const item = buildPlant({ name: "1004-Freedom", patron: "Freedom" });
+    const item = buildPlant({ name: "1004-Freedom", portainjerto: "Freedom" });
     const match = findFirstMatch(item, "freedom");
 
     expect(match?.field).toBe("name");
@@ -71,10 +71,10 @@ describe("findFirstMatch", () => {
   });
 
   it("matchea sin distinguir mayúsculas ni acentos", () => {
-    const item = buildPlant({ patron: "SO4" });
+    const item = buildPlant({ portainjerto: "SO4" });
     const match = findFirstMatch(item, "so4");
 
-    expect(match?.field).toBe("patron");
+    expect(match?.field).toBe("portainjerto");
   });
 
   it("convierte campos no-string (ej. año) antes de comparar", () => {

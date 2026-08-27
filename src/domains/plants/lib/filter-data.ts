@@ -16,7 +16,7 @@ const MATCHABLE_FIELDS: MatchableField[] = [
   "campo",
   "cuadro",
   "programa",
-  "patron",
+  "portainjerto",
   "anio",
 ];
 

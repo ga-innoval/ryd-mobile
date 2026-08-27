@@ -1,37 +1,21 @@
-import { delay } from "@/lib/delay";
 import { create } from "zustand";
-import { usePlantsDataStore } from "./data-store";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type TriggerDownloadOptions = {
-  onSuccess?: () => void;
-  onError?: (error: string) => void;
-};
-
-type DownloadState = {
-  isDownloading: boolean;
+type DownloadStore = {
   lastDownloadAt: number | null;
-  lastDownloadError: string | null;
-  triggerDownload: (options?: TriggerDownloadOptions) => Promise<void>;
+  setLastDownloadAt: (timestamp: number) => void;
 };
 
-export const useDownloadStore = create<DownloadState>((set) => ({
-  isDownloading: false,
-  lastDownloadAt: null,
-  lastDownloadError: null,
-
-  triggerDownload: async (options) => {
-    set({ isDownloading: true, lastDownloadError: null });
-    try {
-      //to do: descarga real de encuestas
-      await delay(3_000);
-      await usePlantsDataStore.getState().fetchLocalData();
-
-      set({ isDownloading: false, lastDownloadAt: Date.now() });
-      options?.onSuccess?.();
-    } catch (err) {
-      const message = (err as Error).message;
-      set({ isDownloading: false, lastDownloadError: message });
-      options?.onError?.(message);
-    }
-  },
-}));
+export const useDownloadStore = create<DownloadStore>()(
+  persist(
+    (set) => ({
+      lastDownloadAt: null,
+      setLastDownloadAt: (timestamp) => set({ lastDownloadAt: timestamp }),
+    }),
+    {
+      name: "download-store",
+      storage: createJSONStorage(() => AsyncStorage),
+    },
+  ),
+);

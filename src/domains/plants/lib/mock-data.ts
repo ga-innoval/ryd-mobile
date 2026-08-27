@@ -7,7 +7,7 @@ export const MOCK_PLANTS_DATA = [
     campo: "Pozo Manuel",
     cuadro: "5C",
     programa: "Vitis",
-    patron: "Own Root",
+    portainjerto: "Own Root",
     anio: 2013,
     progress: 1,
     tratamientos: [

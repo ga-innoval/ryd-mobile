@@ -6,7 +6,7 @@ export const buildPlant = (overrides = {}) => ({
   campo: "Pozo Manuel",
   cuadro: "1A",
   programa: "Temprano",
-  patron: "Freedom",
+  portainjerto: "Freedom",
   anio: 2026,
   tratamientos: [{ name: "Trat 1" }, { name: "Trat 2" }, { name: "Trat 3" }],
   progress: 0.1,

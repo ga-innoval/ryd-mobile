@@ -23,7 +23,7 @@ const orderByOptions: orderByOption[] = [
   { label: "Campo", value: "campo" },
   { label: "Cuadro", value: "cuadro" },
   { label: "Programa", value: "programa" },
-  { label: "Patrón", value: "patron" },
+  { label: "Patrón", value: "portainjerto" },
   { label: "Año", value: "anio" },
 ];
 
