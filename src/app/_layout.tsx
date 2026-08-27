@@ -8,6 +8,8 @@ import { queryClient } from "@/lib/query-client";
 import { useEffect } from "react";
 import { useAuthStore } from "@/domains/auth/store/auth-store";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { SQLiteProvider } from "expo-sqlite";
+import { runMigrations } from "@/lib/db/migrations";
 
 export default function RootLayout() {
   const init = useAuthStore((s) => s.init);
@@ -16,13 +18,15 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <KeyboardProvider>
-        <Slot />
-        {/* PortalHost Needs to be last child of your providers
+    <SQLiteProvider databaseName="plantaciones.db" onInit={runMigrations}>
+      <QueryClientProvider client={queryClient}>
+        <KeyboardProvider>
+          <Slot />
+          {/* PortalHost Needs to be last child of your providers
       https://reactnativereusables.com/docs/installation/manual */}
-        <PortalHost />
-      </KeyboardProvider>
-    </QueryClientProvider>
+          <PortalHost />
+        </KeyboardProvider>
+      </QueryClientProvider>
+    </SQLiteProvider>
   );
 }
