@@ -5,7 +5,7 @@ import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { ActivityIndicator, Pressable } from "react-native";
 
-interface EvalsListEmptyStateProps {
+interface ListEmptyStateProps {
   dataLength: number;
   searchQuery: string;
   onClearQuery: () => void;
@@ -13,13 +13,13 @@ interface EvalsListEmptyStateProps {
   downloading?: boolean;
 }
 
-export function EvalsEmptyState({
+export function ListEmptyState({
   dataLength,
   searchQuery,
   onClearQuery,
   onDownloadData,
   downloading,
-}: EvalsListEmptyStateProps) {
+}: ListEmptyStateProps) {
   if (dataLength === 0) {
     return (
       <EmptyState

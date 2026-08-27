@@ -4,20 +4,20 @@ import { Leaf } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { UserMenu } from "@/components/user-menu";
-import { SyncBlock } from "../evals/components/sync-block";
-import { DownloadBlock } from "../evals/components/download-block";
+import { SyncBlock } from "../plants/components/sync-block";
+import { DownloadBlock } from "../plants/components/download-block";
 
-type EvalsPageHeaderProps = {
+type PlantsPageHeaderProps = {
   section?: string;
   loadedCount?: number;
   totalCount: number;
 };
 
-export function EvalsPageHeader({
+export function PlantsPageHeader({
   section,
   loadedCount,
   totalCount,
-}: EvalsPageHeaderProps) {
+}: PlantsPageHeaderProps) {
   const insets = useSafeAreaInsets();
 
   return (

@@ -7,7 +7,7 @@ export enum SyncStatus {
   unsynced = "unsynced",
 }
 
-export interface Evaluacion {
+export interface Plant {
   id: string;
   name: string;
   campo: string;
@@ -29,8 +29,8 @@ export interface FieldMatch {
   length: number;
 }
 
-export interface EvaluacionWithMatch {
-  evalItem: Evaluacion;
+export interface PlantWithMatch {
+  plantItem: Plant;
   match?: FieldMatch;
 }
 

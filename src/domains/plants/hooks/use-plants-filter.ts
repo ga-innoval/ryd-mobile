@@ -1,19 +1,19 @@
 import { useMemo, useState } from "react";
-import { SyncStatus, type EvaluacionWithMatch } from "../types";
+import { SyncStatus, type PlantWithMatch } from "../types";
 import { FilterValues } from "../types";
 
 const FILTER_PREDICATES: Record<
   FilterValues,
-  (item: EvaluacionWithMatch) => boolean
+  (item: PlantWithMatch) => boolean
 > = {
   [FilterValues.todas]: () => true,
-  [FilterValues.sinIniciar]: (item) => item.evalItem.progress === 0,
-  [FilterValues.iniciadas]: (item) => item.evalItem.progress > 0,
+  [FilterValues.sinIniciar]: (item) => item.plantItem.progress === 0,
+  [FilterValues.iniciadas]: (item) => item.plantItem.progress > 0,
   [FilterValues.pendientes]: (item) =>
-    item.evalItem.syncStatus === SyncStatus.pending,
+    item.plantItem.syncStatus === SyncStatus.pending,
 };
 
-export function useEvalsFilter(data: EvaluacionWithMatch[]) {
+export function usePlantsFilter(data: PlantWithMatch[]) {
   const [selectedFilter, setSelectedFilter] = useState<FilterValues>(
     FilterValues.todas,
   );

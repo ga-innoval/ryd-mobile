@@ -1,12 +1,12 @@
 import { SyncStatus } from "../types";
 import { useSyncStore } from "../store/sync-store";
-import { MOCK_EVALS_DATA } from "../lib/mock-data";
+import { MOCK_PLANTS_DATA } from "../lib/mock-data";
 
 export function useSyncStatus() {
   const { isSyncing, lastSyncedAt, lastSyncError, triggerSync } =
     useSyncStore();
 
-  const pendingCount = MOCK_EVALS_DATA.filter(
+  const pendingCount = MOCK_PLANTS_DATA.filter(
     (item) => item.syncStatus === SyncStatus.pending,
   ).length;
 

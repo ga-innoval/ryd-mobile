@@ -1,6 +1,6 @@
 import { delay } from "@/lib/delay";
 import { create } from "zustand";
-import { useEvalsDataStore } from "./data-store";
+import { usePlantsDataStore } from "./data-store";
 
 type TriggerDownloadOptions = {
   onSuccess?: () => void;
@@ -24,7 +24,7 @@ export const useDownloadStore = create<DownloadState>((set) => ({
     try {
       //to do: descarga real de encuestas
       await delay(3_000);
-      await useEvalsDataStore.getState().fetchLocalData();
+      await usePlantsDataStore.getState().fetchLocalData();
 
       set({ isDownloading: false, lastDownloadAt: Date.now() });
       options?.onSuccess?.();

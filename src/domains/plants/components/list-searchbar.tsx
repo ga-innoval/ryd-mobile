@@ -3,17 +3,17 @@ import { Input } from "@/components/ui/input";
 import { SearchIcon, XIcon } from "lucide-react-native";
 import { Pressable, View } from "react-native";
 
-interface EvalsListSearchBarProps {
+interface ListSearchBarProps {
   query?: string;
   onQueryChange?: (text: string) => void;
   onCleaQuery?: () => void;
 }
 
-export function EvalsListSearchBar({
+export function ListSearchBar({
   query,
   onQueryChange,
   onCleaQuery,
-}: EvalsListSearchBarProps) {
+}: ListSearchBarProps) {
   return (
     <View className="flex-row items-center bg-primary-foreground/15 border border-primary-foreground/30 rounded-xl px-4">
       <Icon className="text-primary-foreground/60" size={16} as={SearchIcon} />
@@ -21,7 +21,7 @@ export function EvalsListSearchBar({
         className="bg-transparent border-0 text-primary-foreground placeholder:text-primary-foreground/60 flex-shrink"
         value={query}
         onChangeText={onQueryChange}
-        accessibilityLabel="Buscar evaluaciones"
+        accessibilityLabel="Buscar plantaciones"
         placeholder="Buscar variedad, campo o cuadro, programa, patrón o año"
         keyboardType="web-search"
         autoComplete="off"

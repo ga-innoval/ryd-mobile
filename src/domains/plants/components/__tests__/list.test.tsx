@@ -1,12 +1,12 @@
 import { render } from "@testing-library/react-native";
-import { EvaluacionCard } from "../evals-list";
+import { PlantCard } from "../list";
 import { EVALS_POST_COSECHA } from "../../lib/evals-post-cosecha";
-import { buildEvaluacion } from "@/test-utils/factories/eval.factory";
+import { buildPlant } from "@/test-utils/factories/plant.factory";
 
-describe("<EvaluacionCard />", () => {
+describe("<PlantCard />", () => {
   it("renders eval data correctly", async () => {
-    const item = buildEvaluacion();
-    const { getByText } = await render(<EvaluacionCard item={item} />);
+    const item = buildPlant();
+    const { getByText } = await render(<PlantCard item={item} />);
 
     expect(getByText("1004-Freedom")).toBeOnTheScreen();
 
@@ -27,11 +27,11 @@ describe("<EvaluacionCard />", () => {
   });
 
   it("renders tratamiento items", async () => {
-    const item = buildEvaluacion({
+    const item = buildPlant({
       tratamientos: [{ name: "A" }, { name: "B" }, { name: "C" }],
     });
 
-    const { getByText } = await render(<EvaluacionCard item={item} />);
+    const { getByText } = await render(<PlantCard item={item} />);
 
     expect(getByText("A")).toBeOnTheScreen();
     expect(getByText("B")).toBeOnTheScreen();
@@ -39,18 +39,16 @@ describe("<EvaluacionCard />", () => {
   });
 
   it("renders message if no tratamientos", async () => {
-    const item = buildEvaluacion({ tratamientos: [] });
-    const { getByText, queryByText } = await render(
-      <EvaluacionCard item={item} />,
-    );
+    const item = buildPlant({ tratamientos: [] });
+    const { getByText, queryByText } = await render(<PlantCard item={item} />);
 
     expect(queryByText("1")).not.toBeOnTheScreen();
     expect(getByText("Sin tratamientos configurados")).toBeOnTheScreen();
   });
 
   it("renders post-cosecha items", async () => {
-    const item = buildEvaluacion();
-    const { getByTestId } = await render(<EvaluacionCard item={item} />);
+    const item = buildPlant();
+    const { getByTestId } = await render(<PlantCard item={item} />);
 
     EVALS_POST_COSECHA.forEach(({ id }) => {
       expect(getByTestId(`post-cosecha-${id}`)).toBeOnTheScreen();
@@ -58,15 +56,15 @@ describe("<EvaluacionCard />", () => {
   });
 
   it("renders progress chip", async () => {
-    const item = buildEvaluacion();
-    const { getByText } = await render(<EvaluacionCard item={item} />);
+    const item = buildPlant();
+    const { getByText } = await render(<PlantCard item={item} />);
 
     expect(getByText("10% completado")).toBeOnTheScreen();
   });
 
   it("renders status chip", async () => {
-    const item = buildEvaluacion();
-    const { getByText } = await render(<EvaluacionCard item={item} />);
+    const item = buildPlant();
+    const { getByText } = await render(<PlantCard item={item} />);
 
     expect(getByText("Pendiente")).toBeOnTheScreen();
   });

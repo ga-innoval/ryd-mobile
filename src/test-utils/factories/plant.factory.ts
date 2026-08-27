@@ -1,6 +1,6 @@
-import { SyncStatus } from "@/domains/evals/types";
+import { SyncStatus } from "@/domains/plants/types";
 
-export const buildEvaluacion = (overrides = {}) => ({
+export const buildPlant = (overrides = {}) => ({
   id: "eval-1",
   name: "1004-Freedom",
   campo: "Pozo Manuel",
