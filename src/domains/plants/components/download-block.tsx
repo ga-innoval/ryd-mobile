@@ -87,10 +87,7 @@ export function DownloadBlock({
 
   const handleDownload = () => {
     triggerRef.current?.open();
-    triggerDownload({
-      onSuccess: () => showNoti("¡Listo!"),
-      onError: () => showNoti("Error al descargar"),
-    });
+    triggerDownload();
   };
 
   return (
