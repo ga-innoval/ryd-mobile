@@ -1,10 +1,10 @@
 import type { SQLiteDatabase } from "expo-sqlite";
-import { Plant, PlantRecord } from "../../types";
+import { PlantRecord } from "../../types";
 
 export const getAllPlants = async (
   db: SQLiteDatabase,
 ): Promise<PlantRecord[]> => {
-  return db.getAllAsync<Plant>("SELECT * FROM plants ORDER BY name ASC");
+  return db.getAllAsync<PlantRecord>("SELECT * FROM plants ORDER BY name ASC");
 };
 
 export const getPlantById = async (
