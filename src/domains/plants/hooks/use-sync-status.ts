@@ -1,14 +1,13 @@
 import { SyncStatus } from "../types";
 import { useSyncStore } from "../store/sync-store";
-import { MOCK_PLANTS_DATA } from "../lib/mock-data";
 
 export function useSyncStatus() {
   const { isSyncing, lastSyncedAt, lastSyncError, triggerSync } =
     useSyncStore();
 
-  const pendingCount = MOCK_PLANTS_DATA.filter(
-    (item) => item.syncStatus === SyncStatus.pending,
-  ).length;
+  // TODO: cuando exista la tabla `respuestas`, este conteo sale de SQLite
+  // (respuestas con sync_status = 'pending'), vía su propia query.
+  const pendingCount = 0;
 
   const getStatus = (): SyncStatus => {
     if (isSyncing) return SyncStatus.syncing;
