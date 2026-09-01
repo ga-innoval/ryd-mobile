@@ -3,6 +3,7 @@ import Toast, { type ToastConfig } from "react-native-toast-message";
 import { CheckIcon, XIcon, type LucideIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
+import { cn } from "@/lib/utils";
 
 type ToastBodyProps = {
   icon: LucideIcon;
@@ -20,14 +21,13 @@ export function ToastBody({
   onClose,
 }: ToastBodyProps) {
   return (
-    <View className="self-end mx-4 max-w-md sm:min-w-toast sm:max-w-xl flex-row items-center px-4 py-3 gap-3 rounded-xl bg-neutral-900 shadow-md shadow-black/20">
-      <View
-        className={
-          "size-8 items-center justify-center rounded-full bg-white/15"
-        }
-      >
-        <Icon as={icon} size={16} className={badgeTextClassName} />
-      </View>
+    <View className="self-end mx-4 max-w-md sm:min-w-toast sm:max-w-xl flex-row items-center px-3 py-3 gap-3 rounded-xl bg-foreground shadow-md shadow-black/20">
+      <Icon
+        strokeWidth={4}
+        as={icon}
+        size={16}
+        className={cn(badgeTextClassName, "px-3")}
+      />
 
       {/* `shrink` es lo que hace que el texto envuelva en vez de desbordar
           la fila cuando el mensaje es largo. */}
@@ -48,7 +48,7 @@ export function ToastBody({
         accessibilityLabel="Cerrar notificación"
         className="ml-auto"
       >
-        <Icon as={XIcon} size={16} className="text-white" />
+        <Icon as={XIcon} size={16} className="text-white px-3" />
       </Pressable>
     </View>
   );
