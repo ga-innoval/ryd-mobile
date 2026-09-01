@@ -98,7 +98,7 @@ export default function Index() {
         <ListSearchBar
           query={searchQuery}
           onQueryChange={setSearchQuery}
-          onCleaQuery={clearQuery}
+          onClearQuery={clearQuery}
         />
       </View>
       <List

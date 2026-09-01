@@ -6,13 +6,13 @@ import { Pressable, View } from "react-native";
 interface ListSearchBarProps {
   query?: string;
   onQueryChange?: (text: string) => void;
-  onCleaQuery?: () => void;
+  onClearQuery?: () => void;
 }
 
 export function ListSearchBar({
   query,
   onQueryChange,
-  onCleaQuery,
+  onClearQuery,
 }: ListSearchBarProps) {
   return (
     <View className="flex-row items-center bg-primary-foreground/15 border border-primary-foreground/30 rounded-xl px-4">
@@ -33,7 +33,7 @@ export function ListSearchBar({
       {query && (
         <Pressable
           className="w-8 h-8 rounded-full bg-primary-foreground/15 items-center justify-center ml-auto"
-          onPress={onCleaQuery}
+          onPress={onClearQuery}
           accessibilityRole="button"
           accessibilityLabel="Sincronizar cambios"
         >

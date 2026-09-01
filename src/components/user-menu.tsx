@@ -65,7 +65,7 @@ export function UserMenu() {
             </Button>
             <LogoutButton loading={loggingOut} onLogOut={onLogOut} />
           </View>
-          <Text className="text-muted-foreground/70 text-sm self-centar -my-1">
+          <Text className="text-muted-foreground/70 text-sm self-center -my-1">
             {app.name} v{app.version}
           </Text>
         </View>
