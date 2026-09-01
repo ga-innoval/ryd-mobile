@@ -39,7 +39,7 @@ export function ListEmptyState({
         icon={FileXIcon}
         title="No hay plantaciones registradas en tu dispositivo"
         renderAction={() => (
-          <Button disabled={downloading} onPress={onDownloadData}>
+          <Button disabled={downloading} onPress={() => onDownloadData()}>
             {downloading ? (
               <ActivityIndicator className="text-white" />
             ) : (
