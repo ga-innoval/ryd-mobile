@@ -51,6 +51,9 @@ module.exports = {
       borderWidth: {
         hairline: hairlineWidth(),
       },
+      minWidth: {
+        toast: "480px",
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

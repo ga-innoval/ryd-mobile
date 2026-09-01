@@ -10,6 +10,7 @@ import { useAuthStore } from "@/domains/auth/store/auth-store";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SQLiteProvider } from "expo-sqlite";
 import { runMigrations } from "@/lib/db/migrations";
+import { Toaster } from "@/components/toaster";
 
 export default function RootLayout() {
   const init = useAuthStore((s) => s.init);
@@ -27,6 +28,7 @@ export default function RootLayout() {
           <PortalHost />
         </KeyboardProvider>
       </QueryClientProvider>
+      <Toaster />
     </SQLiteProvider>
   );
 }
