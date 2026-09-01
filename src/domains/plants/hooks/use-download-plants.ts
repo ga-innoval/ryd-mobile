@@ -5,6 +5,7 @@ import { mapRemotePlant } from "../lib/map-remote-plant";
 import { PLANTS_QUERY_KEY } from "./use-plants";
 import { useDownloadStore } from "../store/download-store";
 import { upsertPlantsBatch } from "../lib/db/plants.repository";
+import { toast } from "@/lib/toast";
 
 export function useDownloadPlants() {
   const db = useSQLiteContext();
@@ -25,10 +26,19 @@ export function useDownloadPlants() {
 
       return { count: plants.length, serverTime: server_time };
     },
-    onSuccess: ({ serverTime }) => {
+    onSuccess: ({ count, serverTime }) => {
       queryClient.invalidateQueries({ queryKey: PLANTS_QUERY_KEY });
       setLastDownloadAt(new Date(serverTime).getTime());
+      toast.success({
+        title: "Descarga completa",
+        description: `Se ${count === 1 ? "ha" : "han"} actualizado ${count} ${count === 1 ? "plantacion" : "plantaciones"}.`,
+      });
     },
-    onError: (err) => console.log(err),
+    onError: (error) => {
+      toast.error({
+        title: "Error de descarga",
+        description: error.message,
+      });
+    },
   });
 }
