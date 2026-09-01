@@ -58,7 +58,11 @@ export function DownloadBlock({
   loadedCount = 0,
 }: DownloadBlockProps) {
   const { status, triggerDownload, lastDownloadAt } = useDownloadStatus();
-  const { triggerRef, noti, showNoti } = useNotiTooltip();
+  const {
+    triggerRef,
+    open: openTooltip,
+    close: closeTooltip,
+  } = useNotiTooltip();
 
   const {
     dotClassName,
@@ -86,8 +90,8 @@ export function DownloadBlock({
   const isDownloading = status === DownloadStatus.downloading;
 
   const handleDownload = () => {
-    triggerRef.current?.open();
-    triggerDownload();
+    openTooltip();
+    triggerDownload(undefined, { onSettled: closeTooltip });
   };
 
   return (
@@ -95,7 +99,7 @@ export function DownloadBlock({
       <StatusTooltip
         triggerRef={triggerRef}
         onOpenChange={handleTooltipOpenChange}
-        label={noti ?? statusLabel}
+        label={statusLabel}
       >
         <StatusDot
           dotClassName={dotClassName}
