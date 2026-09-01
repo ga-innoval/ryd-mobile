@@ -2,7 +2,7 @@
 
 # VitEval — Captura Experimental
 
-App de tablet para evaluadores de campo en viñedos. Los usuarios descargan
+App de tablet (tablet only) para evaluadores de campo en viñedos. Los usuarios descargan
 "plantaciones" (antes llamadas "evaluaciones") asignadas a su usuario y
 capturan encuestas de tratamiento en campo, con guardado progresivo y
 sincronización manual.
@@ -187,13 +187,11 @@ el dominio; `["plants"]` la query key.
 ## Deuda conocida (no es diseño, es pendiente)
 
 - **`sync-store.ts`** guarda `isSyncing`/`lastSyncError` en Zustand con un
-  `delay(3_000)` simulado. Debe migrar al patrón de `useDownloadPlants`:
+  `delay(3_000)` simulado. Debe migrar al patrón de `usePlantsMutation`:
   mutation de TanStack Query para el ciclo de vida, store persistido solo para
   el timestamp. No copiar el patrón de `sync-store` en código nuevo.
 - **`ListOrderBy`** es decorativo: no recibe props ni emite selección. El orden
   real es fijo (`ORDER BY name ASC` en `plants.repository.ts`).
-- **Error de descarga** solo hace `console.log` (`use-download-plants.ts`); falta
-  la alerta al usuario.
 - **`app.json`** tiene placeholders sin resolver (`"scheme": "your-app-scheme"`).
 - **`src/domains/navigation/`** tiene su componente en la raíz del dominio, sin
   subcarpeta `components/`, a diferencia de `plants` y `auth`.

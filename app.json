@@ -12,6 +12,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "isTabletOnly": true,
       "bundleIdentifier": "com.innoval.ryd",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
