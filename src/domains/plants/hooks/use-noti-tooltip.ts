@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { TriggerRef } from "@rn-primitives/tooltip";
 
-const RESULT_TOOLTIP_DURATION_MS = 1_000;
 const MOUNT_TOOLTIP_DURATION_MS = 3_000;
+const MIN_VISIBLE_MS = 600;
 
 export function useNotiTooltip() {
   const triggerRef = useRef<TriggerRef>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [noti, setNoti] = useState<string | null>(null);
+  const openedAtRef = useRef<number | null>(null);
 
   const clearPendingClose = useCallback(() => {
     if (closeTimeoutRef.current) {
@@ -16,28 +16,41 @@ export function useNotiTooltip() {
     }
   }, []);
 
-  const showNoti = useCallback(
-    (text: string, durationMs = RESULT_TOOLTIP_DURATION_MS) => {
-      clearPendingClose();
-      triggerRef.current?.open();
-      setNoti(text);
-      closeTimeoutRef.current = setTimeout(() => {
-        setNoti(null);
-        triggerRef.current?.close();
-      }, durationMs);
-    },
-    [clearPendingClose],
-  );
+  const closeNow = useCallback(() => {
+    openedAtRef.current = null;
+    triggerRef.current?.close();
+  }, []);
+
+  // Abrir a mano cancela el cierre pendiente: si la descarga se dispara
+  // dentro de los primeros 3s, el timer de montaje no debe cerrar el
+  // tooltip a media descarga.
+  const open = useCallback(() => {
+    clearPendingClose();
+    openedAtRef.current = Date.now();
+    triggerRef.current?.open();
+  }, [clearPendingClose]);
+
+  // Respeta MIN_VISIBLE_MS para que una descarga instantánea no deje un
+  // efecto de parpadeo. Si ya pasó ese tiempo, se cierra en el acto.
+  const close = useCallback(() => {
+    clearPendingClose();
+    const remaining =
+      MIN_VISIBLE_MS - (Date.now() - (openedAtRef.current ?? 0));
+
+    if (remaining <= 0) {
+      closeNow();
+      return;
+    }
+    closeTimeoutRef.current = setTimeout(closeNow, remaining);
+  }, [clearPendingClose, closeNow]);
 
   // Muestra brevemente el estado al entrar a la pantalla.
   useEffect(() => {
-    triggerRef.current?.open();
-    closeTimeoutRef.current = setTimeout(() => {
-      triggerRef.current?.close();
-    }, MOUNT_TOOLTIP_DURATION_MS);
+    open();
+    closeTimeoutRef.current = setTimeout(closeNow, MOUNT_TOOLTIP_DURATION_MS);
 
     return clearPendingClose;
-  }, [clearPendingClose]);
+  }, [open, closeNow, clearPendingClose]);
 
-  return { triggerRef, noti, showNoti };
+  return { triggerRef, open, close };
 }
