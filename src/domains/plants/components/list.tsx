@@ -28,27 +28,30 @@ import { Separator } from "@/components/ui/separator";
 const DATA_FIELD_CONFIG: {
   label: string;
   key: MatchableField;
+  valueCn: string;
 }[] = [
-  { label: "Campo", key: "campo" },
-  { label: "Cuadro", key: "cuadro" },
-  { label: "Programa", key: "programa" },
-  { label: "Patrón", key: "portainjerto" },
-  { label: "Año", key: "anio" },
+  { label: "Campo", key: "campo", valueCn: "capitalize" },
+  { label: "Cuadro", key: "cuadro", valueCn: "uppercase" },
+  { label: "Programa", key: "programa", valueCn: "uppercase" },
+  { label: "Patrón", key: "portainjerto", valueCn: "capitalize" },
+  { label: "Año", key: "anio", valueCn: "" },
 ];
 
 const DataField = ({
   label,
   value,
   match,
+  valueCn,
 }: {
   label: string;
   value: string | number;
   match?: FieldMatch;
+  valueCn: string;
 }) => (
   <View className="flex-row gap-2 items-center">
     <Text variant="muted">{label}</Text>
     <HighlightedText
-      className="font-medium"
+      className={cn("font-medium", valueCn)}
       text={String(value)}
       match={match}
     />
@@ -124,11 +127,12 @@ const CardHeader = ({ item, match }: { item: Plant; match?: FieldMatch }) => {
           )}
         </View>
         <View className="flex-row flex-wrap gap-4">
-          {DATA_FIELD_CONFIG.map(({ label, key }) => (
+          {DATA_FIELD_CONFIG.map(({ label, key, valueCn }) => (
             <DataField
               key={key}
               label={label}
               value={item[key]}
+              valueCn={valueCn}
               match={match?.field === key ? match : undefined}
             />
           ))}
@@ -170,7 +174,7 @@ export const PlantCard = memo(function PlantCard({
         </CardRecordSection>
         <CardRecordSection
           icon={BoxIcon}
-          label="post cosecha"
+          label="post-cosecha"
           variant="secondary"
         >
           {EVALS_POST_COSECHA.map(({ id, title, subtitle }) => (
