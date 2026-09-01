@@ -4,7 +4,7 @@ import { Icon } from "@/components/ui/icon";
 import { IconButton } from "@/components/ui/icon-button";
 import { Text } from "@/components/ui/text";
 import { StatusDot } from "./status-dot";
-import { useDownloadStatus } from "../hooks/use-download-status";
+import { useDownloadPlants } from "../hooks/use-download-plants";
 import { DownloadStatus } from "../types";
 import { StatusTooltip } from "./status-tooltip";
 import { useNotiTooltip } from "../hooks/use-noti-tooltip";
@@ -57,7 +57,7 @@ export function DownloadBlock({
   totalCount,
   loadedCount = 0,
 }: DownloadBlockProps) {
-  const { status, triggerDownload, lastDownloadAt } = useDownloadStatus();
+  const { status, triggerDownload, lastDownloadAt } = useDownloadPlants();
   const {
     triggerRef,
     open: openTooltip,
@@ -91,7 +91,7 @@ export function DownloadBlock({
 
   const handleDownload = () => {
     openTooltip();
-    triggerDownload(undefined, { onSettled: closeTooltip });
+    triggerDownload({ onSettled: closeTooltip });
   };
 
   return (

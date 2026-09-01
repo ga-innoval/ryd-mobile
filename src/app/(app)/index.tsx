@@ -5,7 +5,7 @@ import { DownloadStatus, PlantWithMatch, Plant } from "@/domains/plants/types";
 import { filterAndMatchData } from "@/domains/plants/lib/filter-data";
 import { useSearchbar } from "@/domains/plants/hooks/use-searchbar";
 import { usePlantsFilter } from "@/domains/plants/hooks/use-plants-filter";
-import { useDownloadStatus } from "@/domains/plants/hooks/use-download-status";
+import { useDownloadPlants } from "@/domains/plants/hooks/use-download-plants";
 import { useScrollToTopButton } from "@/domains/plants/hooks/use-scroll-to-top-button";
 import { usePlants } from "@/domains/plants/hooks/use-plants";
 import { PlantsPageHeader } from "@/domains/navigation/plants-page-header";
@@ -27,7 +27,7 @@ export default function Index() {
   // fetching real pero NO la primera carga (esa la cubre isLoading/skeleton)
   const isRefreshing = isFetching && !isLoading;
 
-  const { triggerDownload, status } = useDownloadStatus();
+  const { triggerDownload, status } = useDownloadPlants();
 
   const { listRef, scrollHandler, buttonAnimatedStyle, scrollToTop } =
     useScrollToTopButton<PlantWithMatch>();

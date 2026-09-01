@@ -1,44 +1,49 @@
-import { useSQLiteContext } from "expo-sqlite";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { plantsRequest } from "../api/plants.api";
-import { mapRemotePlant } from "../lib/map-remote-plant";
-import { PLANTS_QUERY_KEY } from "./use-plants";
+import { useIsMutating } from "@tanstack/react-query";
+import { DownloadStatus } from "../types";
 import { useDownloadStore } from "../store/download-store";
-import { upsertPlantsBatch } from "../lib/db/plants.repository";
-import { toast } from "@/lib/toast";
+import {
+  usePlantsMutation,
+  PLANTS_DOWNLOAD_MUTATION_KEY,
+} from "./use-plants-mutation";
+import { haptics } from "@/lib/haptics";
+
+type TriggerDownloadOptions = Parameters<
+  ReturnType<typeof usePlantsMutation>["mutate"]
+>[1];
 
 export function useDownloadPlants() {
-  const db = useSQLiteContext();
-  const queryClient = useQueryClient();
   const lastDownloadAt = useDownloadStore((s) => s.lastDownloadAt);
-  const setLastDownloadAt = useDownloadStore((s) => s.setLastDownloadAt);
+  const mutation = usePlantsMutation();
 
-  return useMutation({
-    mutationFn: async () => {
-      const { server_time, results } = await plantsRequest(
-        lastDownloadAt ?? undefined,
-      );
-      const plants = results.map(mapRemotePlant);
+  // Se lee de la cache y no de `mutation.isPending` porque este hook se
+  // instancia por separado en la lista y en el header: cada `useMutation`
+  // crea su propio observer y ninguno vería la descarga disparada por el
+  // otro, permitiendo dos descargas concurrentes.
+  const isDownloading =
+    useIsMutating({ mutationKey: PLANTS_DOWNLOAD_MUTATION_KEY }) > 0;
 
-      if (plants.length > 0) {
-        await upsertPlantsBatch(db, plants);
-      }
+  // TODO: cuando se implemente el chequeo proactivo de cambios en servidor
+  // (endpoint tipo HEAD /plantaciones/status?since=...),
+  // este valor vendrá de una query aparte, ej. usePendingRemoteChanges().
+  const pendingCount = 0;
 
-      return { count: plants.length, serverTime: server_time };
-    },
-    onSuccess: ({ count, serverTime }) => {
-      queryClient.invalidateQueries({ queryKey: PLANTS_QUERY_KEY });
-      setLastDownloadAt(new Date(serverTime).getTime());
-      toast.success({
-        title: "Descarga completa",
-        description: `Se ${count === 1 ? "ha" : "han"} actualizado ${count} ${count === 1 ? "plantacion" : "plantaciones"}.`,
-      });
-    },
-    onError: (error) => {
-      toast.error({
-        title: "Error de descarga",
-        description: error.message,
-      });
-    },
-  });
+  const getStatus = (): DownloadStatus => {
+    if (isDownloading) return DownloadStatus.downloading;
+    if (mutation.isError) return DownloadStatus.error;
+    if (pendingCount > 0) return DownloadStatus.pending;
+    if (!lastDownloadAt) return DownloadStatus.notDownloaded;
+    return DownloadStatus.downloaded;
+  };
+
+  const triggerDownload = (options?: TriggerDownloadOptions) => {
+    haptics.tap();
+    mutation.mutate(undefined, options);
+  };
+
+  return {
+    status: getStatus(),
+    lastDownloadAt,
+    lastDownloadError: mutation.error?.message ?? null,
+    triggerDownload,
+  };
 }
