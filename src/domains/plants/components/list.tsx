@@ -52,7 +52,7 @@ const DataField = ({
     <Text variant="muted">{label}</Text>
     <HighlightedText
       className={cn("font-medium", valueCn)}
-      text={String(value)}
+      text={String(value).toLocaleLowerCase()}
       match={match}
     />
   </View>
