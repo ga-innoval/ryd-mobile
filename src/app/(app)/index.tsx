@@ -19,10 +19,14 @@ const EMPTY_PLANTS: Plant[] = [];
 
 export default function Index() {
   const { data, isLoading, isFetching, refetch } = usePlants();
-  const plants = data
-    ? // TODO: Tratamientos se obtendrán de la api y progreso sobre el avance de las encuestas
-      data.map((item) => ({ ...item, tratamientos: [], progress: 0 }))
-    : EMPTY_PLANTS;
+  const plants = useMemo(
+    () =>
+      data
+        ? // TODO: Tratamientos se obtendrán de la api y progreso sobre el avance de las encuestas
+          data.map((item) => ({ ...item, tratamientos: [], progress: 0 }))
+        : EMPTY_PLANTS,
+    [data],
+  );
 
   // fetching real pero NO la primera carga (esa la cubre isLoading/skeleton)
   const isRefreshing = isFetching && !isLoading;
