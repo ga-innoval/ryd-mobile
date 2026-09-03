@@ -1,6 +1,6 @@
 import { Pressable, View } from "react-native";
 import Toast, { type ToastConfig } from "react-native-toast-message";
-import { CheckIcon, XIcon, type LucideIcon } from "lucide-react-native";
+import { CheckIcon, InfoIcon, XIcon, type LucideIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
@@ -68,6 +68,17 @@ const toastConfig: ToastConfig = {
     <ToastBody
       icon={XIcon}
       badgeTextClassName="text-red-500"
+      title={text1}
+      description={text2}
+      onClose={() => hide()}
+    />
+  ),
+  // Sin esta entrada, `ToastUI` cae al `InfoToast` por defecto de la
+  // librería —una tarjeta blanca— en vez de la pastilla oscura.
+  info: ({ text1, text2, hide }) => (
+    <ToastBody
+      icon={InfoIcon}
+      badgeTextClassName="text-blue-500"
       title={text1}
       description={text2}
       onClose={() => hide()}

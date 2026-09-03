@@ -14,6 +14,8 @@ import { List } from "@/domains/plants/components/list";
 import { ListSearchBar } from "@/domains/plants/components/list-searchbar";
 import { ScrollToTopButton } from "@/domains/plants/components/scroll-to-top-button";
 import { ListHeader } from "@/domains/plants/components/list-header";
+import { Button } from "@/components/ui/button";
+import { Text } from "@/components/ui/text";
 
 const EMPTY_PLANTS: Plant[] = [];
 
@@ -31,7 +33,8 @@ export default function Index() {
   // fetching real pero NO la primera carga (esa la cubre isLoading/skeleton)
   const isRefreshing = isFetching && !isLoading;
 
-  const { triggerDownload, status } = useDownloadPlants();
+  const { triggerDownload, status, pendingCount, checkPending } =
+    useDownloadPlants();
 
   const { listRef, scrollHandler, buttonAnimatedStyle, scrollToTop } =
     useScrollToTopButton<PlantWithMatch>();
@@ -104,6 +107,17 @@ export default function Index() {
           onQueryChange={setSearchQuery}
           onClearQuery={clearQuery}
         />
+
+        {/* DEBUG ONLY: Comprobar pendientes */}
+        <Button
+          variant="secondary"
+          size="sm"
+          className="mt-3 self-start"
+          onPress={() => checkPending()}
+        >
+          <Text>Comprobar pendientes ({pendingCount})</Text>
+        </Button>
+        {/*  */}
       </View>
       <List
         ref={listRef}

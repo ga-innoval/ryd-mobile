@@ -12,4 +12,7 @@ export const toast = {
   error({ title, description }: ToastOptions) {
     Toast.show({ type: "error", text1: title, text2: description });
   },
+  info({ title, description }: ToastOptions) {
+    Toast.show({ type: "info", text1: title, text2: description });
+  },
 };
