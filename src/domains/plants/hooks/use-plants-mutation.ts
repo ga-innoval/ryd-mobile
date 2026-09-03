@@ -1,10 +1,10 @@
 import { useSQLiteContext } from "expo-sqlite";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { plantsRequest } from "../api/plants.api";
-import { mapRemotePlant } from "../lib/map-remote-plant";
+import { mapRemotePlantEntry } from "../lib/map-remote-plant-entry";
 import { PLANTS_QUERY_KEY } from "./use-plants";
 import { useDownloadStore } from "../store/download-store";
-import { upsertPlantsBatch } from "../lib/db/plants.repository";
+import { syncPlantsBatch } from "../lib/db/plants.repository";
 import { formatDownloadSummary } from "../lib/format-download-summary";
 import { toast } from "@/lib/toast";
 import { haptics } from "@/lib/haptics";
@@ -25,13 +25,13 @@ export function usePlantsMutation() {
       const { server_time, results } = await plantsRequest(
         lastDownloadAt ?? undefined,
       );
-      const plants = results.map(mapRemotePlant);
+      const entries = results.map(mapRemotePlantEntry);
 
-      if (plants.length > 0) {
-        await upsertPlantsBatch(db, plants);
+      if (entries.length > 0) {
+        await syncPlantsBatch(db, entries);
       }
 
-      return { count: plants.length, serverTime: server_time };
+      return { count: entries.length, serverTime: server_time };
     },
     onSuccess: ({ count, serverTime }) => {
       queryClient.invalidateQueries({ queryKey: PLANTS_QUERY_KEY });

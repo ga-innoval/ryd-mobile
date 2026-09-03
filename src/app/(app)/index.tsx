@@ -22,8 +22,8 @@ export default function Index() {
   const plants = useMemo(
     () =>
       data
-        ? // TODO: Tratamientos se obtendrán de la api y progreso sobre el avance de las encuestas
-          data.map((item) => ({ ...item, tratamientos: [], progress: 0 }))
+        ? // TODO: el progreso se obtendra calculado sobre el avance de las encuestas
+          data.map((item) => ({ ...item, progress: 0 }))
         : EMPTY_PLANTS,
     [data],
   );

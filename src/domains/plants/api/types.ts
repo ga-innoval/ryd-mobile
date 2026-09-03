@@ -1,3 +1,13 @@
+export interface RemoteTrat {
+  id: string;
+  name: string;
+  description: string;
+  temporada: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RemotePlant {
   id: string;
   variedad: RemoteVariedad;
@@ -8,6 +18,7 @@ export interface RemotePlant {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  tratamientos: RemoteTrat[];
 }
 
 export interface PlantsResponse {

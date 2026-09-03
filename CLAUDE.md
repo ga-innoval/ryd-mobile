@@ -30,40 +30,48 @@ sincronización manual.
 - **Testing**: Jest + `@testing-library/react-native`, factories en
   `src/test-utils/factories/`
 
-## Estado actual del schema (v1) — leer antes de tocar la DB
+## Estado actual del schema (v2) — leer antes de tocar la DB
 
-`src/lib/db/migrations.ts` crea **una sola tabla**: `plants`
-(`id, name, campo, cuadro, programa, portainjerto, anio, syncStatus`).
+`src/lib/db/migrations.ts` crea **dos tablas**:
 
-**NO existen todavía**: las tablas `tratamientos` y `respuestas`, ni la VIEW
-`plantaciones_with_progress`. La pantalla de lista inyecta `tratamientos: []`
-y `progress: 0` a mano en `src/app/(app)/index.tsx`. No escribas SELECT contra
-nada que no esté en la migración v1.
+- `plants` (`id, name, campo, cuadro, programa, portainjerto, anio, syncStatus`)
+- `tratamientos` (`id, plantId, name, description, temporada, isActive`), con
+  `FOREIGN KEY (plantId) REFERENCES plants(id) ON DELETE CASCADE` e índice en
+  `plantId`
 
-## Modelo de dominio (DISEÑO OBJETIVO — NO implementado aún)
+**NO existen todavía**: la tabla `respuestas` ni la VIEW
+`plantaciones_with_progress`. `src/app/(app)/index.tsx` sigue inyectando
+`progress: 0` a mano (los tratamientos ya salen del repositorio). No escribas
+SELECT contra nada que no esté en la migración v2.
 
-> Esta sección describe hacia dónde va el schema, no lo que existe hoy.
-> Úsala para diseñar, nunca para asumir que puedes consultar estas tablas.
+## Modelo de dominio
+
+> **Plantación** y **tratamiento** ya viven en SQLite (ver el schema arriba).
+> **Respuesta** y el cálculo de `progress` siguen siendo diseño objetivo: úsalos
+> para diseñar, nunca para asumir que puedes consultarlos.
 
 **Plantación** (solo lectura desde el cliente, se descarga del servidor):
 `id, name, campo, cuadro, programa, portainjerto, anio, syncStatus`.
-`progress` y el conteo de tratamientos NO se guardarán como columna — se leen
+`progress` y el conteo de tratamientos NO se guardarán como columna — se leerán
 desde una VIEW de SQLite calculada a partir de `tratamientos`/`respuestas`,
 para evitar que se desincronice.
 
-**Tratamiento** (solo lectura desde el cliente, se descarga junto con o
-como parte del pull de plantaciones, ej. "azul", "naranja", "testigo"):
-es el encabezado de una encuesta — relación N:1 con plantación (varios
-tratamientos por plantación). El nombre y demás metadata del tratamiento
-NUNCA se editan localmente, igual que plantación.
+**Tratamiento** (solo lectura desde el cliente, ya implementado): es
+`EvaluacionTratamiento` aplanado por el serializer —
+`id, plantId, name, description, temporada, isActive`. Relación N:1 con
+plantación. Dos trampas de nombre: el campo es `description` (en inglés; el
+backend corrigió el typo `descripcion`), y **no existe `estado`** — se quitó del
+serializer porque el `is_active` del catálogo `Tratamiento` no le importa a la
+app. `isActive` es el de la fila `EvaluacionTratamiento` y es el que decide si
+la fila local se conserva o se poda.
 
 **Respuesta** (se crea/edita localmente, es lo que se sincroniza):
-cada respuesta pertenece a un tratamiento (relación directa
-respuesta→tratamiento) y representa la captura progresiva de la encuesta
-para ese tratamiento (solo algunos campos obligatorios al inicio, el resto
-se completa con el tiempo). Tiene su propio ciclo de sync:
-`sync_status` (`pending | syncing | synced | error`), `updated_at_local`,
-`synced_at`. Usa UUID como PK, generable en cliente para push idempotente.
+se relaciona con el `id` de "tratamiento" tal como el cliente lo recibe
+(ver arriba). Representa la captura progresiva de la encuesta (solo
+algunos campos obligatorios al inicio, el resto se completa con el
+tiempo). Tiene su propio ciclo de sync: `sync_status`
+(`pending | syncing | synced | error`), `updated_at_local`, `synced_at`.
+Usa UUID como PK, generable en cliente para push idempotente.
 
 **Reglas de sync clave**:
 
@@ -72,10 +80,20 @@ se completa con el tiempo). Tiene su propio ciclo de sync:
 - Pull usa `updated_since` (watermark) — el cliente guarda `server_time`
   que el backend devuelve en la respuesta (`{ server_time, results }`),
   NUNCA el reloj del dispositivo, para evitar drift de reloj entre tablets.
-- Al hacer upsert de `tratamientos` desde un pull, usar
-  `INSERT OR IGNORE` si ya existen respuestas locales asociadas (nunca
-  pisar progreso capturado). Para `plantaciones` y `tratamientos` sin
-  respuestas locales sí es seguro `ON CONFLICT DO UPDATE` (solo lectura).
+- El pull incremental devuelve la plantación **también cuando solo cambian sus
+  tratamientos**: el viewset añade `pk__in=EvaluacionTratamiento...` al filtro
+  de `updated_since`. No hay que pedir los hijos aparte.
+- **Las bajas llegan como lápida, no como ausencia.** El `Prefetch` del viewset
+  NO filtra por `is_active`, así que el array de `tratamientos` incluye los
+  dados de baja con `is_active: false`. Regla única para ambas entidades: si el
+  remoto lo desactiva se borra del local, **salvo que haya trabajo local sin
+  sincronizar** — el remoto rechaza actualizaciones mientras esté inactivo, así
+  que la fila debe sobrevivir hasta que lo reactiven. Implementado en
+  `syncPlantsBatch` / `syncPlantTratamientos`.
+- Cuando exista `respuestas`, un tratamiento inactivo con respuestas sin
+  sincronizar debe conservarse en vez de podarse, y hay que revisar la CASCADE
+  de `tratamientos` (borrar uno destruiría sus respuestas). Los
+  `TODO(respuestas)` del repositorio marcan los dos puntos exactos.
 - El admin puede cerrar una encuesta (`encuesta_abierta`/`is_active` a
   nivel plantación) — el push de respuestas debe manejar el rechazo como
   un estado distinguible (`rejected_closed`), no como error genérico.
@@ -100,6 +118,10 @@ carpetas de dominio); **campos de negocio en español** y son intocables
 (`campo`, `cuadro`, `programa`, `portainjerto`, `anio`), porque así los
 nombra el backend y así los dicen los evaluadores. `plants` es la tabla y
 el dominio; `["plants"]` la query key.
+
+La regla de fondo es **espejar el nombre que usa el backend**, no "todo en
+español": por eso `tratamientos` convive con `description` en inglés (allá se
+renombró) y `temporada` en español.
 
 ## Convenciones establecidas
 
@@ -142,6 +164,12 @@ el dominio; `["plants"]` la query key.
   (`tsconfig.json`); no hay alias `@test-utils/*`
 - **Lógica pura siempre lleva test** (mappers, filtros, cálculos,
   repositorios). Componentes y hooks solo cuando se pidan explícitamente
+- **Los repositorios se prueban contra SQLite de verdad**, no mockeado:
+  `createInMemoryDb()` (`src/test-utils/in-memory-db.ts`) adapta el `node:sqlite`
+  built-in de Node a la superficie de `SQLiteDatabase`, sin dependencias nuevas.
+  Ejemplo en `lib/db/__tests__/plants.repository.test.ts`. Ojo: `DatabaseSync`
+  activa las foreign keys por defecto, así que esos tests validan que la CASCADE
+  esté bien declarada, **no** el `PRAGMA` de `runMigrations`.
 - Preferir `getByText`/`getByRole` sobre snapshots o selección por
   className — los tests deben sobrevivir cambios visuales menores
 - El CI (`.github/workflows/test.yml`) corre `npx jest --ci --coverage` y
@@ -149,6 +177,22 @@ el dominio; `["plants"]` la query key.
   dar algo por terminado
 
 ## Gotchas conocidos (no volver a perder tiempo en esto)
+
+- **"Tratamiento" no es una sola tabla del lado Django** — lo que este
+  cliente descarga como "tratamiento" es `EvaluacionTratamiento` (la
+  combinación tratamiento + plantación + temporada) aplanada con `source=` en
+  el serializer, no una tabla 1:1. **No hay `CLAUDE.md` en el repo de Django**:
+  si necesitas el detalle, lee
+  `Projects/django/altatech-api/apps/ryd/{models,serializers,views}.py`
+  directamente en vez de asumir la forma interna.
+- **`PRAGMA foreign_keys` es por conexión y NO persiste.** Va antes del
+  early-return de `runMigrations`, nunca junto a las migraciones: si se pone
+  abajo, las instalaciones que ya están en la última versión abren la DB sin
+  integridad referencial y la CASCADE no corre. `journal_mode = WAL` sí
+  persiste, por eso ese sí puede quedarse después del return.
+- **`ON CONFLICT DO UPDATE` en `upsertPlant` es invariante, no estilo.** Con la
+  FK activa, un `INSERT OR REPLACE` haría DELETE + INSERT, dispararía la CASCADE
+  y borraría los tratamientos en cada sincronización. Hay un test que lo cubre.
 
 - **`useAnimatedKeyboard` está deprecado** en reanimated 4 (lo dice el propio
   typing: "Please use react-native-keyboard-controller instead"). Usar
@@ -190,6 +234,9 @@ el dominio; `["plants"]` la query key.
   `delay(3_000)` simulado. Debe migrar al patrón de `usePlantsMutation`:
   mutation de TanStack Query para el ciclo de vida, store persistido solo para
   el timestamp. No copiar el patrón de `sync-store` en código nuevo.
+- **Los filtros "Sin iniciar" e "Iniciadas" no funcionan.** Ambos miran
+  `progress`, que sigue hardcodeado a `0` en `index.tsx`: uno hace match con
+  todo y el otro con nada, hasta que exista `respuestas`.
 - **`ListOrderBy`** es decorativo: no recibe props ni emite selección. El orden
   real es fijo (`ORDER BY name ASC` en `plants.repository.ts`).
 - **`app.json`** tiene placeholders sin resolver (`"scheme": "your-app-scheme"`).

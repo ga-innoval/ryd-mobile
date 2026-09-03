@@ -7,8 +7,11 @@ export enum SyncStatus {
   unsynced = "unsynced",
 }
 
-export interface Plant extends PlantRecord {
-  tratamientos: { name: string }[];
+export interface PlantWithTratamientos extends PlantRecord {
+  tratamientos: TratamientoRecord[];
+}
+
+export interface Plant extends PlantWithTratamientos {
   progress: number;
 }
 
@@ -39,6 +42,24 @@ export enum FilterValues {
   sinIniciar = "sin iniciar",
   iniciadas = "iniciadas",
   pendientes = "pendientes",
+}
+
+export interface TratamientoRecord {
+  id: string;
+  plantId: string;
+  name: string;
+  description: string;
+  temporada: number;
+  // Refleja `is_active` de la fila remota `EvaluacionTratamiento`, no el del
+  // catálogo `Tratamiento`. Decide si la fila se conserva o se poda.
+  isActive: boolean;
+}
+
+export interface PlantSyncEntry {
+  plant: PlantRecord;
+  tratamientos: TratamientoRecord[];
+  // `is_active` de la plantación remota: decide si se conserva o se borra.
+  isActive: boolean;
 }
 
 export interface PlantRecord {

@@ -1,10 +1,25 @@
 import type { SQLiteDatabase } from "expo-sqlite";
-import { PlantRecord } from "../../types";
+import {
+  PlantRecord,
+  PlantSyncEntry,
+  PlantWithTratamientos,
+  SyncStatus,
+} from "../../types";
+import { attachTratamientos } from "../attach-tratamientos";
+import {
+  getAllTratamientos,
+  syncPlantTratamientos,
+} from "./tratamientos.repository";
 
 export const getAllPlants = async (
   db: SQLiteDatabase,
-): Promise<PlantRecord[]> => {
-  return db.getAllAsync<PlantRecord>("SELECT * FROM plants ORDER BY name ASC");
+): Promise<PlantWithTratamientos[]> => {
+  const plants = await db.getAllAsync<PlantRecord>(
+    "SELECT * FROM plants ORDER BY name ASC",
+  );
+  const tratamientos = await getAllTratamientos(db);
+
+  return attachTratamientos(plants, tratamientos);
 };
 
 export const getPlantById = async (
@@ -16,6 +31,12 @@ export const getPlantById = async (
   ]);
 };
 
+/**
+ * `ON CONFLICT DO UPDATE` no es preferencia de estilo, es invariante de
+ * corrección: con `foreign_keys = ON`, un `INSERT OR REPLACE` haría
+ * DELETE + INSERT, dispararía la CASCADE de `tratamientos` y los borraría en
+ * cada sincronización.
+ */
 export const upsertPlant = async (
   db: SQLiteDatabase,
   plant: PlantRecord,
@@ -44,17 +65,53 @@ export const upsertPlant = async (
   );
 };
 
-export const upsertPlantsBatch = async (
+export const deletePlant = async (
   db: SQLiteDatabase,
-  plants: PlantRecord[],
+  id: string,
+): Promise<void> => {
+  // La CASCADE se lleva sus tratamientos.
+  await db.runAsync("DELETE FROM plants WHERE id = ?", [id]);
+};
+
+/**
+ * Solo se borra lo que está completamente sincronizado. Si quedó captura
+ * local, la plantación se conserva: el remoto rechaza actualizaciones mientras
+ * `is_active = false`, así que debe sobrevivir hasta que la reactiven (al
+ * reactivarla cambia `updated_at` y vuelve en el pull).
+ *
+ * TODO(respuestas): cuando exista la tabla, esto debe mirar las respuestas sin
+ * sincronizar de la plantación. Hoy `mapRemotePlant` siempre escribe `synced`,
+ * así que este guard nunca impide un borrado — y es correcto, porque todavía
+ * no hay captura local que proteger.
+ */
+const isSafeToDelete = (local: PlantRecord | null) =>
+  local === null || local.syncStatus === SyncStatus.synced;
+
+/**
+ * Converge el local con lo que mandó el servidor: encabezado, tratamientos y
+ * bajas. Todo en una sola transacción — N escrituras sueltas en SQLite son N
+ * fsyncs, y en tablet se nota.
+ */
+export const syncPlantsBatch = async (
+  db: SQLiteDatabase,
+  entries: PlantSyncEntry[],
 ): Promise<void> => {
   await db.withTransactionAsync(async () => {
-    for (const plant of plants) {
-      await upsertPlant(db, plant);
+    for (const entry of entries) {
+      if (entry.isActive) {
+        await upsertPlant(db, entry.plant);
+        await syncPlantTratamientos(db, entry.tratamientos);
+        continue;
+      }
+
+      if (isSafeToDelete(await getPlantById(db, entry.plant.id))) {
+        await deletePlant(db, entry.plant.id);
+      }
     }
   });
 };
 
 export const deleteAllPlants = async (db: SQLiteDatabase): Promise<void> => {
+  // Con `foreign_keys = ON`, la CASCADE vacía también `tratamientos`.
   await db.runAsync("DELETE FROM plants");
 };
