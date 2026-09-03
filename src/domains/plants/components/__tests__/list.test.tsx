@@ -2,6 +2,7 @@ import { render } from "@testing-library/react-native";
 import { PlantCard } from "../list";
 import { EVALS_POST_COSECHA } from "../../lib/evals-post-cosecha";
 import { buildPlant } from "@/test-utils/factories/plant.factory";
+import { buildTratamiento } from "@/test-utils/factories/tratamiento.factory";
 
 describe("<PlantCard />", () => {
   it("renders eval data correctly", async () => {
@@ -11,16 +12,16 @@ describe("<PlantCard />", () => {
     expect(getByText("1004-Freedom")).toBeOnTheScreen();
 
     expect(getByText("Campo")).toBeOnTheScreen();
-    expect(getByText("Pozo Manuel")).toBeOnTheScreen();
+    expect(getByText("pozo manuel")).toBeOnTheScreen();
 
     expect(getByText("Cuadro")).toBeOnTheScreen();
-    expect(getByText("1A")).toBeOnTheScreen();
+    expect(getByText("1a")).toBeOnTheScreen();
 
     expect(getByText("Programa")).toBeOnTheScreen();
-    expect(getByText("Temprano")).toBeOnTheScreen();
+    expect(getByText("temprano")).toBeOnTheScreen();
 
     expect(getByText("Patrón")).toBeOnTheScreen();
-    expect(getByText("Freedom")).toBeOnTheScreen();
+    expect(getByText("freedom")).toBeOnTheScreen();
 
     expect(getByText("Año")).toBeOnTheScreen();
     expect(getByText("2026")).toBeOnTheScreen();
@@ -28,7 +29,11 @@ describe("<PlantCard />", () => {
 
   it("renders tratamiento items", async () => {
     const item = buildPlant({
-      tratamientos: [{ name: "A" }, { name: "B" }, { name: "C" }],
+      tratamientos: [
+        buildTratamiento({ id: "a", name: "A" }),
+        buildTratamiento({ id: "b", name: "B" }),
+        buildTratamiento({ id: "c", name: "C" }),
+      ],
     });
 
     const { getByText } = await render(<PlantCard item={item} />);
