@@ -51,11 +51,13 @@ const DOWNLOAD_STATUS_CONFIG: Record<DownloadStatus, DownloadStatusConfig> = {
 interface DownloadBlockProps {
   totalCount: number;
   loadedCount?: number;
+  isLoading?: boolean;
 }
 
 export function DownloadBlock({
   totalCount,
   loadedCount = 0,
+  isLoading = false,
 }: DownloadBlockProps) {
   const { status, triggerDownload, lastDownloadAt } = useDownloadPlants();
   const {
@@ -112,7 +114,9 @@ export function DownloadBlock({
           visible={showDot && !animated}
         />
         <Text className="text-primary-foreground/80 text-sm">
-          {loadedCount} de {totalCount} plantaciones
+          {isLoading
+            ? "Obteniendo plantaciones..."
+            : `${loadedCount} de ${totalCount} plantaciones`}
         </Text>
       </StatusTooltip>
 
