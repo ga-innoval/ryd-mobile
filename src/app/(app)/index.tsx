@@ -57,10 +57,11 @@ export default function Index() {
         <PlantsPageHeader
           loadedCount={filteredData.length}
           totalCount={plants.length}
+          isLoading={isLoading}
         />
       ),
     }),
-    [plants.length, filteredData.length],
+    [plants.length, filteredData.length, isLoading],
   );
 
   const listHeaderComponent = useMemo(

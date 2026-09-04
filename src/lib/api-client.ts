@@ -1,9 +1,9 @@
 import axios from "axios";
 import { useAuthStore } from "@/domains/auth/store/auth-store";
-import { app } from "./app-metadata";
+import { env } from "./env";
 
 export const apiClient = axios.create({
-  baseURL: app.apiBaseUrl,
+  baseURL: env.apiBaseUrl,
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",

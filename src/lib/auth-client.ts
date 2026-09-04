@@ -1,5 +1,5 @@
 import axios, { isAxiosError } from "axios";
-import { app } from "./app-metadata";
+import { env } from "./env";
 
 const HTTP_ERROR_MESSAGES: Record<number, string> = {
   401: "Las credenciales no coinciden. Intente de nuevo.",
@@ -25,7 +25,7 @@ export function formatAuthError(error: unknown): unknown {
 }
 
 export const authClient = axios.create({
-  baseURL: app.apiBaseUrl,
+  baseURL: env.apiBaseUrl,
   timeout: 10000,
   headers: { "Content-Type": "application/json" },
 });

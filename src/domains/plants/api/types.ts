@@ -26,6 +26,10 @@ export interface PlantsResponse {
   results: RemotePlant[];
 }
 
+export interface PendingPlantsResponse {
+  count: number;
+}
+
 interface RemoteVariedad {
   id: string;
   name: string;

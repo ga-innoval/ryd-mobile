@@ -15,7 +15,7 @@ type DownloadStatusConfig = {
   dotClassName: string;
   showDot: boolean;
   animated?: boolean;
-  label: string;
+  label?: string;
 };
 
 const DOWNLOAD_STATUS_CONFIG: Record<DownloadStatus, DownloadStatusConfig> = {
@@ -28,7 +28,6 @@ const DOWNLOAD_STATUS_CONFIG: Record<DownloadStatus, DownloadStatusConfig> = {
   [DownloadStatus.downloaded]: {
     dotClassName: "bg-green-500",
     showDot: false,
-    label: "",
   },
   [DownloadStatus.notDownloaded]: {
     dotClassName: "bg-muted/30",
@@ -44,7 +43,6 @@ const DOWNLOAD_STATUS_CONFIG: Record<DownloadStatus, DownloadStatusConfig> = {
     dotClassName: "bg-orange-400",
     showDot: true,
     animated: true,
-    label: "Descarga pendiente",
   },
 };
 
@@ -59,7 +57,8 @@ export function DownloadBlock({
   loadedCount = 0,
   isLoading = false,
 }: DownloadBlockProps) {
-  const { status, triggerDownload, lastDownloadAt } = useDownloadPlants();
+  const { status, triggerDownload, lastDownloadAt, pendingCount } =
+    useDownloadPlants();
   const {
     triggerRef,
     open: openTooltip,
@@ -80,8 +79,12 @@ export function DownloadBlock({
     lastDownloadAt,
     (ts) => `Últ. descarga ${formatTimestamp(ts)}`,
   );
-  const statusLabel =
-    status === DownloadStatus.downloaded ? lastDownloadedAtLabel : label;
+  const dynamicLabel: Partial<Record<DownloadStatus, string>> = {
+    [DownloadStatus.downloaded]: lastDownloadedAtLabel,
+    [DownloadStatus.pending]: `Cambios por descargar (${pendingCount})`,
+  };
+
+  const statusLabel = dynamicLabel[status] ?? label ?? "";
 
   const handleTooltipOpenChange = (open: boolean) => {
     if (open && status === DownloadStatus.downloaded) {
