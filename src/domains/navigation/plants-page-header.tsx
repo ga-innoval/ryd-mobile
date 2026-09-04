@@ -11,12 +11,14 @@ type PlantsPageHeaderProps = {
   section?: string;
   loadedCount?: number;
   totalCount: number;
+  isLoading?: boolean;
 };
 
 export function PlantsPageHeader({
   section,
   loadedCount,
   totalCount,
+  isLoading,
 }: PlantsPageHeaderProps) {
   const insets = useSafeAreaInsets();
 
@@ -35,7 +37,11 @@ export function PlantsPageHeader({
         </View>
 
         <View className="flex-row items-center gap-3">
-          <DownloadBlock totalCount={totalCount} loadedCount={loadedCount} />
+          <DownloadBlock
+            totalCount={totalCount}
+            loadedCount={loadedCount}
+            isLoading={isLoading}
+          />
           <SeparatorLine />
           <SyncBlock disabled={totalCount === 0} />
           <SeparatorLine />
