@@ -15,6 +15,9 @@
       },
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_PENDING_CHECK_INTERVAL_MS": "10000"
       }
     },
     "production": {
