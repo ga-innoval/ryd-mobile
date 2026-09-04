@@ -9,13 +9,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TriggerRef } from "@rn-primitives/select";
-import {
-  ArrowDownNarrowWide,
-  ArrowUpDown,
-  ArrowUpWideNarrow,
-} from "lucide-react-native";
-import { useRef } from "react";
+import { ArrowDownNarrowWide, ArrowUpDown } from "lucide-react-native";
+import { useEffect, useRef } from "react";
 import { Platform, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { OrderByField, OrderDirection } from "../types";
 import { IconButton } from "@/components/ui/icon-button";
@@ -29,10 +30,9 @@ type ListOrderByProps = {
   onToggleDirection: () => void;
 };
 
-const DIRECTION_ICON = {
-  asc: ArrowDownNarrowWide,
-  desc: ArrowUpWideNarrow,
-} as const;
+const DIRECTION_ANGLE = { asc: 0, desc: 180 } as const;
+
+const ROTATION_DURATION_MS = 250;
 
 const orderByOptions: orderByOption[] = [
   { label: "Variedad", value: "name" },
@@ -60,6 +60,18 @@ export function ListOrderBy({
     left: 12,
     right: 12,
   };
+
+  const rotation = useSharedValue(DIRECTION_ANGLE[direction]);
+
+  useEffect(() => {
+    rotation.value = withTiming(DIRECTION_ANGLE[direction], {
+      duration: ROTATION_DURATION_MS,
+    });
+  }, [direction, rotation]);
+
+  const directionAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
 
   const selectedOption = orderByOptions.find((o) => o.value === orderBy);
 
@@ -106,11 +118,13 @@ export function ListOrderBy({
         accessibilityHint="Cambia la dirección del orden"
         onPress={onToggleDirection}
       >
-        <Icon
-          as={DIRECTION_ICON[direction]}
-          size={18}
-          className="text-primary-foreground"
-        />
+        <Animated.View style={directionAnimatedStyle}>
+          <Icon
+            as={ArrowDownNarrowWide}
+            size={18}
+            className="text-primary-foreground"
+          />
+        </Animated.View>
       </IconButton>
     </View>
   );
