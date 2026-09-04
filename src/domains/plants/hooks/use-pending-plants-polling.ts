@@ -4,8 +4,6 @@ import { usePendingPlants } from "./use-pending-plants";
 import { useDownloadStore } from "../store/download-store";
 import { env } from "@/lib/env";
 
-// Configurable por entorno (`EXPO_PUBLIC_PENDING_CHECK_INTERVAL_MS`) para
-// poder bajarlo a segundos en demos sin tocar código.
 const CHECK_INTERVAL_MS = env.pendingCheckIntervalMs;
 
 /**
@@ -15,10 +13,6 @@ const CHECK_INTERVAL_MS = env.pendingCheckIntervalMs;
 export function usePendingPlantsPolling() {
   const { pendingCount, checkPending } = usePendingPlants();
 
-  // El store se hidrata de forma asíncrona desde AsyncStorage. Sin esperar al
-  // watermark, en un arranque en frío `run` podría marcar como "ya comprobado"
-  // un chequeo que `checkPending` descarta por no tener `lastDownloadAt`, y la
-  // sesión se quedaría sin sondear.
   const hasWatermark = useDownloadStore((s) => s.lastDownloadAt !== null);
 
   const latest = useRef({ pendingCount, checkPending });
@@ -51,8 +45,6 @@ export function usePendingPlantsPolling() {
     run();
     schedule();
 
-    // Cubre el caso "la app estuvo horas en segundo plano". El guard de tiempo
-    // de `run` hace que los dos disparadores sean idempotentes.
     const subscription = AppState.addEventListener("change", (state) => {
       if (state !== "active") return;
 

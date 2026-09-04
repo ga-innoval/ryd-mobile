@@ -7,15 +7,6 @@ export function usePendingPlants() {
   const pendingCount = useDownloadStore((s) => s.pendingCount);
   const setPendingCount = useDownloadStore((s) => s.setPendingCount);
 
-  /**
-   * Avisa solo en la transición de "nada pendiente" a "hay cambios". Como el
-   * conteo se persiste, esa transición no se repite en un arranque en frío:
-   * si ayer quedaron 5 pendientes, hoy se ve el estado naranja sin toast.
-   *
-   * El guard de "saltar si ya está pendiente" vive en
-   * `usePendingPlantsPolling` y NO aquí: una comprobación pedida a mano debe
-   * responder siempre.
-   */
   const checkPending = async () => {
     if (lastDownloadAt === null) return;
 
