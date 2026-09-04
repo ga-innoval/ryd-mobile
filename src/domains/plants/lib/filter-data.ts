@@ -4,12 +4,7 @@ import type {
   FieldMatch,
   MatchableField,
 } from "../types";
-
-const normalize = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+import { normalizeText } from "./normalize-text";
 
 const MATCHABLE_FIELDS: MatchableField[] = [
   "name",
@@ -24,10 +19,10 @@ export const findFirstMatch = (
   item: Plant,
   query: string,
 ): FieldMatch | undefined => {
-  const normalizedQuery = normalize(query);
+  const normalizedQuery = normalizeText(query);
 
   for (const field of MATCHABLE_FIELDS) {
-    const normalizedValue = normalize(String(item[field]));
+    const normalizedValue = normalizeText(String(item[field]));
     const index = normalizedValue.indexOf(normalizedQuery);
 
     if (index !== -1) {

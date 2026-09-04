@@ -218,6 +218,7 @@ export const List = forwardRef<
       renderItem={renderItem}
       keyExtractor={(item) => item.plantItem.id}
       ItemSeparatorComponent={renderItemSeparator}
+      maintainVisibleContentPosition={{ disabled: true }}
       data={data}
       {...props}
     />
