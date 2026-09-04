@@ -13,10 +13,15 @@ import { ArrowDownNarrowWide, ArrowUpDown } from "lucide-react-native";
 import { useRef } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { MatchableField } from "../types";
+import type { OrderByField } from "../types";
 import { IconButton } from "@/components/ui/icon-button";
 
-type orderByOption = { label: string; value: MatchableField };
+type orderByOption = { label: string; value: OrderByField };
+
+type ListOrderByProps = {
+  orderBy: OrderByField;
+  onOrderByChange: (field: OrderByField) => void;
+};
 
 const orderByOptions: orderByOption[] = [
   { label: "Variedad", value: "name" },
@@ -27,7 +32,7 @@ const orderByOptions: orderByOption[] = [
   { label: "Año", value: "anio" },
 ];
 
-export function ListOrderBy() {
+export function ListOrderBy({ orderBy, onOrderByChange }: ListOrderByProps) {
   const ref = useRef<TriggerRef>(null);
   const insets = useSafeAreaInsets();
   const contentInsets = {
@@ -40,9 +45,16 @@ export function ListOrderBy() {
     right: 12,
   };
 
+  const selectedOption = orderByOptions.find((o) => o.value === orderBy);
+
   return (
     <View className="flex flex-row justify-center items-center gap-1">
-      <Select>
+      <Select
+        value={selectedOption}
+        onValueChange={(option) => {
+          if (option) onOrderByChange(option.value as OrderByField);
+        }}
+      >
         <SelectTrigger
           ref={ref}
           className="items-center justify-center rounded-full border px-4 py-1 bg-foreground/90 border-white"

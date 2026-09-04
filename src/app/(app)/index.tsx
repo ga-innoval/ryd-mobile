@@ -5,6 +5,7 @@ import { DownloadStatus, PlantWithMatch, Plant } from "@/domains/plants/types";
 import { filterAndMatchData } from "@/domains/plants/lib/filter-data";
 import { useSearchbar } from "@/domains/plants/hooks/use-searchbar";
 import { usePlantsFilter } from "@/domains/plants/hooks/use-plants-filter";
+import { usePlantsOrder } from "@/domains/plants/hooks/use-plants-order";
 import { useDownloadPlants } from "@/domains/plants/hooks/use-download-plants";
 import { useScrollToTopButton } from "@/domains/plants/hooks/use-scroll-to-top-button";
 import { usePlants } from "@/domains/plants/hooks/use-plants";
@@ -28,10 +29,9 @@ export default function Index() {
     [data],
   );
 
-  // fetching real pero NO la primera carga (esa la cubre isLoading/skeleton)
   const isRefreshing = isFetching && !isLoading;
 
-  const { triggerDownload, status } = useDownloadPlants();
+  const { triggerDownload, status, lastDownloadAt } = useDownloadPlants();
 
   const { listRef, scrollHandler, buttonAnimatedStyle, scrollToTop } =
     useScrollToTopButton<PlantWithMatch>();
@@ -39,9 +39,11 @@ export default function Index() {
   const { searchQuery, debouncedQuery, setSearchQuery, clearQuery } =
     useSearchbar();
 
+  const { orderBy, setOrderBy, orderedPlants } = usePlantsOrder(plants);
+
   const filteredByText = useMemo(
-    () => filterAndMatchData(plants, debouncedQuery),
-    [plants, debouncedQuery],
+    () => filterAndMatchData(orderedPlants, debouncedQuery),
+    [orderedPlants, debouncedQuery],
   );
 
   const { selectedFilter, setSelectedFilter, filterItems, filteredData } =
@@ -49,7 +51,7 @@ export default function Index() {
 
   useEffect(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [selectedFilter, debouncedQuery]);
+  }, [lastDownloadAt, listRef]);
 
   const headerOptions = useMemo(
     () => ({
@@ -70,9 +72,11 @@ export default function Index() {
         filterItems={filterItems}
         selectedFilter={selectedFilter}
         setSelectedFilter={setSelectedFilter}
+        orderBy={orderBy}
+        setOrderBy={setOrderBy}
       />
     ),
-    [selectedFilter, filterItems],
+    [selectedFilter, filterItems, orderBy, setOrderBy],
   );
 
   const emptyStateComponent = useMemo(
@@ -115,6 +119,7 @@ export default function Index() {
         onRefresh={refetch}
         ListHeaderComponent={listHeaderComponent}
         ListEmptyComponent={emptyStateComponent}
+        maintainVisibleContentPosition={{ disabled: true }}
       />
 
       <ScrollToTopButton onPress={scrollToTop} style={buttonAnimatedStyle} />

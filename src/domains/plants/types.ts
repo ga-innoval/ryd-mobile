@@ -37,6 +37,10 @@ export enum DownloadStatus {
   notDownloaded = "notDownloaded",
 }
 
+export type OrderByField = MatchableField;
+
+export type OrderDirection = "asc" | "desc";
+
 export enum FilterValues {
   todas = "todas",
   sinIniciar = "sin iniciar",
