@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { ListFilter } from "./list-filter";
 import { ListOrderBy } from "./list-order-by";
 import { FilterValues } from "../types";
-import type { OrderByField } from "../types";
+import type { OrderByField, OrderDirection } from "../types";
 import type { Dispatch, SetStateAction } from "react";
 
 type FilterItem = { label: string; value: FilterValues; count?: number };
@@ -15,6 +15,8 @@ interface ListHeaderProps {
   filterItems: FilterItem[];
   orderBy: OrderByField;
   setOrderBy: (field: OrderByField) => void;
+  direction: OrderDirection;
+  toggleDirection: () => void;
 }
 
 export function ListHeader({
@@ -23,6 +25,8 @@ export function ListHeader({
   filterItems,
   orderBy,
   setOrderBy,
+  direction,
+  toggleDirection,
 }: ListHeaderProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [contentWidth, setContentWidth] = useState(0);
@@ -44,7 +48,12 @@ export function ListHeader({
           onItemPress={() => {}}
           items={filterItems}
         />
-        <ListOrderBy orderBy={orderBy} onOrderByChange={() => {}} />
+        <ListOrderBy
+          orderBy={orderBy}
+          onOrderByChange={() => {}}
+          direction={direction}
+          onToggleDirection={() => {}}
+        />
       </View>
 
       {!measured || fits ? (
@@ -54,7 +63,12 @@ export function ListHeader({
             onItemPress={setSelectedFilter}
             items={filterItems}
           />
-          <ListOrderBy orderBy={orderBy} onOrderByChange={setOrderBy} />
+          <ListOrderBy
+            orderBy={orderBy}
+            onOrderByChange={setOrderBy}
+            direction={direction}
+            onToggleDirection={toggleDirection}
+          />
         </View>
       ) : (
         <ScrollView
@@ -70,7 +84,12 @@ export function ListHeader({
           />
           <Separator orientation="vertical" />
           <View className="ml-auto">
-            <ListOrderBy orderBy={orderBy} onOrderByChange={setOrderBy} />
+            <ListOrderBy
+              orderBy={orderBy}
+              onOrderByChange={setOrderBy}
+              direction={direction}
+              onToggleDirection={toggleDirection}
+            />
           </View>
         </ScrollView>
       )}
