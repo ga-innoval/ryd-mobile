@@ -214,6 +214,20 @@ renombró) y `temporada` en español.
   ambos patrones vivos: `status-dot.tsx` usa clase condicional y funciona;
   `sync-button.tsx` usa Reanimated manual (`useSharedValue` + `useEffect`)
   para la rotación. Si aparece el warning, migrar ese caso a Reanimated manual.
+- **FlashList v2 trae `maintainVisibleContentPosition` activado por defecto**
+  (lo dice su propio typing en `FlashListProps.d.ts`; es solo New Arch). Ancla
+  el ítem visible y sigue su posición cuando el contenido cambia — está pensado
+  para chats. En una lista que se reordena o filtra, eso hace que la lista
+  **persiga al ítem anclado** hasta su nuevo índice y deje al usuario en un
+  punto del scroll que no pidió. Parece un bug de caché o de reciclado y no lo
+  es. `list.tsx` lo apaga con `maintainVisibleContentPosition={{ disabled: true }}`.
+- **`ListHeader` renderiza sus hijos tres veces**: un medidor invisible
+  (`left: -9999`, `opacity: 0`) para decidir si el contenido cabe en una línea,
+  y después la rama que cabe o la del `ScrollView`. Por eso `ListFilter` y
+  `ListOrderBy` son presentacionales puros: con estado interno, cada copia
+  tendría el suyo y el medidor competiría con el visible. Todo hijo nuevo de
+  ese header recibe su estado por props, y la copia del medidor recibe
+  callbacks vacíos.
 - **Testear el componente `List` (FlashList) es territorio no explorado.**
   `list.test.tsx` prueba `PlantCard` directo, nunca la lista. Si lo intentas,
   empieza por `require("@shopify/flash-list/jestSetup")` — sí existe en la
@@ -237,8 +251,11 @@ renombró) y `temporada` en español.
 - **Los filtros "Sin iniciar" e "Iniciadas" no funcionan.** Ambos miran
   `progress`, que sigue hardcodeado a `0` en `index.tsx`: uno hace match con
   todo y el otro con nada, hasta que exista `respuestas`.
-- **`ListOrderBy`** es decorativo: no recibe props ni emite selección. El orden
-  real es fijo (`ORDER BY name ASC` en `plants.repository.ts`).
+- **El botón de dirección de `ListOrderBy`** todavía no emite nada: el criterio
+  de orden ya funciona (`usePlantsOrder` + `sortPlants`), pero el toggle
+  asc/desc y su animación están pendientes. El `ORDER BY name ASC` de
+  `plants.repository.ts` dejó de ser el orden final y pasó a ser el desempate:
+  `sortPlants` usa un `sort` estable, así que los empates conservan ese orden.
 - **`app.json`** tiene placeholders sin resolver (`"scheme": "your-app-scheme"`).
 - **`src/domains/navigation/`** tiene su componente en la raíz del dominio, sin
   subcarpeta `components/`, a diferencia de `plants` y `auth`.
