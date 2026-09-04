@@ -6,7 +6,7 @@ function Bone({ className }: { className: string }) {
 
 export function PlantCardSkeleton() {
   return (
-    <View className="rounded-xl border-2 border-border bg-card p-4 gap-4 animate-pulse-deep">
+    <View className="rounded-xl border-2 border-border bg-card p-4 gap-4 animate-pulse">
       {/* nombre variedad */}
       <View className="gap-2">
         <Bone className="h-6 w-40" />
