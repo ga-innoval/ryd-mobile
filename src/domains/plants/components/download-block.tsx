@@ -108,13 +108,8 @@ export function DownloadBlock({
       >
         <StatusDot
           dotClassName={dotClassName}
-          animated={true}
-          visible={showDot && animated}
-        />
-        <StatusDot
-          dotClassName={dotClassName}
-          animated={false}
-          visible={showDot && !animated}
+          animated={animated}
+          visible={showDot}
         />
         <Text className="text-primary-foreground/80 text-sm">
           {isLoading
