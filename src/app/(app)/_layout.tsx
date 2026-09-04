@@ -1,6 +1,14 @@
 import { Redirect, Stack } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 import { useAuthStore } from "@/domains/auth/store/auth-store";
+import { usePendingPlantsPolling } from "@/domains/plants/hooks/use-pending-plants-polling";
+
+// Debe montarse una sola vez y solo con sesión autenticada para evitar
+// llamadas sin token
+function PendingPlantsWatcher() {
+  usePendingPlantsPolling();
+  return null;
+}
 
 export default function AppLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -15,5 +23,10 @@ export default function AppLayout() {
   }
   if (!isAuthenticated) return <Redirect href="/login" />;
 
-  return <Stack />;
+  return (
+    <>
+      <PendingPlantsWatcher />
+      <Stack />
+    </>
+  );
 }
