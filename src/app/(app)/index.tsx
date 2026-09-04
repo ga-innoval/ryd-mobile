@@ -39,7 +39,8 @@ export default function Index() {
   const { searchQuery, debouncedQuery, setSearchQuery, clearQuery } =
     useSearchbar();
 
-  const { orderBy, setOrderBy, orderedPlants } = usePlantsOrder(plants);
+  const { orderBy, setOrderBy, direction, toggleDirection, orderedPlants } =
+    usePlantsOrder(plants);
 
   const filteredByText = useMemo(
     () => filterAndMatchData(orderedPlants, debouncedQuery),
@@ -74,9 +75,11 @@ export default function Index() {
         setSelectedFilter={setSelectedFilter}
         orderBy={orderBy}
         setOrderBy={setOrderBy}
+        direction={direction}
+        toggleDirection={toggleDirection}
       />
     ),
-    [selectedFilter, filterItems, orderBy, setOrderBy],
+    [selectedFilter, filterItems, orderBy, setOrderBy, direction, toggleDirection],
   );
 
   const emptyStateComponent = useMemo(

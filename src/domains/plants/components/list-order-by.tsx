@@ -9,11 +9,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TriggerRef } from "@rn-primitives/select";
-import { ArrowDownNarrowWide, ArrowUpDown } from "lucide-react-native";
+import {
+  ArrowDownNarrowWide,
+  ArrowUpDown,
+  ArrowUpWideNarrow,
+} from "lucide-react-native";
 import { useRef } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { OrderByField } from "../types";
+import type { OrderByField, OrderDirection } from "../types";
 import { IconButton } from "@/components/ui/icon-button";
 
 type orderByOption = { label: string; value: OrderByField };
@@ -21,7 +25,14 @@ type orderByOption = { label: string; value: OrderByField };
 type ListOrderByProps = {
   orderBy: OrderByField;
   onOrderByChange: (field: OrderByField) => void;
+  direction: OrderDirection;
+  onToggleDirection: () => void;
 };
+
+const DIRECTION_ICON = {
+  asc: ArrowDownNarrowWide,
+  desc: ArrowUpWideNarrow,
+} as const;
 
 const orderByOptions: orderByOption[] = [
   { label: "Variedad", value: "name" },
@@ -32,7 +43,12 @@ const orderByOptions: orderByOption[] = [
   { label: "Año", value: "anio" },
 ];
 
-export function ListOrderBy({ orderBy, onOrderByChange }: ListOrderByProps) {
+export function ListOrderBy({
+  orderBy,
+  onOrderByChange,
+  direction,
+  onToggleDirection,
+}: ListOrderByProps) {
   const ref = useRef<TriggerRef>(null);
   const insets = useSafeAreaInsets();
   const contentInsets = {
@@ -84,11 +100,14 @@ export function ListOrderBy({ orderBy, onOrderByChange }: ListOrderByProps) {
       <IconButton
         className="bg-foreground/90"
         accessibilityRole="button"
-        accessibilityLabel="toggle asc desc"
+        accessibilityLabel={
+          direction === "asc" ? "Orden ascendente" : "Orden descendente"
+        }
+        accessibilityHint="Cambia la dirección del orden"
+        onPress={onToggleDirection}
       >
         <Icon
-          //   as={ArrowUpWideNarrow}
-          as={ArrowDownNarrowWide}
+          as={DIRECTION_ICON[direction]}
           size={18}
           className="text-primary-foreground"
         />
