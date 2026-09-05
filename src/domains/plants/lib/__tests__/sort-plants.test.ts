@@ -30,6 +30,45 @@ describe("sortPlants", () => {
     ]);
   });
 
+  it("ordena cuadros alfanuméricos por su número, no por texto", () => {
+    // Lexicográficamente "10A" gana a "1A": tras el `1` común se compara
+    // '0' (48) contra 'A' (65).
+    const data = plants(
+      { id: "1", cuadro: "10A" },
+      { id: "2", cuadro: "1A" },
+      { id: "3", cuadro: "6A" },
+      { id: "4", cuadro: "2A" },
+    );
+
+    expect(sortPlants(data, "cuadro").map((p) => p.cuadro)).toEqual([
+      "1A",
+      "2A",
+      "6A",
+      "10A",
+    ]);
+  });
+
+  it("aplica el orden natural a cualquier campo, no solo a cuadro", () => {
+    const data = plants(
+      { id: "1", programa: "Programa 10" },
+      { id: "2", programa: "Programa 2" },
+    );
+
+    expect(sortPlants(data, "programa").map((p) => p.programa)).toEqual([
+      "Programa 2",
+      "Programa 10",
+    ]);
+  });
+
+  it("pone antes el valor que es prefijo del otro", () => {
+    const data = plants({ id: "1", cuadro: "1A" }, { id: "2", cuadro: "1" });
+
+    expect(sortPlants(data, "cuadro").map((p) => p.cuadro)).toEqual([
+      "1",
+      "1A",
+    ]);
+  });
+
   it("invierte el orden en descendente", () => {
     const data = plants({ id: "a", campo: "Alfa" }, { id: "b", campo: "Beta" });
 
