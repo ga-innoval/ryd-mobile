@@ -1,17 +1,11 @@
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { usePulseAnimation } from "@/lib/use-pulse-animation";
 import { View } from "react-native";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 
-const PULSE_HALF_CYCLE_MS = 900;
-const PULSE_MIN_OPACITY = 0.15;
-const PULSE_EASING = Easing.bezier(0.4, 0, 0.6, 1);
+// El `animate-pulse-deep` que había en `tailwind.config.js`: más profundo y
+// algo más rápido que el pulso por defecto.
+const DOT_PULSE = { minOpacity: 0.15, cycleMs: 1_800 };
 
 export function StatusDot({
   dotClassName,
@@ -22,28 +16,15 @@ export function StatusDot({
   visible: boolean;
   animated: boolean;
 }) {
-  const opacity = useSharedValue(1);
-
-  useEffect(() => {
-    if (!animated || !visible) {
-      opacity.value = 1;
-      return;
-    }
-
-    opacity.value = withRepeat(
-      withTiming(PULSE_MIN_OPACITY, {
-        duration: PULSE_HALF_CYCLE_MS,
-        easing: PULSE_EASING,
-      }),
-      -1,
-      true,
-    );
-  }, [animated, visible, opacity]);
-
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const pulseStyle = usePulseAnimation({
+    ...DOT_PULSE,
+    enabled: animated && visible,
+  });
 
   if (!visible) return null;
 
+  // La opacidad vive en el `Animated.View` y el color/tamaño en el `View` de
+  // dentro: NativeWind y Reanimated no deben disputarse la misma prop `style`.
   return (
     <Animated.View style={pulseStyle}>
       <View className={cn("size-2 rounded-full", dotClassName)} />

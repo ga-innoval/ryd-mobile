@@ -152,8 +152,13 @@ renombró) y `temporada` en español.
   pantalla (ej. empty states reciben todo por props)
 - `EmptyState` es genérico (`icon`, `title`, `body`, `renderAction`),
   reutilizable en toda la app
-- Animación custom `animate-pulse-deep` en `tailwind.config.js`
-  (min opacity 0.15) para skeletons y dots de estado
+- **Las animaciones van con Reanimated manual, nunca con las clases
+  `animate-*` de NativeWind** (ver el gotcha). El pulso de skeletons y dots de
+  estado está en `usePulseAnimation` (`src/lib/use-pulse-animation.ts`): sus
+  defaults replican el `animate-pulse` de Tailwind y acepta `minOpacity`,
+  `cycleMs` y `enabled`. Las `animate-in` que quedan en `components/ui/*` son
+  de `tailwindcss-animate` y viven dentro de `Platform.select({ web })`, así
+  que no afectan a nativo
 
 ## Convenciones de test
 
@@ -209,11 +214,20 @@ renombró) y `temporada` en español.
 - **Animar `flex`/layout con Reanimated es costoso** (fuerza re-layout de
   Yoga en cada frame, aún peor con `<Image>` dentro por el re-crop).
   Preferir `transform`/`opacity` sobre tamaño fijo.
-- **NativeWind `animate-*` condicional por estado** puede disparar el warning
-  de Reanimated ("Writing to `value` during component render"). El repo tiene
-  ambos patrones vivos: `status-dot.tsx` usa clase condicional y funciona;
-  `sync-button.tsx` usa Reanimated manual (`useSharedValue` + `useEffect`)
-  para la rotación. Si aparece el warning, migrar ese caso a Reanimated manual.
+- **Las clases `animate-*` de NativeWind disparan el warning de Reanimated**
+  ("Writing to `value` during component render"): NativeWind las implementa
+  sobre shared values y los escribe **durante el render**. Con un className
+  constante puede pasar desapercibido; en cuanto depende de props, el warning
+  es continuo. Por eso ya no queda ninguna en código nativo — usar
+  `usePulseAnimation` o el patrón de `sync-button.tsx` (`useSharedValue` +
+  `useEffect` + `withTiming`).
+- **No superpongas Reanimated y NativeWind sobre el mismo componente.** El
+  estilo animado va en un `Animated.View` **envolvente** y el `className` en el
+  hijo. Envolver con `createAnimatedComponent` un componente que ya usa
+  `cssInterop` hace que ambos se disputen la prop `style`: pasó con `Icon`
+  —que usa `nativeStyleToProp` para derivar `size` del className— y el icono
+  desaparecía al descansar en un ángulo distinto de 0. Se ve solo cuando la
+  animación no termina en su valor neutro, así que puede quedar latente.
 - **FlashList v2 trae `maintainVisibleContentPosition` activado por defecto**
   (lo dice su propio typing en `FlashListProps.d.ts`; es solo New Arch). Ancla
   el ítem visible y sigue su posición cuando el contenido cambia — está pensado
