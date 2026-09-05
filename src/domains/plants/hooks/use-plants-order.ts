@@ -3,8 +3,8 @@ import type { OrderByField, OrderDirection, Plant } from "../types";
 import { sortPlants } from "../lib/sort-plants";
 
 export function usePlantsOrder(plants: Plant[]) {
-  const [orderBy, setOrderBy] = useState<OrderByField>("name");
-  const [direction, setDirection] = useState<OrderDirection>("asc");
+  const [orderBy, setOrderBy] = useState<OrderByField>("cuadro");
+  const [direction, setDirection] = useState<OrderDirection>("desc");
 
   const orderedPlants = useMemo(
     () => sortPlants(plants, orderBy, direction),
