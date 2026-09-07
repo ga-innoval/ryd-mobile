@@ -8,7 +8,7 @@ const ignoreUnavailable = () => {};
 export const haptics = {
   // Confirma que se registró el press de una acción importate.
   tap() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(
       ignoreUnavailable,
     );
   },
