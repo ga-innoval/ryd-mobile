@@ -88,27 +88,41 @@ const isSafeToDelete = (local: PlantRecord | null) =>
   local === null || local.syncStatus === SyncStatus.synced;
 
 /**
- * Converge el local con lo que mandó el servidor: encabezado, tratamientos y
- * bajas. Todo en una sola transacción — N escrituras sueltas en SQLite son N
- * fsyncs, y en tablet se nota.
+ * Una plantación sin tratamientos activos no se puede usar en la app.
+ * Se revisa `isActive` de cada tratamiento y no `length`, porque el
+ * array incluye tratamientos con `isActive = false`
+ */
+const isUsable = (entry: PlantSyncEntry) =>
+  entry.isActive && entry.tratamientos.some((t) => t.isActive);
+
+/**
+ * Devuelve cuántas plantaciones quedaron almacenadas, que no tiene por qué ser
+ * `entries.length`: la regla de arriba descarta las inutilizables, y quien la
+ * aplica es quien puede contarlas.
  */
 export const syncPlantsBatch = async (
   db: SQLiteDatabase,
   entries: PlantSyncEntry[],
-): Promise<void> => {
+): Promise<number> => {
+  let stored = 0;
+
   await db.withTransactionAsync(async () => {
     for (const entry of entries) {
-      if (entry.isActive) {
+      if (isUsable(entry)) {
         await upsertPlant(db, entry.plant);
-        await syncPlantTratamientos(db, entry.tratamientos);
+        await syncPlantTratamientos(db, entry.plant.id, entry.tratamientos);
+        stored += 1;
         continue;
       }
 
+      // Desactivada o sin tratamientos usables: el desenlace es el mismo.
       if (isSafeToDelete(await getPlantById(db, entry.plant.id))) {
         await deletePlant(db, entry.plant.id);
       }
     }
   });
+
+  return stored;
 };
 
 export const deleteAllPlants = async (db: SQLiteDatabase): Promise<void> => {

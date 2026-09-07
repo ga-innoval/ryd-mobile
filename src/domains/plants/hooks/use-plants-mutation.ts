@@ -27,11 +27,12 @@ export function usePlantsMutation() {
       );
       const entries = results.map(mapRemotePlantEntry);
 
-      if (entries.length > 0) {
-        await syncPlantsBatch(db, entries);
-      }
+      // El conteo sale del sync y no de `entries.length`: las plantaciones sin
+      // tratamientos usables no se almacenan, así que anunciarlas como
+      // actualizadas sería mentir.
+      const count = entries.length > 0 ? await syncPlantsBatch(db, entries) : 0;
 
-      return { count: entries.length, serverTime: server_time };
+      return { count, serverTime: server_time };
     },
     onSuccess: ({ count, serverTime }) => {
       queryClient.invalidateQueries({ queryKey: PLANTS_QUERY_KEY });

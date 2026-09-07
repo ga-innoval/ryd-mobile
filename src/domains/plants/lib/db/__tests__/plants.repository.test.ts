@@ -17,12 +17,19 @@ const buildRecord = (overrides: Partial<PlantRecord> = {}): PlantRecord => {
 
 const buildEntry = (
   overrides: Partial<PlantSyncEntry> = {},
-): PlantSyncEntry => ({
-  plant: buildRecord({ id: "p1", syncStatus: SyncStatus.synced }),
-  tratamientos: [],
-  isActive: true,
-  ...overrides,
-});
+): PlantSyncEntry => {
+  const plant =
+    overrides.plant ?? buildRecord({ id: "p1", syncStatus: SyncStatus.synced });
+
+  return {
+    plant,
+    tratamientos: [
+      buildTratamiento({ id: `t-${plant.id}`, plantId: plant.id }),
+    ],
+    isActive: true,
+    ...overrides,
+  };
+};
 
 const tratamientosOf = async (db: SQLiteDatabase, plantId: string) => {
   const plants = await getAllPlants(db);
@@ -175,6 +182,113 @@ describe("syncPlantsBatch", () => {
     ]);
 
     expect(await getAllPlants(db)).toHaveLength(1);
+  });
+});
+
+describe("syncPlantsBatch: solo plantaciones con tratamientos", () => {
+  let db: SQLiteDatabase;
+
+  beforeEach(async () => {
+    db = createInMemoryDb();
+    await runMigrations(db);
+  });
+
+  it("no guarda una plantación sin tratamientos", async () => {
+    await syncPlantsBatch(db, [buildEntry({ tratamientos: [] })]);
+
+    expect(await getAllPlants(db)).toHaveLength(0);
+  });
+
+  it("no guarda una plantación cuyos tratamientos están todos de baja", async () => {
+    // Distingue `some(isActive)` de `length`: hay filas, pero ninguna usable.
+    await syncPlantsBatch(db, [
+      buildEntry({
+        tratamientos: [
+          buildTratamiento({ id: "t1", plantId: "p1", isActive: false }),
+          buildTratamiento({ id: "t2", plantId: "p1", isActive: false }),
+        ],
+      }),
+    ]);
+
+    expect(await getAllPlants(db)).toHaveLength(0);
+  });
+
+  it("borra la que se queda sin tratamientos activos, con su CASCADE", async () => {
+    await syncPlantsBatch(db, [buildEntry()]);
+    expect(await getAllPlants(db)).toHaveLength(1);
+
+    await syncPlantsBatch(db, [
+      buildEntry({
+        tratamientos: [
+          buildTratamiento({ id: "t-p1", plantId: "p1", isActive: false }),
+        ],
+      }),
+    ]);
+
+    expect(await getAllPlants(db)).toHaveLength(0);
+    expect(await db.getAllAsync("SELECT * FROM tratamientos")).toHaveLength(0);
+  });
+
+  it("poda el tratamiento borrado físicamente, que llega como ausencia", async () => {
+    // Un borrado físico en el admin no manda lápida: la fila ya no existe,
+    // así que simplemente no viene en el array.
+    await syncPlantsBatch(db, [
+      buildEntry({
+        tratamientos: [
+          buildTratamiento({ id: "t1", plantId: "p1" }),
+          buildTratamiento({ id: "t2", plantId: "p1" }),
+        ],
+      }),
+    ]);
+
+    await syncPlantsBatch(db, [
+      buildEntry({
+        tratamientos: [buildTratamiento({ id: "t1", plantId: "p1" })],
+      }),
+    ]);
+
+    expect((await tratamientosOf(db, "p1")).map((t) => t.id)).toEqual(["t1"]);
+  });
+
+  it("la poda por ausencia no toca los de otra plantación", async () => {
+    // El `WHERE plantId = ?` es lo que evita que un NOT IN global borre los
+    // tratamientos de las plantaciones que no vinieron en este pull.
+    await syncPlantsBatch(db, [
+      buildEntry({
+        tratamientos: [
+          buildTratamiento({ id: "t1", plantId: "p1" }),
+          buildTratamiento({ id: "t2", plantId: "p1" }),
+        ],
+      }),
+      buildEntry({
+        plant: buildRecord({ id: "p2", syncStatus: SyncStatus.synced }),
+        tratamientos: [buildTratamiento({ id: "t3", plantId: "p2" })],
+      }),
+    ]);
+
+    await syncPlantsBatch(db, [
+      buildEntry({
+        tratamientos: [buildTratamiento({ id: "t1", plantId: "p1" })],
+      }),
+    ]);
+
+    expect((await tratamientosOf(db, "p1")).map((t) => t.id)).toEqual(["t1"]);
+    expect((await tratamientosOf(db, "p2")).map((t) => t.id)).toEqual(["t3"]);
+  });
+
+  it("cuenta solo las que almacenó, no las recibidas", async () => {
+    const stored = await syncPlantsBatch(db, [
+      buildEntry(),
+      buildEntry({
+        plant: buildRecord({ id: "p2", syncStatus: SyncStatus.synced }),
+        tratamientos: [],
+      }),
+      buildEntry({
+        plant: buildRecord({ id: "p3", syncStatus: SyncStatus.synced }),
+      }),
+    ]);
+
+    expect(stored).toBe(2);
   });
 });
 

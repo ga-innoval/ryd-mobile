@@ -56,8 +56,24 @@ export const deleteTratamiento = async (
  */
 export const syncPlantTratamientos = async (
   db: SQLiteDatabase,
+  plantId: string,
   tratamientos: TratamientoRecord[],
 ): Promise<void> => {
+  // Lo que no viene fue borrado físicamente en el servidor: el flag
+  // `isActive` no llega porque la fila ya no existe.
+  //
+  // El `plantId = ?` no es opcional: un `NOT IN` global borraría los
+  // tratamientos de toda plantación que no viniera en este pull incremental.
+  const ids = tratamientos.map((t) => t.id);
+  const notIn = ids.length
+    ? ` AND id NOT IN (${ids.map(() => "?").join(",")})`
+    : "";
+
+  await db.runAsync(`DELETE FROM tratamientos WHERE plantId = ?${notIn}`, [
+    plantId,
+    ...ids,
+  ]);
+
   for (const tratamiento of tratamientos) {
     if (tratamiento.isActive) {
       await upsertTratamiento(db, tratamiento);
