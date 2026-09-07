@@ -63,7 +63,7 @@ const toastConfig: ToastConfig = {
   success: ({ text1, text2, hide }) => (
     <ToastBody
       icon={CheckIcon}
-      badgeTextClassName="text-green-500"
+      badgeTextClassName="text-leaf"
       title={text1}
       description={text2}
       onClose={() => hide()}
