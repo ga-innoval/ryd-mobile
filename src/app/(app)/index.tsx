@@ -9,6 +9,7 @@ import { usePlantsOrder } from "@/domains/plants/hooks/use-plants-order";
 import { useDownloadPlants } from "@/domains/plants/hooks/use-download-plants";
 import { useScrollToTopButton } from "@/domains/plants/hooks/use-scroll-to-top-button";
 import { usePlants } from "@/domains/plants/hooks/use-plants";
+import { haptics } from "@/lib/haptics";
 import { PlantsPageHeader } from "@/domains/navigation/plants-page-header";
 import { ListEmptyState } from "@/domains/plants/components/list-empty-state";
 import { List } from "@/domains/plants/components/list";
@@ -30,6 +31,11 @@ export default function Index() {
   );
 
   const isRefreshing = isFetching && !isLoading;
+
+  const handleRefresh = () => {
+    haptics.tap();
+    refetch();
+  };
 
   const { triggerDownload, status, lastDownloadAt } = useDownloadPlants();
 
@@ -79,7 +85,14 @@ export default function Index() {
         toggleDirection={toggleDirection}
       />
     ),
-    [selectedFilter, filterItems, orderBy, setOrderBy, direction, toggleDirection],
+    [
+      selectedFilter,
+      filterItems,
+      orderBy,
+      setOrderBy,
+      direction,
+      toggleDirection,
+    ],
   );
 
   const emptyStateComponent = useMemo(
@@ -119,7 +132,7 @@ export default function Index() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         refreshing={isRefreshing}
-        onRefresh={refetch}
+        onRefresh={handleRefresh}
         ListHeaderComponent={listHeaderComponent}
         ListEmptyComponent={emptyStateComponent}
         maintainVisibleContentPosition={{ disabled: true }}
