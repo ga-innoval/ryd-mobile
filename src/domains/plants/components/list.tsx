@@ -6,8 +6,9 @@ import {
   useCallback,
 } from "react";
 import Animated from "react-native-reanimated";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { FlashList, FlashListProps, FlashListRef } from "@shopify/flash-list";
+import { useRouter } from "expo-router";
 import { BoxIcon, LeafIcon, LucideIcon } from "lucide-react-native";
 import {
   type PlantWithMatch,
@@ -149,6 +150,8 @@ export const PlantCard = memo(function PlantCard({
   item: Plant;
   match?: FieldMatch;
 }) {
+  const router = useRouter();
+
   return (
     <View className="rounded-xl bg-card shadow-md shadow-black/5">
       <View className="rounded-xl border-2 border-border overflow-hidden">
@@ -158,15 +161,21 @@ export const PlantCard = memo(function PlantCard({
           label="tratamiento"
           variant="outlined"
         >
-          {item.tratamientos.map((trat, index) => (
-            <View
-              key={trat.name + index}
+          {item.tratamientos.map((trat) => (
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/tratamientos/[id]",
+                  params: { id: trat.id },
+                })
+              }
+              key={trat.id}
               className="w-28 h-16 rounded-xl items-center justify-center border-2 border-border flex-row relative overflow-hidden"
             >
               <Text numberOfLines={1} className="font-medium max-w-24">
                 {trat.name}
               </Text>
-            </View>
+            </Pressable>
           ))}
           {item.tratamientos.length === 0 && (
             <Text variant="muted">Sin tratamientos configurados</Text>
