@@ -37,7 +37,7 @@ const DOWNLOAD_STATUS_CONFIG: Record<DownloadStatus, DownloadStatusConfig> = {
   [DownloadStatus.error]: {
     dotClassName: "bg-red-400",
     showDot: true,
-    label: "Error de descarga",
+    label: "Error de descarga. Intenta de nuevo",
   },
   [DownloadStatus.pending]: {
     dotClassName: "bg-orange-400",
