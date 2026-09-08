@@ -11,6 +11,25 @@ const toRecord = (row: TratamientoRow): TratamientoRecord => ({
   isActive: Boolean(row.isActive),
 });
 
+/**
+ * A diferencia de `getAllTratamientos`, **no filtra por `isActive`**. Aquel
+ * filtra porque alimenta el listado, donde una lápida no debe aparecer; una
+ * búsqueda por id es otra cosa: si la retención por respuestas pendientes
+ * conserva un tratamiento inactivo, la pantalla de detalle tiene que poder
+ * abrirlo. Quién decide qué mostrar es la pantalla, no el repositorio.
+ */
+export const getTratamientoById = async (
+  db: SQLiteDatabase,
+  id: string,
+): Promise<TratamientoRecord | null> => {
+  const row = await db.getFirstAsync<TratamientoRow>(
+    "SELECT * FROM tratamientos WHERE id = ?",
+    [id],
+  );
+
+  return row ? toRecord(row) : null;
+};
+
 export const upsertTratamiento = async (
   db: SQLiteDatabase,
   tratamiento: TratamientoRecord,
