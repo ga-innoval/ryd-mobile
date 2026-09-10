@@ -6,7 +6,7 @@ import {
   useCallback,
 } from "react";
 import Animated from "react-native-reanimated";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { FlashList, FlashListProps, FlashListRef } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { BoxIcon, LeafIcon, LucideIcon } from "lucide-react-native";
@@ -15,6 +15,7 @@ import {
   type FieldMatch,
   type MatchableField,
   type Plant,
+  type TratamientoRecord,
   SyncStatus,
 } from "../types";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,8 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { HighlightedText } from "@/components/highlighted-text";
 import { Separator } from "@/components/ui/separator";
+import { PressableScale } from "@/components/ui/pressable-scale";
+import { TratamientoChip } from "./tratamiento-chip";
 
 const DATA_FIELD_CONFIG: {
   label: string;
@@ -162,20 +165,17 @@ export const PlantCard = memo(function PlantCard({
           variant="outlined"
         >
           {item.tratamientos.map((trat) => (
-            <Pressable
+            // Desde la tarjeta se entra al detalle: `push`.
+            <TratamientoChip
+              key={trat.id}
+              tratamiento={trat}
               onPress={() =>
                 router.push({
                   pathname: "/tratamientos/[id]",
                   params: { id: trat.id },
                 })
               }
-              key={trat.id}
-              className="w-28 h-16 rounded-xl items-center justify-center border-2 border-border flex-row relative overflow-hidden"
-            >
-              <Text numberOfLines={1} className="font-medium max-w-24">
-                {trat.name}
-              </Text>
-            </Pressable>
+            />
           ))}
           {item.tratamientos.length === 0 && (
             <Text variant="muted">Sin tratamientos configurados</Text>
@@ -187,14 +187,16 @@ export const PlantCard = memo(function PlantCard({
           variant="secondary"
         >
           {EVALS_POST_COSECHA.map(({ id, title, subtitle }) => (
-            <View
+            // TODO: navegar al formulario de post-cosecha cuando exista su
+            // ruta. De momento solo da el feedback táctil.
+            <PressableScale
               key={id}
               testID={`post-cosecha-${id}`}
               className="w-28 rounded-xl border-2 border-border py-2 items-center"
             >
               <Text className="font-medium">{title}</Text>
               <Text variant="muted">{subtitle}</Text>
-            </View>
+            </PressableScale>
           ))}
         </CardRecordSection>
       </View>
