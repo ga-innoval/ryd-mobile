@@ -102,6 +102,25 @@ export const syncPlantTratamientos = async (
   }
 };
 
+/**
+ * Los de una plantación concreta, para la barra de acceso rápido del detalle.
+ * Usa el índice `idx_tratamientos_plantId` y respeta el mismo orden que
+ * `getAllTratamientos`, que es el del backend.
+ */
+export const getTratamientosByPlantId = async (
+  db: SQLiteDatabase,
+  plantId: string,
+): Promise<TratamientoRecord[]> => {
+  const rows = await db.getAllAsync<TratamientoRow>(
+    `SELECT * FROM tratamientos
+      WHERE plantId = ? AND isActive = 1
+      ORDER BY temporada DESC, name ASC`,
+    [plantId],
+  );
+
+  return rows.map(toRecord);
+};
+
 export const getAllTratamientos = async (
   db: SQLiteDatabase,
 ): Promise<TratamientoRecord[]> => {
