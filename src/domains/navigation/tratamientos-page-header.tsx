@@ -1,6 +1,5 @@
 import { Text } from "@/components/ui/text";
 import { HeaderBase } from "./header-base";
-import { PlantRecord, TratamientoRecord } from "../plants/types";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
@@ -10,8 +9,8 @@ import { ArrowLeft, LeafIcon, SaveIcon, XIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 
 interface TratamientosPageHeader {
-  tratamiento?: TratamientoRecord;
-  plant?: PlantRecord;
+  tratamientoName?: string;
+  plantName?: string;
   isLoading?: boolean;
 }
 
@@ -20,7 +19,7 @@ interface TratamientosPageHeader {
  * volver, acciones— se monta desde el primer frame para que no haya salto de
  * layout al llegar el dato.
  */
-function HeaderTitleSkeleton() {
+function HeaderDataSkeleton() {
   const pulseStyle = usePulseAnimation({ minOpacity: 0.3 });
 
   return (
@@ -35,8 +34,8 @@ function HeaderTitleSkeleton() {
 }
 
 export function TratamientosPageHeader({
-  tratamiento,
-  plant,
+  tratamientoName,
+  plantName,
   isLoading = false,
 }: TratamientosPageHeader) {
   const router = useRouter();
@@ -51,15 +50,15 @@ export function TratamientosPageHeader({
         <Icon size={16} as={LeafIcon} className="text-leaf" />
 
         {isLoading ? (
-          <HeaderTitleSkeleton />
-        ) : plant && tratamiento ? (
+          <HeaderDataSkeleton />
+        ) : plantName && tratamientoName ? (
           <>
             <Text className="text-primary-foreground font-bold">
-              {plant.name}
+              {plantName}
             </Text>
             <Text className="text-primary-foreground/40">/</Text>
             <Text className="text-primary-foreground/80 font-medium">
-              {tratamiento.name}
+              {tratamientoName}
             </Text>
           </>
         ) : (
