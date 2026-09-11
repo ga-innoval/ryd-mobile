@@ -11,16 +11,14 @@ import {
 } from "@/domains/plants/components/tratamiento-chip";
 import { EmptyState } from "@/components/empty-state";
 import { CollapsibleSection } from "@/components/collapsible-section";
-import {
-  EvalQuestionsForm,
-  type EvalAnswers,
-} from "@/domains/plants/components/eval-questions-form";
+import { EvalQuestionsForm } from "@/domains/plants/components/eval-questions-form";
+import { calcEvalProgress } from "@/domains/plants/lib/calc-eval-progress";
 import { EVALS_EXTERIOR } from "@/domains/plants/lib/evals-exterior";
 import { EVALS_INTERIOR } from "@/domains/plants/lib/evals-interior";
 import { GhostIcon, GrapeIcon, MicroscopeIcon } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
-import type { PlantRecord } from "@/domains/plants/types";
+import type { EvalAnswers, PlantRecord } from "@/domains/plants/types";
 import { cn } from "@/lib/utils";
 
 const PLANT_FIELDS = [
@@ -234,9 +232,10 @@ export default function TratamientoScreen() {
             title="Evaluación Exterior"
             description="Forma, color, firmeza y arreglo del racimo y de la baya."
             defaultOpen={false}
-            // TODO(respuestas): fijo hasta que exista la captura. El cálculo
-            // real es el de CLAUDE.md: 50% tratamientos + 50% post-cosecha.
-            progress={0}
+            // TODO(respuestas): sale del estado de la pantalla, así que se
+            // pierde al salir. Cuando exista la tabla cambia el origen del
+            // dato, no el cálculo.
+            progress={calcEvalProgress(EVALS_EXTERIOR, answers)}
           >
             <EvalQuestionsForm
               questions={EVALS_EXTERIOR}
@@ -255,7 +254,7 @@ export default function TratamientoScreen() {
             description="Características de la pulpa, la piel, el sabor y la experiencia de consumo."
             defaultOpen={false}
             // TODO(respuestas): igual que la sección de arriba.
-            progress={0}
+            progress={calcEvalProgress(EVALS_INTERIOR, answers)}
           >
             <EvalQuestionsForm
               questions={EVALS_INTERIOR}

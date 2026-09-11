@@ -2,9 +2,7 @@ import { Fragment } from "react";
 import { View } from "react-native";
 import { Separator } from "@/components/ui/separator";
 import { OptionPicker } from "@/components/ui/option-picker";
-import type { EvalQuestion } from "../types";
-
-export type EvalAnswers = Record<string, string | undefined>;
+import type { EvalAnswers, EvalQuestion } from "../types";
 
 type EvalQuestionsFormProps = {
   questions: EvalQuestion[];
