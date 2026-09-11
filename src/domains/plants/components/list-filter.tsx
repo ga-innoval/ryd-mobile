@@ -1,8 +1,7 @@
-import { Pressable, PressableProps, View } from "react-native";
+import * as ToggleGroupPrimitive from "@rn-primitives/toggle-group";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import { FilterValues } from "../types";
-import { Dispatch, SetStateAction } from "react";
 
 const ToggleItemVariantsCn = {
   default: {
@@ -15,34 +14,6 @@ const ToggleItemVariantsCn = {
   },
 };
 
-interface ToggleItemProps extends PressableProps {
-  variant: "default" | "selected";
-  text: string;
-}
-
-function ToggleItem({
-  variant = "default",
-  text,
-  className,
-  ...props
-}: ToggleItemProps) {
-  const containerCn = ToggleItemVariantsCn[variant].container;
-  const textCn = ToggleItemVariantsCn[variant].text;
-
-  return (
-    <Pressable
-      className={cn(
-        "items-center justify-center rounded-full border px-4 py-1",
-        containerCn,
-        className,
-      )}
-      {...props}
-    >
-      <Text className={cn("font-medium", textCn)}>{text}</Text>
-    </Pressable>
-  );
-}
-
 type FilterItem = {
   label: string;
   value: FilterValues;
@@ -51,7 +22,7 @@ type FilterItem = {
 
 interface ListFilterProps {
   selectedItem: string;
-  onItemPress: Dispatch<SetStateAction<FilterValues>>;
+  onItemPress: (value: FilterValues) => void;
   items: FilterItem[];
 }
 
@@ -61,15 +32,41 @@ export function ListFilter({
   items,
 }: ListFilterProps) {
   return (
-    <View className="flex flex-row gap-2">
-      {items.map(({ label, value, count }) => (
-        <ToggleItem
-          key={label}
-          onPress={() => onItemPress(value)}
-          text={count !== undefined ? `${label} (${count})` : label}
-          variant={selectedItem === value ? "selected" : "default"}
-        />
-      ))}
-    </View>
+    <ToggleGroupPrimitive.Root
+      type="single"
+      value={selectedItem}
+      // El primitivo emite `undefined` al pulsar la opción ya activa, que sería
+      // deseleccionar. Aquí siempre hay un filtro vigente —"Todas" es el
+      // neutro—, así que ese caso se ignora en vez de dejar la lista sin
+      // criterio.
+      onValueChange={(next) => {
+        if (next) onItemPress(next as FilterValues);
+      }}
+      className="flex flex-row gap-2"
+    >
+      {items.map(({ label, value, count }) => {
+        const isSelected = ToggleGroupPrimitive.utils.getIsSelected(
+          selectedItem,
+          value,
+        );
+        const styles =
+          ToggleItemVariantsCn[isSelected ? "selected" : "default"];
+
+        return (
+          <ToggleGroupPrimitive.Item
+            key={value}
+            value={value}
+            className={cn(
+              "items-center justify-center rounded-full border px-4 py-1",
+              styles.container,
+            )}
+          >
+            <Text className={cn("font-medium", styles.text)}>
+              {count !== undefined ? `${label} (${count})` : label}
+            </Text>
+          </ToggleGroupPrimitive.Item>
+        );
+      })}
+    </ToggleGroupPrimitive.Root>
   );
 }
