@@ -10,7 +10,10 @@ import {
   TratamientoChipSkeleton,
 } from "@/domains/plants/components/tratamiento-chip";
 import { EmptyState } from "@/components/empty-state";
-import { CollapsibleSection } from "@/components/collapsible-section";
+import {
+  CollapsibleBody,
+  CollapsibleHeader,
+} from "@/components/collapsible-section";
 import { EvalQuestionsForm } from "@/domains/plants/components/eval-questions-form";
 import { calcEvalProgress } from "@/domains/plants/lib/calc-eval-progress";
 import { EVALS_EXTERIOR } from "@/domains/plants/lib/evals-exterior";
@@ -73,6 +76,33 @@ function PlantFieldsSkeleton() {
   );
 }
 
+const SECTIONS = [
+  {
+    id: "exterior",
+    icon: GrapeIcon,
+    title: "Evaluación Exterior",
+    description: "Forma, color, firmeza y arreglo del racimo y de la baya.",
+    questions: EVALS_EXTERIOR,
+  },
+  {
+    id: "interior",
+    icon: MicroscopeIcon,
+    title: "Evaluación Interior",
+    description:
+      "Características de la pulpa, la piel, el sabor y la experiencia de consumo.",
+    questions: EVALS_INTERIOR,
+  },
+];
+
+/**
+ * Qué hijos del scroll se quedan fijos al llegar arriba. Van derivados y no a
+ * mano porque `stickyHeaderIndices` indexa los hijos directos del contenedor:
+ * el espaciador ocupa el 0 y cada sección aporta cabecera y cuerpo, así que
+ * añadir una sección con índices escritos a mano descuadraría el pegado sin
+ * dar ningún error.
+ */
+const STICKY_HEADER_INDICES = SECTIONS.map((_, index) => 1 + index * 2);
+
 export default function TratamientoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading } = useTratamiento(id);
@@ -81,6 +111,14 @@ export default function TratamientoScreen() {
   // Estado local por ahora: la captura no se persiste hasta que exista la
   // tabla `respuestas`.
   const [answers, setAnswers] = useState<EvalAnswers>({});
+
+  // El `open` vive aquí y no en la sección: cabecera y cuerpo son hijos
+  // sueltos del scroll —lo exige `stickyHeaderIndices`— y ya no hay un
+  // envoltorio común donde compartirlo. Ausente es cerrada.
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const toggleSection = useCallback((id: string) => {
+    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
 
   // `setParams` cambia de hermano sin desmontar la pantalla, así que sin esto
   // las respuestas del tratamiento anterior seguirían aquí.
@@ -220,48 +258,50 @@ export default function TratamientoScreen() {
         <Animated.ScrollView
           onScroll={scrollHandler}
           scrollEventThrottle={16}
-          contentContainerClassName="px-4 pb-10 gap-4"
+          // Fija la cabecera de la sección en curso; al entrar la siguiente,
+          // esta la empuja fuera. Lo hace ScrollView por su cuenta: engancha su
+          // propio listener nativo, así que no se pisa con `onScroll`.
+          stickyHeaderIndices={STICKY_HEADER_INDICES}
+          // Sin `gap`: separaría cada cabecera de su propio cuerpo, que ahora
+          // son hijos hermanos. La separación entre secciones va en el cuerpo.
+          contentContainerClassName="px-4 pb-10"
         >
-          {/* Reserva el hueco del bloque superpuesto. */}
-          <View style={{ height: reservedHeight + 16 }} />
-          {/* Las respuestas de ambas secciones viven en el mismo `answers`:
+          {/* Reserva el hueco del bloque superpuesto. Sin holgura extra: la
+              primera cabecera ya trae la suya, y sumarlas dejaría la primera
+              sección al doble de distancia que las demás. */}
+          <View style={{ height: reservedHeight }} />
+          {/* Un array se aplana en los hijos del scroll (un Fragment no), que
+              es lo que permite generar las secciones y seguir teniendo cabecera
+              y cuerpo como hijos indexables.
+
+              Las respuestas de todas las secciones viven en el mismo `answers`:
               los ids de pregunta son únicos entre catálogos, no solo dentro de
               cada uno. */}
-          <CollapsibleSection
-            icon={GrapeIcon}
-            title="Evaluación Exterior"
-            description="Forma, color, firmeza y arreglo del racimo y de la baya."
-            defaultOpen={false}
-            // TODO(respuestas): sale del estado de la pantalla, así que se
-            // pierde al salir. Cuando exista la tabla cambia el origen del
-            // dato, no el cálculo.
-            progress={calcEvalProgress(EVALS_EXTERIOR, answers)}
-          >
-            <EvalQuestionsForm
-              questions={EVALS_EXTERIOR}
-              answers={answers}
-              onAnswerChange={handleAnswerChange}
-            />
-          </CollapsibleSection>
+          {SECTIONS.flatMap((section) => {
+            const open = openSections[section.id] ?? false;
 
-          {/* Cerrada de inicio: así no se monta hasta desplegarla y la pantalla
-              entra costando solo una sección. El precio es que esa primera
-              apertura no va animada —no hay altura medida todavía—, a partir de
-              ahí sí. */}
-          <CollapsibleSection
-            icon={MicroscopeIcon}
-            title="Evaluación Interior"
-            description="Características de la pulpa, la piel, el sabor y la experiencia de consumo."
-            defaultOpen={false}
-            // TODO(respuestas): igual que la sección de arriba.
-            progress={calcEvalProgress(EVALS_INTERIOR, answers)}
-          >
-            <EvalQuestionsForm
-              questions={EVALS_INTERIOR}
-              answers={answers}
-              onAnswerChange={handleAnswerChange}
-            />
-          </CollapsibleSection>
+            return [
+              <CollapsibleHeader
+                key={`${section.id}-header`}
+                icon={section.icon}
+                title={section.title}
+                description={section.description}
+                open={open}
+                onToggle={() => toggleSection(section.id)}
+                // TODO(respuestas): sale del estado de la pantalla, así que se
+                // pierde al salir. Cuando exista la tabla cambia el origen del
+                // dato, no el cálculo.
+                progress={calcEvalProgress(section.questions, answers)}
+              />,
+              <CollapsibleBody key={`${section.id}-body`} open={open}>
+                <EvalQuestionsForm
+                  questions={section.questions}
+                  answers={answers}
+                  onAnswerChange={handleAnswerChange}
+                />
+              </CollapsibleBody>,
+            ];
+          })}
         </Animated.ScrollView>
       )}
     </View>

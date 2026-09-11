@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import { View } from "react-native";
 import { Separator } from "@/components/ui/separator";
 import { OptionPicker } from "@/components/ui/option-picker";
@@ -28,19 +27,29 @@ export function EvalQuestionsForm({
   onAnswerChange,
 }: EvalQuestionsFormProps) {
   return (
-    <View className="gap-6">
+    <View className="flex-row flex-wrap mb-4">
       {questions.map((question, index) => (
-        <Fragment key={question.id}>
-          {/* Entre preguntas y no antes de la primera: el `gap-6` del
-              contenedor le da aire por ambos lados. */}
-          {index > 0 && <Separator />}
+        <View
+          key={question.id}
+          // `grow basis-[45%]` y no `w-1/2`: dos mitades exactas más el `gap-6`
+          // suman más del 100% y la segunda caería a la fila siguiente, con lo
+          // que el par se vería como una columna. Pidiendo 45% caben dos y
+          // crecen para repartirse lo que sobra; una tercera ya no entra.
+          className={question.halfWidth ? "grow basis-[45%]" : "w-full"}
+        >
+          {/* Dentro de la celda y no entre celdas: en un flujo que envuelve, un
+              separador suelto ocuparía su propio hueco de la fila y rompería el
+              emparejamiento. La condición es la de siempre —todas menos la
+              primera—, así que en las filas de una sola pregunta se ve igual
+              que antes. */}
+          {index > 0 && <Separator className="mb-8 mt-9" />}
           <OptionPicker
             label={question.label}
             options={question.options}
             value={answers[question.id]}
             onChange={(value) => onAnswerChange(question.id, value)}
           />
-        </Fragment>
+        </View>
       ))}
     </View>
   );

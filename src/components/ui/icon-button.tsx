@@ -5,7 +5,7 @@ export function IconButton({ className, disabled, ...props }: PressableProps) {
   return (
     <Pressable
       className={cn(
-        "size-8 rounded-full bg-primary-foreground/15 items-center justify-center",
+        "size-8 rounded-full bg-primary-foreground/15 items-center justify-center border border-primary-foreground/30",
         disabled ? "opacity-50" : "opacity-100",
         className,
       )}

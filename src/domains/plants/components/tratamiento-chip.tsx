@@ -29,10 +29,10 @@ const VARIANTS: Record<ChipVariant, VariantStyles> = {
   },
   // Más pequeño y con borde claro, porque va sobre `bg-primary`.
   header: {
-    container: "w-20 h-10 px-2 border-primary-foreground/30 border",
+    container: "w-20 h-10 px-2 border-primary-foreground/30 border-2",
     text: "text-primary-foreground text-sm",
-    activeContainer: "bg-primary-foreground border-primary-foreground",
-    activeText: "text-primary",
+    activeContainer: "border-leaf/80",
+    activeText: "text-leaf",
   },
 };
 

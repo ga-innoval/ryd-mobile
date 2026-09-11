@@ -11,8 +11,12 @@ type PressableScaleProps = PressableProps & {
 /**
  * `Pressable` con feedback táctil: encoge un poco al pulsarse, como una tecla.
  *
- * Para un pressable que además sea hijo flex —o que no sea un `Pressable`
- * normal, como el `Item` de un toggle-group— usar `usePressScale` directamente
+ * Cuesta un shared value y un animated style por instancia, así que es para
+ * pressables que se cuentan con los dedos —las tarjetas de la lista—. Donde se
+ * montan decenas de golpe eso se nota al abrir: `option-picker.tsx` lo mide y
+ * explica por qué allí el encogido va con la variante `active:` de NativeWind.
+ *
+ * Para un pressable que además sea hijo flex, usar `usePressScale` directamente
  * y colocar el `Animated.View` donde no estorbe al layout.
  */
 export function PressableScale({

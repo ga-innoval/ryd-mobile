@@ -6,6 +6,12 @@ export type EvalQuestion = {
   id: string;
   label: string;
   options: { label: string; value: string }[];
+  /**
+   * Ocupa media fila en vez de una entera, para preguntas de pocas opciones
+   * que a ancho completo dejan la fila medio vacía. Dos consecutivas se
+   * emparejan solas: no hay que declarar el par en ningún sitio.
+   */
+  halfWidth?: boolean;
 };
 
 /**
