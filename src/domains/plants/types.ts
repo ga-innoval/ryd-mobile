@@ -1,3 +1,13 @@
+/**
+ * Una pregunta de selección única de la encuesta. La comparten los catálogos de
+ * evaluación (`lib/evals-*.ts`), que solo se diferencian en su contenido.
+ */
+export type EvalQuestion = {
+  id: string;
+  label: string;
+  options: { label: string; value: string }[];
+};
+
 export enum SyncStatus {
   pending = "pending",
   synced = "synced",
