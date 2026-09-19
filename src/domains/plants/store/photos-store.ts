@@ -11,6 +11,15 @@ export const EMPTY_PHOTOS: string[] = [];
 
 type PhotosStore = {
   /**
+   * De qué tratamiento es lo que hay guardado.
+   *
+   * Sin esto, "vaciar al montar" y "vaciar al cambiar de tratamiento" son
+   * indistinguibles: la pantalla no puede saber si se monta por primera vez o
+   * por un remonte, y en el segundo caso se llevaría por delante lo ya
+   * capturado. Con el dueño apuntado, la decisión la toma el store.
+   */
+  ownerId: string | null;
+  /**
    * URIs por sección de la encuesta, del tratamiento que está abierto.
    *
    * La clave es solo la sección y no también el tratamiento porque esto se
@@ -28,7 +37,12 @@ type PhotosStore = {
    * eliminando fotos que nadie eligió.
    */
   removePhotos: (sectionId: string, indices: number[]) => void;
-  clearPhotos: () => void;
+  /**
+   * Deja el store listo para ese tratamiento: lo vacía solo si lo que había
+   * era de otro. Volver a reclamarlo para el mismo no toca nada, que es lo
+   * que hace que un remonte no pierda fotos.
+   */
+  claimFor: (tratamientoId: string) => void;
 };
 
 /**
@@ -45,6 +59,7 @@ type PhotosStore = {
  * de cambios sin guardar al volver al listado.
  */
 export const usePhotosStore = create<PhotosStore>()((set) => ({
+  ownerId: null,
   photos: {},
   addPhotos: (sectionId, uris) =>
     set((state) => ({
@@ -65,5 +80,10 @@ export const usePhotosStore = create<PhotosStore>()((set) => ({
       },
     }));
   },
-  clearPhotos: () => set({ photos: {} }),
+  claimFor: (tratamientoId) =>
+    set((state) =>
+      state.ownerId === tratamientoId
+        ? state
+        : { ownerId: tratamientoId, photos: {} },
+    ),
 }));

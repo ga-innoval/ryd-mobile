@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { AppState, Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -144,6 +144,13 @@ type CollapsibleBodyProps = {
 };
 
 /**
+ * **La altura del cuerpo sale únicamente del estilo animado.** Sus dos hijos
+ * —el fondo y el contenido medible— son `position: absolute`, así que el
+ * contenedor no tiene altura propia: si Reanimated deja de aplicar su estilo,
+ * no cae a "auto" mostrando el contenido, cae a **0** y se ve idéntico a
+ * cerrado. Es la razón del `AppState` de abajo, y conviene tenerlo presente
+ * antes de tocar el posicionamiento.
+ *
  * **El contenido no se desmonta al cerrar.** Se monta la primera vez que se
  * abre y a partir de ahí solo se pliega: reconstruirlo en cada apertura costaba
  * un commit síncrono con decenas de shared values y animated styles, y esa era
@@ -167,6 +174,33 @@ export function CollapsibleBody({ open, children }: CollapsibleBodyProps) {
   const isMeasured = contentHeight > 0;
 
   const expansion = useSharedValue(open ? 1 : 0);
+
+  /**
+   * Android tira el estilo aplicado por Reanimated al volver de una Activity
+   * de sistema —el picker de fotos—, y como la altura solo viene de ahí, el
+   * cuerpo colapsa a 0 aunque `open` siga siendo `true`. Esto lo vuelve a
+   * escribir.
+   *
+   * Medido, no supuesto: al volver, el shared value seguía valiendo 1 con la
+   * sección viéndose cerrada. Lo que se pierde es la escritura en la vista,
+   * no el valor — de ahí que baste con reaplicarlo.
+   *
+   * Va con `withTiming` y no con una asignación directa a propósito: asignar
+   * el mismo número puede no disparar ninguna escritura, y lo que hace falta
+   * aquí es justamente que la escriba. Si el estilo no se había perdido,
+   * animar de 1 a 1 no se ve.
+   */
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return;
+
+      expansion.value = withTiming(open ? 1 : 0, {
+        duration: TOGGLE_DURATION_MS,
+      });
+    });
+
+    return () => subscription.remove();
+  }, [open, expansion]);
 
   useEffect(() => {
     // Sin medida no hay a dónde animar, y el contenido está recortado a 0 —
