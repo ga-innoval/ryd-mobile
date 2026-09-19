@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
   Modal,
@@ -44,6 +44,12 @@ const MIN_BACKDROP_OPACITY = 0.4;
 const MIN_CONTENT_SCALE = 0.85;
 const SPRING = { damping: 60, stiffness: 600 };
 
+/** Lo que tarda la foto en crecer desde la miniatura, y en volver. */
+const ENTER_MS = 260;
+const EXIT_MS = 220;
+/** Sin rectángulo de origen, entra creciendo un poco desde el centro. */
+const FALLBACK_ENTER_SCALE = 0.9;
+
 const MAX_ZOOM = 4;
 const DOUBLE_TAP_ZOOM = 2.5;
 /** Por debajo de esto el pellizco cuenta como "volver a 1", no como zoom. */
@@ -56,11 +62,25 @@ type ZoomValues = {
   translateY: SharedValue<number>;
 };
 
+/** Rectángulo en coordenadas de ventana, tal como lo da `measureInWindow`. */
+export type PhotoRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 type PhotoGalleryProps = {
   photos: string[];
   visible: boolean;
   /** Por dónde abrir. Fuera de rango equivale a la primera. */
   initialIndex?: number;
+  /**
+   * De dónde crece la foto al abrir: la miniatura que se pulsó. Sin él, entra
+   * con un crecido corto desde el centro. Solo se usa al abrir — al cerrar el
+   * visor se desvanece donde esté, sin volver al hueco.
+   */
+  origin?: PhotoRect;
   onClose: () => void;
 };
 
@@ -75,13 +95,14 @@ export function PhotoGallery({
   photos,
   visible,
   initialIndex,
+  origin,
   onClose,
 }: PhotoGalleryProps) {
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent
       navigationBarTranslucent
       onRequestClose={onClose}
@@ -90,6 +111,7 @@ export function PhotoGallery({
       <GalleryContent
         photos={photos}
         initialIndex={initialIndex}
+        origin={origin}
         onClose={onClose}
       />
     </Modal>
@@ -105,6 +127,7 @@ export function PhotoGallery({
 function GalleryContent({
   photos,
   initialIndex,
+  origin,
   onClose,
 }: Omit<PhotoGalleryProps, "visible">) {
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
@@ -126,6 +149,42 @@ function GalleryContent({
 
   const menuProgress = useSharedValue(1);
   const dragOffset = useSharedValue(0);
+
+  // Abrir y cerrar son dos animaciones distintas a propósito, y por eso son
+  // dos valores y no uno:
+  //
+  // `enter` es la **geometría** —0 encajado en la miniatura, 1 a pantalla
+  // completa—. Va de 0 a 1 al montar y ya no vuelve: recorrer el camino al
+  // revés al cerrar hacía que la foto saliera viajando hasta su hueco, que es
+  // justo lo que no se quiere.
+  const enter = useSharedValue(0);
+
+  // `exit` es la **opacidad** del cierre. Al apagar sin mover nada, el visor
+  // se va donde esté: en su sitio si cierras con el botón, y donde lo
+  // soltaste si cierras arrastrando.
+  const exit = useSharedValue(1);
+
+  useEffect(() => {
+    enter.value = withTiming(1, { duration: ENTER_MS });
+  }, [enter]);
+
+  /**
+   * Cierra animando primero y avisando después: `onClose` quita el `Modal`, y
+   * llamarlo antes cortaría la animación en seco. Por eso el `Modal` ya no
+   * tiene `animationType` propio — la transición es esta.
+   */
+  const requestClose = useCallback(() => {
+    exit.value = withTiming(0, { duration: EXIT_MS }, (finished) => {
+      if (finished) runOnJS(onClose)();
+    });
+  }, [exit, onClose]);
+
+  // La escala es uniforme y no una por eje: con la miniatura cuadrada y la
+  // pantalla apaisada, escalar cada eje por su lado deformaría la foto a la
+  // vista. El precio es que el encaje con el hueco no es exacto en alto.
+  const enterScale = origin ? origin.width / width : FALLBACK_ENTER_SCALE;
+  const enterX = origin ? origin.x + origin.width / 2 - width / 2 : 0;
+  const enterY = origin ? origin.y + origin.height / 2 - height / 2 : 0;
 
   // Un solo juego de valores para el zoom, no uno por página: solo se puede
   // acercar la que se está viendo —mientras hay zoom el scroll está apagado—,
@@ -227,9 +286,9 @@ function GalleryContent({
         event.velocityY > DISMISS_VELOCITY;
 
       if (shouldDismiss) {
-        // La imagen se queda donde se soltó mientras el Modal hace su fade.
-        // Devolverla al centro y desvanecerla después se ve como un tirón.
-        runOnJS(onClose)();
+        // Se apaga donde se soltó. Devolverla al centro y desvanecerla
+        // después se ve como un tirón.
+        runOnJS(requestClose)();
         return;
       }
 
@@ -288,38 +347,62 @@ function GalleryContent({
     ),
   );
 
+  // Todo lo que se ve multiplica por los dos: `enter` lo trae con el crecido
+  // y `exit` lo apaga al cerrar, sin dejar de responder al arrastre.
   const topBarStyle = useAnimatedStyle(() => ({
     height: menuProgress.value * (topInset + BAR_HEIGHT),
-    opacity: menuProgress.value * dragProgress.value,
+    opacity: menuProgress.value * dragProgress.value * enter.value * exit.value,
   }));
 
   const bottomBarStyle = useAnimatedStyle(() => ({
     height: menuProgress.value * (bottomInset + BAR_HEIGHT),
-    opacity: menuProgress.value * dragProgress.value,
+    opacity: menuProgress.value * dragProgress.value * enter.value * exit.value,
   }));
 
   const backdropStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      dragOffset.value,
-      [0, DISMISS_DISTANCE],
-      [1, MIN_BACKDROP_OPACITY],
-      Extrapolation.CLAMP,
-    ),
+    opacity:
+      enter.value *
+      exit.value *
+      interpolate(
+        dragOffset.value,
+        [0, DISMISS_DISTANCE],
+        [1, MIN_BACKDROP_OPACITY],
+        Extrapolation.CLAMP,
+      ),
   }));
 
-  const contentStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: dragOffset.value },
-      {
-        scale: interpolate(
-          dragOffset.value,
-          [0, DISMISS_DISTANCE],
-          [1, MIN_CONTENT_SCALE],
-          Extrapolation.CLAMP,
-        ),
-      },
-    ],
-  }));
+  // Un solo transform para las dos cosas: el desplazamiento de la entrada y
+  // el del arrastre se suman, y las escalas se multiplican. En reposo
+  // (`enter` a 1) queda exactamente el comportamiento de antes.
+  //
+  // El cierre no toca esta geometría: es `exit` sobre la opacidad, así que la
+  // foto se apaga sin moverse.
+  //
+  // El orden importa: en React Native el `translate` no lo escala el `scale`
+  // que va detrás, así que se lleva el centro al de la miniatura y se encoge
+  // alrededor de ese punto.
+  const contentStyle = useAnimatedStyle(() => {
+    const dragScale = interpolate(
+      dragOffset.value,
+      [0, DISMISS_DISTANCE],
+      [1, MIN_CONTENT_SCALE],
+      Extrapolation.CLAMP,
+    );
+
+    return {
+      transform: [
+        { translateX: interpolate(enter.value, [0, 1], [enterX, 0]) },
+        {
+          translateY:
+            interpolate(enter.value, [0, 1], [enterY, 0]) + dragOffset.value,
+        },
+        {
+          scale: interpolate(enter.value, [0, 1], [enterScale, 1]) * dragScale,
+        },
+      ],
+      opacity: exit.value,
+    };
+  });
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<string> | null | undefined, index: number) => ({
@@ -366,7 +449,7 @@ function GalleryContent({
           <Animated.View
             style={[styles.topBar, { paddingTop: topInset }, topBarStyle]}
           >
-            <Pressable onPress={onClose} hitSlop={16} aria-label="Cerrar">
+            <Pressable onPress={requestClose} hitSlop={16} aria-label="Cerrar">
               <Icon as={XIcon} size={28} className="text-white" />
             </Pressable>
           </Animated.View>

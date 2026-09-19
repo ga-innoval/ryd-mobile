@@ -25,7 +25,7 @@ import {
 } from "lucide-react-native";
 import type { TriggerRef } from "@rn-primitives/dropdown-menu";
 import { EmptyState } from "@/components/empty-state";
-import { PhotoGallery } from "@/components/photo-gallery";
+import { PhotoGallery, type PhotoRect } from "@/components/photo-gallery";
 import { HeaderBase } from "@/domains/navigation/header-base";
 import { Icon } from "@/components/ui/icon";
 import { IconButton } from "@/components/ui/icon-button";
@@ -205,11 +205,30 @@ function PhotoCell({
   size: number;
   isSelecting: boolean;
   isSelected: boolean;
-  onPress: () => void;
+  /** Recibe el hueco de la miniatura, salvo en modo selección. */
+  onPress: (origin?: PhotoRect) => void;
   onOpenChange: (open: boolean) => void;
   onDelete: () => void;
 }) {
   const triggerRef = useRef<TriggerRef>(null);
+  const cellRef = useRef<View>(null);
+
+  // La medida se pide aquí y no en la pantalla porque solo la celda sabe
+  // dónde está. `measureInWindow` da coordenadas de ventana, que es el mismo
+  // sistema en el que vive el `Modal` del visor.
+  //
+  // En modo selección no se mide: el toque solo marca, y medir metería un
+  // salto asíncrono entre el dedo y la insignia.
+  const handlePress = () => {
+    if (isSelecting) {
+      onPress();
+      return;
+    }
+
+    cellRef.current?.measureInWindow((x, y, width, height) =>
+      onPress({ x, y, width, height }),
+    );
+  };
 
   // El patrón de la casa para animar sobre una prop: shared value +
   // `useEffect` + `withTiming`. Nunca las clases `animate-*` de NativeWind,
@@ -236,7 +255,8 @@ function PhotoCell({
   return (
     <DropdownMenu onOpenChange={onOpenChange}>
       <Pressable
-        onPress={onPress}
+        ref={cellRef}
+        onPress={handlePress}
         // El menú se abre por la ref del disparador y no desde su `onPress`:
         // ese toque ya está ocupado abriendo el visor. `open()` mide además la
         // posición, que es lo que necesita el contenido para salir pegado a la
@@ -333,6 +353,7 @@ export default function PhotosScreen() {
   // `undefined` es "cerrado": el índice por el que abre el visor y su
   // visibilidad son el mismo dato, así que no pueden discrepar.
   const [galleryIndex, setGalleryIndex] = useState<number>();
+  const [galleryOrigin, setGalleryOrigin] = useState<PhotoRect>();
 
   // La selección **es** el menú abierto, no un estado aparte que pudiera
   // discrepar de él: lo pone y lo quita el propio `onOpenChange`.
@@ -384,9 +405,15 @@ export default function PhotosScreen() {
         // Fuera del modo selección, lo "seleccionado" es la celda cuyo menú
         // está abierto; dentro, lo que se ha ido marcando.
         isSelected={isSelecting ? selected.has(index) : selectedIndex === index}
-        onPress={() =>
-          isSelecting ? toggleSelected(index) : setGalleryIndex(index)
-        }
+        onPress={(origin) => {
+          if (isSelecting) {
+            toggleSelected(index);
+            return;
+          }
+
+          setGalleryOrigin(origin);
+          setGalleryIndex(index);
+        }}
         onOpenChange={(open) => setSelectedIndex(open ? index : undefined)}
         onDelete={() => removePhotos(sectionId, [index])}
       />
@@ -445,6 +472,7 @@ export default function PhotosScreen() {
         photos={photos}
         visible={galleryIndex !== undefined}
         initialIndex={galleryIndex}
+        origin={galleryOrigin}
         onClose={() => setGalleryIndex(undefined)}
       />
     </View>
