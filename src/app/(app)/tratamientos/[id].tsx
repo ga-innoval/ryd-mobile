@@ -15,13 +15,25 @@ import {
   CollapsibleHeader,
 } from "@/components/collapsible-section";
 import { EvalQuestionsForm } from "@/domains/plants/components/eval-questions-form";
+import { EvalPhotos } from "@/domains/plants/components/eval-photos";
+import { usePhotoCapture } from "@/domains/plants/hooks/use-photo-capture";
+import { Separator } from "@/components/ui/separator";
 import { calcEvalProgress } from "@/domains/plants/lib/calc-eval-progress";
 import { EVALS_EXTERIOR } from "@/domains/plants/lib/evals-exterior";
 import { EVALS_INTERIOR } from "@/domains/plants/lib/evals-interior";
-import { GhostIcon, GrapeIcon, MicroscopeIcon } from "lucide-react-native";
+import {
+  GhostIcon,
+  GrapeIcon,
+  MicroscopeIcon,
+  PipetteIcon,
+} from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
-import type { EvalAnswers, PlantRecord } from "@/domains/plants/types";
+import type {
+  EvalAnswers,
+  PhotoSource,
+  PlantRecord,
+} from "@/domains/plants/types";
 import { cn } from "@/lib/utils";
 
 const PLANT_FIELDS = [
@@ -83,6 +95,10 @@ const SECTIONS = [
     title: "Evaluación Exterior",
     description: "Forma, color, firmeza y arreglo del racimo y de la baya.",
     questions: EVALS_EXTERIOR,
+    // Qué secciones piden evidencia fotográfica va como bandera y no como un
+    // `id === "..."` suelto en el render, para que esta lista siga describiendo
+    // por sí sola lo que lleva cada una.
+    hasPhotos: true,
   },
   {
     id: "interior",
@@ -91,6 +107,15 @@ const SECTIONS = [
     description:
       "Características de la pulpa, la piel, el sabor y la experiencia de consumo.",
     questions: EVALS_INTERIOR,
+    hasPhotos: true,
+  },
+  {
+    id: "brix",
+    icon: PipetteIcon,
+    title: "Brix",
+    description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+    questions: [],
+    hasPhotos: false,
   },
 ];
 
@@ -112,6 +137,16 @@ export default function TratamientoScreen() {
   // tabla `respuestas`.
   const [answers, setAnswers] = useState<EvalAnswers>({});
 
+  // Indexado por sección, igual que `answers` lo está por pregunta: cada tira
+  // lleva su propia evidencia, y con ella su propio tope de miniaturas y su
+  // propio `+N`. Una sola lista compartida haría que una foto tomada desde
+  // Interior apareciera también en Exterior.
+  //
+  // TODO(respuestas): las URIs son locales al dispositivo y solo viven en esta
+  // pantalla. Al guardarlas junto a la respuesta habrá que copiar el archivo al
+  // almacenamiento de la app: el que devuelve el picker es temporal.
+  const [photos, setPhotos] = useState<Record<string, string[]>>({});
+
   // El `open` vive aquí y no en la sección: cabecera y cuerpo son hijos
   // sueltos del scroll —lo exige `stickyHeaderIndices`— y ya no hay un
   // envoltorio común donde compartirlo. Ausente es cerrada.
@@ -124,6 +159,7 @@ export default function TratamientoScreen() {
   // las respuestas del tratamiento anterior seguirían aquí.
   useEffect(() => {
     setAnswers({});
+    setPhotos({});
   }, [id]);
 
   // El bloque va superpuesto, así que su hueco se reserva con un espaciador y
@@ -148,6 +184,23 @@ export default function TratamientoScreen() {
       setAnswers((prev) => ({ ...prev, [questionId]: value }));
     },
     [],
+  );
+
+  const capturePhoto = usePhotoCapture();
+
+  // Llegan varias de golpe cuando se eligen de la galería, y ninguna al
+  // cancelar o quedarse sin permiso — que es el caso normal, no un error.
+  const handleCapture = useCallback(
+    async (sectionId: string, source: PhotoSource) => {
+      const uris = await capturePhoto(source);
+      if (uris.length === 0) return;
+
+      setPhotos((prev) => ({
+        ...prev,
+        [sectionId]: [...(prev[sectionId] ?? []), ...uris],
+      }));
+    },
+    [capturePhoto],
   );
 
   // Sin memo, cada respuesta capturada re-renderiza la pantalla, reconstruye
@@ -294,6 +347,20 @@ export default function TratamientoScreen() {
                 progress={calcEvalProgress(section.questions, answers)}
               />,
               <CollapsibleBody key={`${section.id}-body`} open={open}>
+                {section.hasPhotos && (
+                  <>
+                    <EvalPhotos
+                      photos={photos[section.id] ?? []}
+                      onCapture={(source) => handleCapture(section.id, source)}
+                    />
+                    {/* El separador que el formulario pone entre preguntas, con
+                        sus mismos márgenes: así las fotos se leen como un bloque
+                        más de la lista. Tiene que ir aquí porque la primera
+                        pregunta no trae el suyo —solo lo llevan de la segunda en
+                        adelante—, y sin él quedarían pegadas a la tira. */}
+                    <Separator className="mb-6 mt-7" />
+                  </>
+                )}
                 <EvalQuestionsForm
                   questions={section.questions}
                   answers={answers}

@@ -63,8 +63,8 @@ export const EVALS_INTERIOR: EvalQuestion[] = [
     label: "Traza de semilla",
     options: [
       { label: "Without trace", value: "without_trace" },
-      { label: "With perceptible trace", value: "with_perceptible_trace" },
-      { label: "With imperceptible trace", value: "with_imperceptible_trace" },
+      { label: "Perceptible trace", value: "with_perceptible_trace" },
+      { label: "Imperceptible trace", value: "with_imperceptible_trace" },
       { label: "Seed", value: "seed" },
     ],
   },
