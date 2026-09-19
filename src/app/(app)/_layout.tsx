@@ -26,7 +26,15 @@ export default function AppLayout() {
   return (
     <>
       <PendingPlantsWatcher />
-      <Stack />
+      <Stack>
+        {/* La presentación tiene que conocerse al empujar la ruta, así que
+            va aquí y no dentro de la pantalla, donde llegaría tarde. Las
+            demás rutas siguen sin declararse. */}
+        <Stack.Screen
+          name="photos"
+          options={{ presentation: "modal", headerShown: false }}
+        />
+      </Stack>
     </>
   );
 }
