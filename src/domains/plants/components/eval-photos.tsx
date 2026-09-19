@@ -37,6 +37,8 @@ type EvalPhotosProps = {
   photos: string[];
   /** Puede no añadir nada: cancelar el picker es el caso normal. */
   onCapture: (source: PhotoSource) => void;
+  /** Abrir la cuadrícula con todo lo capturado. */
+  onOpenPhotos: () => void;
 };
 
 /**
@@ -51,7 +53,11 @@ type EvalPhotosProps = {
  * tiene test: la última foto y el total son una regla de negocio, no una
  * cuestión de pintado.
  */
-export function EvalPhotos({ photos, onCapture }: EvalPhotosProps) {
+export function EvalPhotos({
+  photos,
+  onCapture,
+  onOpenPhotos,
+}: EvalPhotosProps) {
   const summary = buildPhotoSummary(photos);
 
   return (
@@ -64,15 +70,17 @@ export function EvalPhotos({ photos, onCapture }: EvalPhotosProps) {
 
       <View className="flex-row gap-2">
         {summary && (
-          // Agrupado para accesibilidad: un "13" suelto no dice nada, y el
-          // desenfoque de debajo no es descriptible.
-          <View
-            className={SLOT_CN}
-            accessible
-            accessibilityLabel={
+          // El cuadrado es la puerta a la cuadrícula, así que es un
+          // `Pressable` y no un `View` agrupado a mano: el rol y el foco los
+          // trae él. Quién navega es la pantalla; aquí solo se avisa.
+          <Pressable
+            className={cn(SLOT_CN, "active:scale-95")}
+            onPress={onOpenPhotos}
+            role="button"
+            aria-label={
               summary.total === 1
-                ? "1 fotografía adjunta"
-                : `${summary.total} fotografías adjuntas`
+                ? "Ver la fotografía adjunta"
+                : `Ver las ${summary.total} fotografías adjuntas`
             }
           >
             <Image
@@ -85,12 +93,12 @@ export function EvalPhotos({ photos, onCapture }: EvalPhotosProps) {
             {/* El velo va sobre la imagen y no es un `opacity` de ella: hay que
                 oscurecer para que el número contraste, no transparentar la foto
                 contra el fondo de la tarjeta. */}
-            <View className="absolute inset-0 items-center justify-center bg-foreground/70">
+            <View className="absolute inset-0 items-center justify-center bg-foreground/80">
               <Text className="text-xl font-semibold text-primary-foreground">
                 {summary.total}
               </Text>
             </View>
-          </View>
+          </Pressable>
         )}
 
         {CAPTURE_BUTTONS.map(({ source, icon, label }) => (

@@ -17,6 +17,10 @@ import {
 import { EvalQuestionsForm } from "@/domains/plants/components/eval-questions-form";
 import { EvalPhotos } from "@/domains/plants/components/eval-photos";
 import { usePhotoCapture } from "@/domains/plants/hooks/use-photo-capture";
+import {
+  EMPTY_PHOTOS,
+  usePhotosStore,
+} from "@/domains/plants/store/photos-store";
 import { Separator } from "@/components/ui/separator";
 import { calcEvalProgress } from "@/domains/plants/lib/calc-eval-progress";
 import { EVALS_EXTERIOR } from "@/domains/plants/lib/evals-exterior";
@@ -137,15 +141,12 @@ export default function TratamientoScreen() {
   // tabla `respuestas`.
   const [answers, setAnswers] = useState<EvalAnswers>({});
 
-  // Indexado por sección, igual que `answers` lo está por pregunta: cada tira
-  // lleva su propia evidencia, y con ella su propio tope de miniaturas y su
-  // propio `+N`. Una sola lista compartida haría que una foto tomada desde
-  // Interior apareciera también en Exterior.
-  //
-  // TODO(respuestas): las URIs son locales al dispositivo y solo viven en esta
-  // pantalla. Al guardarlas junto a la respuesta habrá que copiar el archivo al
-  // almacenamiento de la app: el que devuelve el picker es temporal.
-  const [photos, setPhotos] = useState<Record<string, string[]>>({});
+  // En un store y no en estado de pantalla porque la cuadrícula a pantalla
+  // completa es otra ruta y no podría verlo. Sigue indexado por sección, que
+  // es lo que separa la evidencia de Exterior de la de Interior.
+  const photos = usePhotosStore((state) => state.photos);
+  const addPhotos = usePhotosStore((state) => state.addPhotos);
+  const clearPhotos = usePhotosStore((state) => state.clearPhotos);
 
   // El `open` vive aquí y no en la sección: cabecera y cuerpo son hijos
   // sueltos del scroll —lo exige `stickyHeaderIndices`— y ya no hay un
@@ -159,8 +160,8 @@ export default function TratamientoScreen() {
   // las respuestas del tratamiento anterior seguirían aquí.
   useEffect(() => {
     setAnswers({});
-    setPhotos({});
-  }, [id]);
+    clearPhotos();
+  }, [id, clearPhotos]);
 
   // El bloque va superpuesto, así que su hueco se reserva con un espaciador y
   // hay que medirlo. Si no se renderiza, no hay hueco que reservar.
@@ -195,12 +196,9 @@ export default function TratamientoScreen() {
       const uris = await capturePhoto(source);
       if (uris.length === 0) return;
 
-      setPhotos((prev) => ({
-        ...prev,
-        [sectionId]: [...(prev[sectionId] ?? []), ...uris],
-      }));
+      addPhotos(sectionId, uris);
     },
-    [capturePhoto],
+    [capturePhoto, addPhotos],
   );
 
   // Sin memo, cada respuesta capturada re-renderiza la pantalla, reconstruye
@@ -350,8 +348,14 @@ export default function TratamientoScreen() {
                 {section.hasPhotos && (
                   <>
                     <EvalPhotos
-                      photos={photos[section.id] ?? []}
+                      photos={photos[section.id] ?? EMPTY_PHOTOS}
                       onCapture={(source) => handleCapture(section.id, source)}
+                      onOpenPhotos={() =>
+                        router.push({
+                          pathname: "/photos",
+                          params: { sectionId: section.id },
+                        })
+                      }
                     />
                     {/* El separador que el formulario pone entre preguntas, con
                         sus mismos márgenes: así las fotos se leen como un bloque
