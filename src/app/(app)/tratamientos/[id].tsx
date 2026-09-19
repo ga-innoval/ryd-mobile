@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useHideOnScroll } from "@/lib/use-hide-on-scroll";
@@ -146,22 +146,37 @@ export default function TratamientoScreen() {
   // es lo que separa la evidencia de Exterior de la de Interior.
   const photos = usePhotosStore((state) => state.photos);
   const addPhotos = usePhotosStore((state) => state.addPhotos);
-  const clearPhotos = usePhotosStore((state) => state.clearPhotos);
+  const claimFor = usePhotosStore((state) => state.claimFor);
 
   // El `open` vive aquí y no en la sección: cabecera y cuerpo son hijos
   // sueltos del scroll —lo exige `stickyHeaderIndices`— y ya no hay un
   // envoltorio común donde compartirlo. Ausente es cerrada.
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+
   const toggleSection = useCallback((id: string) => {
     setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
   // `setParams` cambia de hermano sin desmontar la pantalla, así que sin esto
   // las respuestas del tratamiento anterior seguirían aquí.
+  //
+  // Compara contra el id anterior en vez de limpiar en cada efecto: tal cual
+  // estaba, cualquier remonte borraba lo ya contestado. Las fotos no se tocan
+  // aquí — de eso se encarga `claimFor`, que sí sabe de quién son.
+  const previousId = useRef(id);
+
   useEffect(() => {
+    if (previousId.current === id) return;
+
+    previousId.current = id;
     setAnswers({});
-    clearPhotos();
-  }, [id, clearPhotos]);
+  }, [id]);
+
+  // En cada montaje y en cada cambio de id, pero el vaciado lo decide el
+  // store: solo si lo guardado era de otro tratamiento.
+  useEffect(() => {
+    claimFor(id);
+  }, [id, claimFor]);
 
   // El bloque va superpuesto, así que su hueco se reserva con un espaciador y
   // hay que medirlo. Si no se renderiza, no hay hueco que reservar.

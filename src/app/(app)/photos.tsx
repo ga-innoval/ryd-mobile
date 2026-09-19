@@ -302,7 +302,12 @@ function PhotoCell({
             aparece en modo selección: fuera de él, el encogido es del menú. */}
         {isSelecting && isSelected && (
           <View className="absolute bottom-1.5 right-1.5 size-6 items-center justify-center rounded-full border-2 border-white bg-primary">
-            <Icon size={12} as={CheckIcon} className="text-white" />
+            <Icon
+              size={14}
+              strokeWidth={3}
+              as={CheckIcon}
+              className="text-white"
+            />
           </View>
         )}
 
