@@ -42,7 +42,7 @@ export function EvalQuestionsForm({
               emparejamiento. La condición es la de siempre —todas menos la
               primera—, así que en las filas de una sola pregunta se ve igual
               que antes. */}
-          {index > 0 && <Separator className="mb-8 mt-9" />}
+          {index > 0 && <Separator className="mb-6 mt-7" />}
           <OptionPicker
             label={question.label}
             options={question.options}

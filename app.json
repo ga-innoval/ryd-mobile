@@ -38,6 +38,14 @@
       "expo-secure-store",
       "expo-image",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permite elegir fotografías de evidencia para la evaluación.",
+          "cameraPermission": "Permite tomar fotografías de evidencia para la evaluación.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-screen-orientation",
         {
           "initialOrientation": "DEFAULT"

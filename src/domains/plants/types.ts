@@ -22,6 +22,12 @@ export type EvalQuestion = {
  */
 export type EvalAnswers = Record<string, string | undefined>;
 
+/**
+ * De dónde sale una fotografía de evidencia. Cada origen tiene su propio botón
+ * en la tira, así que capturar no pasa por preguntar primero.
+ */
+export type PhotoSource = "camera" | "library";
+
 export enum SyncStatus {
   pending = "pending",
   synced = "synced",
