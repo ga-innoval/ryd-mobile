@@ -200,28 +200,6 @@ export function canRemoveBrixCorte(cortes: BrixCorte[]): boolean {
   return cortes.length > 1;
 }
 
-export function removeLastBrixCorte(cortes: BrixCorte[]): BrixCorte[] {
-  return canRemoveBrixCorte(cortes) ? cortes.slice(0, -1) : cortes;
-}
-
-/** Cambia una lectura sin tocar las demás ni el array recibido. */
-export function setBrixReading(
-  cortes: BrixCorte[],
-  corteIndex: number,
-  readingIndex: number,
-  text: string,
-): BrixCorte[] {
-  return cortes.map((corte, index) =>
-    index === corteIndex
-      ? {
-          readings: corte.readings.map((reading, i) =>
-            i === readingIndex ? text : reading,
-          ),
-        }
-      : corte,
-  );
-}
-
 /**
  * Solo para mostrar. Dos decimales fijos, y no "hasta dos", para que los
  * resultados queden alineados en sus columnas.
