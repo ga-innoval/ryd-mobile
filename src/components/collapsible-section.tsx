@@ -1,5 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { AppState, Pressable, StyleSheet, View } from "react-native";
+import {
+  AppState,
+  StyleSheet,
+  View,
+  type LayoutChangeEvent,
+} from "react-native";
+// El de gesture-handler y no el de React Native: ver la cabecera.
+import { Pressable as GesturePressable } from "react-native-gesture-handler";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -55,6 +62,11 @@ type CollapsibleHeaderProps = {
   progress?: number;
   open: boolean;
   onToggle: () => void;
+  /**
+   * Solo el alto es fiable: siendo sticky, `ScrollView` envuelve la cabecera
+   * en su propio componente y la `y` que llega es relativa a ese envoltorio.
+   */
+  onLayout?: (event: LayoutChangeEvent) => void;
 };
 
 export function CollapsibleHeader({
@@ -64,6 +76,7 @@ export function CollapsibleHeader({
   progress,
   open,
   onToggle,
+  onLayout,
 }: CollapsibleHeaderProps) {
   const expansion = useSharedValue(open ? 1 : 0);
 
@@ -87,8 +100,25 @@ export function CollapsibleHeader({
     // sirve para las dos cosas — sin fijar es el hueco entre secciones, y
     // fijada es el aire bajo el header. Opaca a propósito: transparente se
     // vería el formulario pasando por esa franja.
-    <View className="bg-background pt-4">
-      <Pressable
+    <View className="bg-background pt-4" onLayout={onLayout}>
+      {/* **`Pressable` de gesture-handler, no el de React Native**, y solo
+          aquí: es el único que vive en una cabecera sticky.
+
+          El sticky se desplaza con un driver nativo que no pasa por el árbol
+          de sombras, así que `measure()` devuelve la posición de la cabecera
+          como si no estuviera pegada — medido en una Lenovo: dedo en y=160,
+          cabecera según `measure()` en -768…-652. El `Pressable` de React
+          Native compara con esa medida en cuanto el dedo se mueve, y una
+          pantalla física de Android se mueve algo incluso en un toque limpio:
+          concluía que el dedo había salido y no disparaba `onPress`. En el
+          simulador se toca con el ratón, sin movimiento, y no se notaba.
+
+          El de gesture-handler compara coordenadas locales que calcula el
+          orquestador nativo, con el transform ya aplicado, contra el tamaño
+          de `onLayout`: el desplazamiento del sticky le da igual. Y si el
+          scroll arranca sobre la cabecera, el toque llega cancelado y no
+          dispara `onPress`, así que desplazarse no la pliega. */}
+      <GesturePressable
         onPress={onToggle}
         role="button"
         aria-expanded={open}
@@ -133,7 +163,7 @@ export function CollapsibleHeader({
             <Text className="min-w-12 text-right font-medium">{progress}%</Text>
           </View>
         )}
-      </Pressable>
+      </GesturePressable>
     </View>
   );
 }
@@ -141,6 +171,8 @@ export function CollapsibleHeader({
 type CollapsibleBodyProps = {
   open: boolean;
   children: ReactNode;
+  /** El cuerpo no es sticky: su `y` sí es relativa al contenido del scroll. */
+  onLayout?: (event: LayoutChangeEvent) => void;
 };
 
 /**
@@ -160,7 +192,11 @@ type CollapsibleBodyProps = {
  * Consecuencia útil: el estado que viva dentro del contenido sobrevive al
  * plegado.
  */
-export function CollapsibleBody({ open, children }: CollapsibleBodyProps) {
+export function CollapsibleBody({
+  open,
+  children,
+  onLayout,
+}: CollapsibleBodyProps) {
   // Lo que nunca se abre no se monta; lo que se abre no se vuelve a desmontar.
   const [hasMounted, setHasMounted] = useState(open);
   useEffect(() => {
@@ -226,6 +262,7 @@ export function CollapsibleBody({ open, children }: CollapsibleBodyProps) {
       role="region"
       aria-hidden={!open}
       className="overflow-hidden rounded-b-xl"
+      onLayout={onLayout}
     >
       {hasMounted && (
         <Animated.View style={[styles.clip, contentStyle]}>
