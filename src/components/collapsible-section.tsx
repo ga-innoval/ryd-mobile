@@ -60,6 +60,12 @@ type CollapsibleHeaderProps = {
    * dejaría de servir para cualquier contenido que no sea una encuesta.
    */
   progress?: number;
+  /**
+   * Contenido libre en el lugar de la barra, para secciones cuyo avance no es
+   * un porcentaje: Brix no tiene un número fijo de cortes, así que muestra
+   * cuántos lleva y su promedio.
+   */
+  summary?: ReactNode;
   open: boolean;
   onToggle: () => void;
   /**
@@ -69,15 +75,15 @@ type CollapsibleHeaderProps = {
   onLayout?: (event: LayoutChangeEvent) => void;
 };
 
-export function CollapsibleHeader({
-  icon,
-  title,
-  description,
-  progress,
-  open,
-  onToggle,
-  onLayout,
-}: CollapsibleHeaderProps) {
+/**
+ * El chevron de toda cabecera plegable: a la derecha cerrada, hacia abajo
+ * abierta.
+ *
+ * Suelto para que la cabecera de sección y la de cada corte de Brix giren igual
+ * sin repetir la animación. Comparte duración con `CollapsibleBody`, así que el
+ * giro y el pliegue terminan a la vez.
+ */
+export function CollapsibleChevron({ open }: { open: boolean }) {
   const expansion = useSharedValue(open ? 1 : 0);
 
   useEffect(() => {
@@ -93,6 +99,23 @@ export function CollapsibleHeader({
     transform: [{ rotate: `${(expansion.value - 1) * 90}deg` }],
   }));
 
+  return (
+    <Animated.View style={chevronStyle}>
+      <Icon as={ChevronDownIcon} size={18} className="text-primary" />
+    </Animated.View>
+  );
+}
+
+export function CollapsibleHeader({
+  icon,
+  title,
+  description,
+  progress,
+  summary,
+  open,
+  onToggle,
+  onLayout,
+}: CollapsibleHeaderProps) {
   return (
     // La separación va DENTRO del hijo que se pega, no como margen entre
     // hermanos: un margen exterior se scrollea con la sección anterior, y la
@@ -140,9 +163,7 @@ export function CollapsibleHeader({
             </Text>
           </View>
 
-          <Animated.View style={chevronStyle}>
-            <Icon as={ChevronDownIcon} size={18} className="text-primary" />
-          </Animated.View>
+          <CollapsibleChevron open={open} />
         </View>
 
         {progress !== undefined && (
@@ -163,6 +184,10 @@ export function CollapsibleHeader({
             <Text className="min-w-12 text-right font-medium">{progress}%</Text>
           </View>
         )}
+
+        {summary !== undefined && (
+          <View className="bg-secondary px-4 pb-3">{summary}</View>
+        )}
       </GesturePressable>
     </View>
   );
@@ -173,6 +198,12 @@ type CollapsibleBodyProps = {
   children: ReactNode;
   /** El cuerpo no es sticky: su `y` sí es relativa al contenido del scroll. */
   onLayout?: (event: LayoutChangeEvent) => void;
+  /**
+   * `section` continúa la tarjeta de `CollapsibleHeader`: fondo, bordes y
+   * padding. `bare` solo pliega, sin aspecto propio, para contenido que ya va
+   * dentro de su propia tarjeta, como cada corte de Brix.
+   */
+  variant?: "section" | "bare";
 };
 
 /**
@@ -196,7 +227,10 @@ export function CollapsibleBody({
   open,
   children,
   onLayout,
+  variant = "section",
 }: CollapsibleBodyProps) {
+  const isSection = variant === "section";
+
   // Lo que nunca se abre no se monta; lo que se abre no se vuelve a desmontar.
   const [hasMounted, setHasMounted] = useState(open);
   useEffect(() => {
@@ -261,7 +295,7 @@ export function CollapsibleBody({
     <View
       role="region"
       aria-hidden={!open}
-      className="overflow-hidden rounded-b-xl"
+      className={cn("overflow-hidden", isSection && "rounded-b-xl")}
       onLayout={onLayout}
     >
       {hasMounted && (
@@ -273,7 +307,9 @@ export function CollapsibleBody({
               con la animación a medias. Y al llegar a 0 su alto es exactamente
               0 —no 0 más el borde, como pasaría en un contenedor de alto
               automático—, así que tampoco dejan una raya bajo la cabecera. */}
-          <View className="absolute inset-0 rounded-b-xl border-x-2 border-b-2 border-border bg-card" />
+          {isSection && (
+            <View className="absolute inset-0 rounded-b-xl border-x-2 border-b-2 border-border bg-card" />
+          )}
           {/* Absoluto desde el primer render, y por dos razones distintas.
               En flujo, el contenedor tomaría el alto natural del contenido
               mientras no hay medida, y Android maquetaría y dibujaría el
@@ -284,7 +320,10 @@ export function CollapsibleBody({
               pocos píxeles. Absoluto con `top/left/right` se dimensiona por su
               contenido y no ve la altura del padre. */}
           <View
-            className="absolute left-0 right-0 top-0 px-4 py-4"
+            className={cn(
+              "absolute left-0 right-0 top-0",
+              isSection && "px-4 py-4",
+            )}
             onLayout={(e) => {
               const { height } = e.nativeEvent.layout;
               // Un 0 volvería a `isMeasured` falso: el contenido quedaría

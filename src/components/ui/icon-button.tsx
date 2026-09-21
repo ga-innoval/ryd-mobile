@@ -27,6 +27,14 @@ export const pillVariants = cva(
          * parte de la app.
          */
         onLight: "bg-secondary border-border",
+        /**
+         * El paso de confirmar algo que borra, como el segundo toque de
+         * «Descartar corte».
+         *
+         * `red-700` y no el token `destructive`: ese rojo (#ef4444) sobre fondo
+         * claro no llega a 4.5:1 en el texto de 14 px del botón.
+         */
+        destructive: "bg-red-50 border-red-700/30",
       },
     },
     defaultVariants: { variant: "default" },
@@ -47,6 +55,7 @@ export type PillVariant = NonNullable<
 export const PILL_CONTENT_CN: Record<PillVariant, string> = {
   default: "text-primary-foreground",
   onLight: "text-foreground",
+  destructive: "text-red-700",
 };
 
 type IconButtonProps = Omit<PressableProps, "children"> & {
