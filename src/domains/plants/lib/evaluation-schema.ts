@@ -52,6 +52,9 @@ export type EvaluationValues = z.output<typeof evaluationSchema>;
 /** El `id` de cada sección tiene que ser una de estas claves. */
 export type EvaluationSectionId = keyof EvaluationFormValues;
 
+/** Las secciones que son un catálogo de preguntas; Brix va por cortes. */
+export type QuestionsSectionId = Exclude<EvaluationSectionId, "brix">;
+
 /**
  * Una evaluación en blanco. Devuelve objetos nuevos en cada llamada, a propósito:
  * `reset()` compartiría arrays con el valor anterior si se reutilizaran.

@@ -1,6 +1,13 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, ScrollView, View } from "react-native";
+import {
+  Keyboard,
+  ScrollView,
+  View,
+  type LayoutChangeEvent,
+} from "react-native";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Animated, {
   useAnimatedRef,
   useScrollOffset,
@@ -21,7 +28,10 @@ import {
   CollapsibleBody,
   CollapsibleHeader,
 } from "@/components/collapsible-section";
-import { EvalQuestionsForm } from "@/domains/plants/components/eval-questions-form";
+import {
+  EvalQuestionsForm,
+  EvalQuestionsHeader,
+} from "@/domains/plants/components/eval-questions-form";
 import { EvalPhotos } from "@/domains/plants/components/eval-photos";
 import {
   BrixHeaderSummary,
@@ -38,7 +48,14 @@ import {
   usePhotosStore,
 } from "@/domains/plants/store/photos-store";
 import { Separator } from "@/components/ui/separator";
-import { calcEvalProgress } from "@/domains/plants/lib/calc-eval-progress";
+import {
+  buildEvaluationDefaults,
+  evaluationSchema,
+  type EvaluationFormValues,
+  type EvaluationSectionId,
+  type EvaluationValues,
+  type QuestionsSectionId,
+} from "@/domains/plants/lib/evaluation-schema";
 import { EVALS_EXTERIOR } from "@/domains/plants/lib/evals-exterior";
 import { EVALS_INTERIOR } from "@/domains/plants/lib/evals-interior";
 import {
@@ -52,7 +69,6 @@ import { Text } from "@/components/ui/text";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
 import type {
   BrixCorte,
-  EvalAnswers,
   EvalQuestion,
   PhotoSource,
   PlantRecord,
@@ -117,17 +133,21 @@ function PlantFieldsSkeleton() {
  * render, para que esta lista siga describiendo por sí sola lo que lleva cada
  * una.
  */
+/**
+ * El `id` de cada sección es también su clave en `evaluationSchema`, y el tipo
+ * lo obliga: una errata entre esta lista y el esquema es un error de
+ * compilación, no un campo que no se guarda.
+ */
 type Section = {
-  id: string;
   icon: LucideIcon;
   title: string;
   description: string;
   hasPhotos: boolean;
 } & (
-  | { kind: "questions"; questions: EvalQuestion[] }
+  | { kind: "questions"; id: QuestionsSectionId; questions: EvalQuestion[] }
   // Brix no es un catálogo de preguntas: se captura por cortes, y su avance no
   // es un porcentaje porque no tiene un número fijo de cortes.
-  | { kind: "brix" }
+  | { kind: "brix"; id: Extract<EvaluationSectionId, "brix"> }
 );
 
 const SECTIONS: Section[] = [
@@ -155,7 +175,7 @@ const SECTIONS: Section[] = [
     kind: "brix",
     icon: PipetteIcon,
     title: "Brix",
-    description: "Azúcar de la baya: diez lecturas de refractómetro por corte.",
+    description: "Diez lecturas de refractómetro por corte.",
     hasPhotos: false,
   },
 ];
@@ -174,11 +194,22 @@ export default function TratamientoScreen() {
   const { data, isLoading } = useTratamiento(id);
   const router = useRouter();
 
-  // Estado local por ahora: la captura no se persiste hasta que exista la
-  // tabla `respuestas`.
-  const [answers, setAnswers] = useState<EvalAnswers>({});
+  // La evaluación entera. Es el búfer de edición: cuando exista la tabla
+  // `respuestas`, lo guardado serán sus `defaultValues`, guardar será
+  // `handleSubmit`, y "hay cambios sin guardar", `isDirty`.
+  const form = useForm<EvaluationFormValues, unknown, EvaluationValues>({
+    resolver: zodResolver(evaluationSchema),
+    defaultValues: buildEvaluationDefaults(),
+    // Los errores aparecen al intentar guardar y se corrigen en vivo después;
+    // mientras se captura, nada regaña. Los avisos de rango de Brix no pasan
+    // por aquí: van por su propio esquema.
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+  });
+  const { reset } = form;
 
-  // TODO(respuestas): igual que `answers`, se pierde al salir de la pantalla.
+  // TODO(brix-rhf): pasa al formulario con `useFieldArray`; mientras tanto va
+  // aparte y se pierde al salir de la pantalla, como el resto.
   // Arranca con un corte vacío para que el primero se capture sin pedirlo.
   const [brixCortes, setBrixCortes] = useState<BrixCorte[]>(() => [
     createBrixCorte(),
@@ -271,9 +302,9 @@ export default function TratamientoScreen() {
     if (previousId.current === id) return;
 
     previousId.current = id;
-    setAnswers({});
+    reset(buildEvaluationDefaults());
     setBrixCortes([createBrixCorte()]);
-  }, [id]);
+  }, [id, reset]);
 
   // En cada montaje y en cada cambio de id, pero el vaciado lo decide el
   // store: solo si lo guardado era de otro tratamiento.
@@ -297,13 +328,6 @@ export default function TratamientoScreen() {
   const { scrollHandler, animatedStyle } = useHideOnScroll({
     distance: reservedHeight,
   });
-
-  const handleAnswerChange = useCallback(
-    (questionId: string, value: string | undefined) => {
-      setAnswers((prev) => ({ ...prev, [questionId]: value }));
-    },
-    [],
-  );
 
   // Sin `useCallback`: `EvalBrix` no está memoizado, así que una referencia
   // estable no le ahorraría ningún render.
@@ -357,220 +381,226 @@ export default function TratamientoScreen() {
   );
 
   return (
-    <View className="flex-1 bg-background">
-      {/* Se registra fuera de cualquier rama para que el header exista desde
+    // Solo alcanza al árbol de esta pantalla: el header del navigator
+    // (`options.header`) se pinta fuera de él y no verá este contexto.
+    <FormProvider {...form}>
+      <View className="flex-1 bg-background">
+        {/* Se registra fuera de cualquier rama para que el header exista desde
           el primer frame: su estructura ya es visible mientras carga y solo
           los nombres son skeleton, así no hay salto de layout al llegar el
           dato ni una pantalla sin cabecera. */}
-      <Stack.Screen options={screenOptions} />
+        <Stack.Screen options={screenOptions} />
 
-      {/* Datos de la plantación y acceso rápido a sus demás tratamientos.
+        {/* Datos de la plantación y acceso rápido a sus demás tratamientos.
           Comparte `bg-primary` con el header para leerse como parte de él,
           igual que la barra de búsqueda en `index.tsx`. No caben en el header
           —de ahí que cuelguen de él— y se esconden juntos al scrollear. */}
-      {showHeaderExtras && (
-        // El posicionamiento va en un `View` normal y la animación en el
-        // `Animated.View` de dentro: no se superponen NativeWind y Reanimated
-        // sobre el mismo elemento.
-        // `overflow-hidden` es lo que hace que parezca meterse bajo el
-        // header: el transform no cambia el layout, así que este contenedor
-        // conserva la altura del bloque y recorta lo que se desplaza fuera.
-        //
-        // Y por eso mismo tiene que dejar pasar los toques (`box-none`): con
-        // el bloque escondido, este contenedor sigue ahí, invisible y en
-        // `z-10`, justo donde se pega la cabecera sticky de la sección. Sin
-        // esto se tragaba sus toques y no había forma de plegarla desde
-        // abajo. Sus hijos —los chips— siguen recibiéndolos con el bloque a
-        // la vista.
-        //
-        // Prop y no clase: `react-native-css-interop` no conoce `box-none`,
-        // y una clase inexistente fallaría en silencio.
-        <View
-          pointerEvents="box-none"
-          className="absolute top-0 left-0 right-0 z-10 overflow-hidden"
-        >
-          <Animated.View style={animatedStyle}>
-            {/* Un solo `onLayout` para el bloque entero: campos y hermanos se
+        {showHeaderExtras && (
+          // El posicionamiento va en un `View` normal y la animación en el
+          // `Animated.View` de dentro: no se superponen NativeWind y Reanimated
+          // sobre el mismo elemento.
+          // `overflow-hidden` es lo que hace que parezca meterse bajo el
+          // header: el transform no cambia el layout, así que este contenedor
+          // conserva la altura del bloque y recorta lo que se desplaza fuera.
+          //
+          // Y por eso mismo tiene que dejar pasar los toques (`box-none`): con
+          // el bloque escondido, este contenedor sigue ahí, invisible y en
+          // `z-10`, justo donde se pega la cabecera sticky de la sección. Sin
+          // esto se tragaba sus toques y no había forma de plegarla desde
+          // abajo. Sus hijos —los chips— siguen recibiéndolos con el bloque a
+          // la vista.
+          //
+          // Prop y no clase: `react-native-css-interop` no conoce `box-none`,
+          // y una clase inexistente fallaría en silencio.
+          <View
+            pointerEvents="box-none"
+            className="absolute top-0 left-0 right-0 z-10 overflow-hidden"
+          >
+            <Animated.View style={animatedStyle}>
+              {/* Un solo `onLayout` para el bloque entero: campos y hermanos se
                 esconden como una pieza, así que lo que hay que medir —y lo que
                 el espaciador reserva— es el conjunto. */}
-            <View
-              className="bg-primary gap-3 px-4 pb-3 pt-1"
-              onLayout={(e) =>
-                setHeaderExtrasHeight(e.nativeEvent.layout.height)
-              }
-            >
-              {isLoading ? (
-                <PlantFieldsSkeleton />
-              ) : (
-                data && <PlantFields plant={data.plant} />
-              )}
+              <View
+                className="bg-primary gap-3 px-4 pb-3 pt-1"
+                onLayout={(e) =>
+                  setHeaderExtrasHeight(e.nativeEvent.layout.height)
+                }
+              >
+                {isLoading ? (
+                  <PlantFieldsSkeleton />
+                ) : (
+                  data && <PlantFields plant={data.plant} />
+                )}
 
-              {/* Los márgenes negativos dejan que el scroll llegue a los bordes
+                {/* Los márgenes negativos dejan que el scroll llegue a los bordes
                   sin perder el padding del contenido. */}
-              {showSiblings && (
-                <ScrollView
-                  className="-mx-4"
-                  contentContainerClassName="flex-row items-center gap-4 px-4 mt-2"
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                >
-                  {isLoading
-                    ? Array.from({ length: 3 }).map((_, i) => (
-                        <TratamientoChipSkeleton key={i} />
-                      ))
-                    : data?.tratamientos.map((trat) => (
-                        // El resaltado se compara contra el `id` de la ruta y
-                        // no contra el dato cargado: `setParams` lo actualiza
-                        // al instante, así que el chip se invierte en el mismo
-                        // frame del toque y el contenido llega detrás.
-                        <TratamientoChip
-                          key={trat.id}
-                          tratamiento={trat}
-                          variant="header"
-                          isActive={trat.id === id}
-                          // Mismo screen, otro parámetro: `setParams` cambia
-                          // los params sin navegar, así que no hay transición
-                          // ni remonte. `replace` sí navegaba, y de ahí la
-                          // animación que sobraba.
-                          onPress={() => router.setParams({ id: trat.id })}
-                        />
-                      ))}
-                </ScrollView>
-              )}
-            </View>
-          </Animated.View>
-        </View>
-      )}
+                {showSiblings && (
+                  <ScrollView
+                    className="-mx-4"
+                    contentContainerClassName="flex-row items-center gap-4 px-4 mt-2"
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                  >
+                    {isLoading
+                      ? Array.from({ length: 3 }).map((_, i) => (
+                          <TratamientoChipSkeleton key={i} />
+                        ))
+                      : data?.tratamientos.map((trat) => (
+                          // El resaltado se compara contra el `id` de la ruta y
+                          // no contra el dato cargado: `setParams` lo actualiza
+                          // al instante, así que el chip se invierte en el mismo
+                          // frame del toque y el contenido llega detrás.
+                          <TratamientoChip
+                            key={trat.id}
+                            tratamiento={trat}
+                            variant="header"
+                            isActive={trat.id === id}
+                            // Mismo screen, otro parámetro: `setParams` cambia
+                            // los params sin navegar, así que no hay transición
+                            // ni remonte. `replace` sí navegaba, y de ahí la
+                            // animación que sobraba.
+                            onPress={() => router.setParams({ id: trat.id })}
+                          />
+                        ))}
+                  </ScrollView>
+                )}
+              </View>
+            </Animated.View>
+          </View>
+        )}
 
-      {/* Alcanzable de verdad, no defensivo: una descarga puede podar el
+        {/* Alcanzable de verdad, no defensivo: una descarga puede podar el
           tratamiento mientras esta pantalla está abierta. No se navega hacia
           atrás solo, que resulta brusco si el usuario está leyendo. */}
-      {!isLoading && !data && (
-        <EmptyState
-          icon={GhostIcon}
-          title="Tratamiento no disponible"
-          body="Puede que se haya eliminado en la última descarga."
-        />
-      )}
+        {!isLoading && !data && (
+          <EmptyState
+            icon={GhostIcon}
+            title="Tratamiento no disponible"
+            body="Puede que se haya eliminado en la última descarga."
+          />
+        )}
 
-      {data && (
-        // Brix trae campos de texto y va al final: sin esto, el teclado
-        // taparía las lecturas. Por dentro es un `Reanimated.ScrollView` que
-        // recibe los hijos tal cual —así `stickyHeaderIndices` sigue contando
-        // bien—, deja pasar el `onScroll` worklet y su ref es la instancia del
-        // scroll. `contentContainerClassName` funciona porque está registrado
-        // en `nativewind-interop.ts`.
-        <KeyboardAwareScrollView
-          ref={scrollRef}
-          // Deja a la vista el resultado del par bajo la lectura enfocada, no
-          // solo el campo.
-          bottomOffset={56}
-          // Con el teclado abierto, el primer toque en un botón —«Agregar
-          // corte», la cabecera de un corte— solo cerraba el teclado y había
-          // que tocar dos veces. Así el toque llega a quien lo maneja.
-          keyboardShouldPersistTaps="handled"
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          // Fija la cabecera de la sección en curso; al entrar la siguiente,
-          // esta la empuja fuera. Lo hace ScrollView por su cuenta: engancha su
-          // propio listener nativo, así que no se pisa con `onScroll`.
-          stickyHeaderIndices={STICKY_HEADER_INDICES}
-          // Sin `gap`: separaría cada cabecera de su propio cuerpo, que ahora
-          // son hijos hermanos. La separación entre secciones va en el cuerpo.
-          contentContainerClassName="px-4 pb-10"
-        >
-          {/* Reserva el hueco del bloque superpuesto. Sin holgura extra: la
+        {data && (
+          // Brix trae campos de texto y va al final: sin esto, el teclado
+          // taparía las lecturas. Por dentro es un `Reanimated.ScrollView` que
+          // recibe los hijos tal cual —así `stickyHeaderIndices` sigue contando
+          // bien—, deja pasar el `onScroll` worklet y su ref es la instancia del
+          // scroll. `contentContainerClassName` funciona porque está registrado
+          // en `nativewind-interop.ts`.
+          <KeyboardAwareScrollView
+            ref={scrollRef}
+            // Deja a la vista el resultado del par bajo la lectura enfocada, no
+            // solo el campo.
+            bottomOffset={56}
+            // Con el teclado abierto, el primer toque en un botón —«Agregar
+            // corte», la cabecera de un corte— solo cerraba el teclado y había
+            // que tocar dos veces. Así el toque llega a quien lo maneja.
+            keyboardShouldPersistTaps="handled"
+            onScroll={scrollHandler}
+            scrollEventThrottle={16}
+            // Fija la cabecera de la sección en curso; al entrar la siguiente,
+            // esta la empuja fuera. Lo hace ScrollView por su cuenta: engancha su
+            // propio listener nativo, así que no se pisa con `onScroll`.
+            stickyHeaderIndices={STICKY_HEADER_INDICES}
+            // Sin `gap`: separaría cada cabecera de su propio cuerpo, que ahora
+            // son hijos hermanos. La separación entre secciones va en el cuerpo.
+            contentContainerClassName="px-4 pb-10"
+          >
+            {/* Reserva el hueco del bloque superpuesto. Sin holgura extra: la
               primera cabecera ya trae la suya, y sumarlas dejaría la primera
               sección al doble de distancia que las demás. */}
-          <View style={{ height: reservedHeight }} />
-          {/* Un array se aplana en los hijos del scroll (un Fragment no), que
+            <View style={{ height: reservedHeight }} />
+            {/* Un array se aplana en los hijos del scroll (un Fragment no), que
               es lo que permite generar las secciones y seguir teniendo cabecera
               y cuerpo como hijos indexables.
 
-              Las respuestas de todas las secciones viven en el mismo `answers`:
-              los ids de pregunta son únicos entre catálogos, no solo dentro de
-              cada uno. */}
-          {SECTIONS.flatMap((section) => {
-            const open = openSections[section.id] ?? false;
+              Los valores de cada sección viven en el formulario, bajo su
+              propio `id` (ver `evaluationSchema`). */}
+            {SECTIONS.flatMap((section) => {
+              const open = openSections[section.id] ?? false;
 
-            return [
-              <CollapsibleHeader
-                key={`${section.id}-header`}
-                icon={section.icon}
-                title={section.title}
-                description={section.description}
-                open={open}
-                onToggle={() => handleToggle(section.id, open)}
-                onLayout={(event) =>
+              const headerProps = {
+                icon: section.icon,
+                title: section.title,
+                description: section.description,
+                open,
+                onToggle: () => handleToggle(section.id, open),
+                onLayout: (event: LayoutChangeEvent) =>
                   rememberLayout(section.id, {
                     headerHeight: event.nativeEvent.layout.height,
-                  })
-                }
-                // TODO(respuestas): sale del estado de la pantalla, así que se
-                // pierde al salir. Cuando exista la tabla cambia el origen del
-                // dato, no el cálculo.
-                progress={
-                  section.kind === "questions"
-                    ? calcEvalProgress(section.questions, answers)
-                    : undefined
-                }
-                summary={
-                  section.kind === "brix" ? (
-                    <BrixHeaderSummary cortes={brixCortes} />
-                  ) : undefined
-                }
-              />,
-              <CollapsibleBody
-                key={`${section.id}-body`}
-                open={open}
-                onLayout={(event) =>
-                  rememberLayout(section.id, {
-                    bodyY: event.nativeEvent.layout.y,
-                  })
-                }
-              >
-                {section.hasPhotos && (
-                  <>
-                    <EvalPhotos
-                      photos={photos[section.id] ?? EMPTY_PHOTOS}
-                      onCapture={(source) => handleCapture(section.id, source)}
-                      onOpenPhotos={() =>
-                        router.push({
-                          pathname: "/photos",
-                          params: { sectionId: section.id },
-                        })
-                      }
-                    />
-                    {/* El separador que el formulario pone entre preguntas, con
+                  }),
+              };
+
+              return [
+                section.kind === "questions" ? (
+                  // Su avance lo calcula ella con un `useWatch` de su sección,
+                  // para que contestar no re-renderice la pantalla.
+                  <EvalQuestionsHeader
+                    key={`${section.id}-header`}
+                    {...headerProps}
+                    sectionId={section.id}
+                    questions={section.questions}
+                  />
+                ) : (
+                  <CollapsibleHeader
+                    key={`${section.id}-header`}
+                    {...headerProps}
+                    summary={<BrixHeaderSummary cortes={brixCortes} />}
+                  />
+                ),
+                <CollapsibleBody
+                  key={`${section.id}-body`}
+                  open={open}
+                  onLayout={(event) =>
+                    rememberLayout(section.id, {
+                      bodyY: event.nativeEvent.layout.y,
+                    })
+                  }
+                >
+                  {section.hasPhotos && (
+                    <>
+                      <EvalPhotos
+                        photos={photos[section.id] ?? EMPTY_PHOTOS}
+                        onCapture={(source) =>
+                          handleCapture(section.id, source)
+                        }
+                        onOpenPhotos={() =>
+                          router.push({
+                            pathname: "/photos",
+                            params: { sectionId: section.id },
+                          })
+                        }
+                      />
+                      {/* El separador que el formulario pone entre preguntas, con
                         sus mismos márgenes: así las fotos se leen como un bloque
                         más de la lista. Tiene que ir aquí porque la primera
                         pregunta no trae el suyo —solo lo llevan de la segunda en
                         adelante—, y sin él quedarían pegadas a la tira. */}
-                    <Separator className="mb-6 mt-7" />
-                  </>
-                )}
-                {section.kind === "questions" ? (
-                  <EvalQuestionsForm
-                    questions={section.questions}
-                    answers={answers}
-                    onAnswerChange={handleAnswerChange}
-                  />
-                ) : (
-                  <EvalBrix
-                    // Su estado de interfaz —qué corte está abierto— es del
-                    // tratamiento; con `setParams` la pantalla no se desmonta.
-                    key={id}
-                    cortes={brixCortes}
-                    onReadingChange={handleBrixReadingChange}
-                    onAddCorte={handleAddBrixCorte}
-                    onRemoveLastCorte={handleRemoveLastBrixCorte}
-                  />
-                )}
-              </CollapsibleBody>,
-            ];
-          })}
-        </KeyboardAwareScrollView>
-      )}
-    </View>
+                      <Separator className="mb-6 mt-7" />
+                    </>
+                  )}
+                  {section.kind === "questions" ? (
+                    <EvalQuestionsForm
+                      sectionId={section.id}
+                      questions={section.questions}
+                    />
+                  ) : (
+                    <EvalBrix
+                      // Su estado de interfaz —qué corte está abierto— es del
+                      // tratamiento; con `setParams` la pantalla no se desmonta.
+                      key={id}
+                      cortes={brixCortes}
+                      onReadingChange={handleBrixReadingChange}
+                      onAddCorte={handleAddBrixCorte}
+                      onRemoveLastCorte={handleRemoveLastBrixCorte}
+                    />
+                  )}
+                </CollapsibleBody>,
+              ];
+            })}
+          </KeyboardAwareScrollView>
+        )}
+      </View>
+    </FormProvider>
   );
 }

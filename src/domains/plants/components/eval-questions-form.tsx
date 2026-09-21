@@ -1,12 +1,20 @@
+import type { ComponentProps } from "react";
 import { View } from "react-native";
+import { useController, useWatch } from "react-hook-form";
+import { CollapsibleHeader } from "@/components/collapsible-section";
 import { Separator } from "@/components/ui/separator";
 import { OptionPicker } from "@/components/ui/option-picker";
-import type { EvalAnswers, EvalQuestion } from "../types";
+import { calcEvalProgress } from "../lib/calc-eval-progress";
+import type {
+  EvaluationFormValues,
+  QuestionsSectionId,
+} from "../lib/evaluation-schema";
+import type { EvalQuestion } from "../types";
 
 type EvalQuestionsFormProps = {
+  /** La clave de la sección en el formulario; también su `id` en pantalla. */
+  sectionId: QuestionsSectionId;
   questions: EvalQuestion[];
-  answers: EvalAnswers;
-  onAnswerChange: (questionId: string, value: string | undefined) => void;
 };
 
 /**
@@ -16,15 +24,16 @@ type EvalQuestionsFormProps = {
  * se diferencian en su contenido, así que un componente por sección serían
  * archivos idénticos salvo un import.
  *
- * Presentacional: recibe las respuestas y emite los cambios. Quién las guarda
- * —hoy estado local de la pantalla, mañana la tabla `respuestas`— es decisión
- * de quien lo monta. Ojo con el `answers`: va indexado por `id` de pregunta, y
- * los ids son únicos entre catálogos, no solo dentro de cada uno.
+ * **Ya no es presentacional**: lee y escribe el formulario del contexto
+ * (`FormProvider` en la pantalla), y cada pregunta se suscribe solo a su campo.
+ * Así, contestar una re-renderiza esa pregunta y no la lista entera —con varias
+ * secciones abiertas, antes se re-renderizaba toda la pantalla—. Lo que sí sigue
+ * siendo presentacional es `OptionPicker`: el enganche con el formulario vive en
+ * `QuestionField`, no en él.
  */
 export function EvalQuestionsForm({
+  sectionId,
   questions,
-  answers,
-  onAnswerChange,
 }: EvalQuestionsFormProps) {
   return (
     <View className="flex-row flex-wrap mb-4">
@@ -43,14 +52,68 @@ export function EvalQuestionsForm({
               primera—, así que en las filas de una sola pregunta se ve igual
               que antes. */}
           {index > 0 && <Separator className="mb-6 mt-7" />}
-          <OptionPicker
-            label={question.label}
-            options={question.options}
-            value={answers[question.id]}
-            onChange={(value) => onAnswerChange(question.id, value)}
-          />
+          <QuestionField sectionId={sectionId} question={question} />
         </View>
       ))}
     </View>
+  );
+}
+
+/** El enganche de una pregunta con su campo del formulario. */
+function QuestionField({
+  sectionId,
+  question,
+}: {
+  sectionId: QuestionsSectionId;
+  question: EvalQuestion;
+}) {
+  const { field } = useController<EvaluationFormValues>({
+    name: `${sectionId}.${question.id}`,
+  });
+
+  return (
+    <OptionPicker
+      label={question.label}
+      options={question.options}
+      value={field.value as string | undefined}
+      // Deseleccionar llega como `undefined`, y el esquema lo acepta: una
+      // pregunta sin contestar es válida mientras no sea obligatoria.
+      onChange={field.onChange}
+    />
+  );
+}
+
+type EvalQuestionsHeaderProps = Omit<
+  ComponentProps<typeof CollapsibleHeader>,
+  "progress" | "summary"
+> & {
+  sectionId: QuestionsSectionId;
+  questions: EvalQuestion[];
+};
+
+/**
+ * La cabecera de una sección de preguntas, con su avance.
+ *
+ * El avance sale de un `useWatch` acotado a la sección y no de la pantalla:
+ * contestar re-renderiza esta cabecera, no el formulario. Es un hijo directo
+ * del scroll igual que antes, así que `stickyHeaderIndices` sigue contando bien.
+ *
+ * TODO(respuestas): cuando se carguen de SQLite cambia el origen de los valores
+ * —los `defaultValues` del formulario—, no este cálculo.
+ */
+export function EvalQuestionsHeader({
+  sectionId,
+  questions,
+  ...headerProps
+}: EvalQuestionsHeaderProps) {
+  const answers = useWatch<EvaluationFormValues, QuestionsSectionId>({
+    name: sectionId,
+  });
+
+  return (
+    <CollapsibleHeader
+      {...headerProps}
+      progress={calcEvalProgress(questions, answers ?? {})}
+    />
   );
 }

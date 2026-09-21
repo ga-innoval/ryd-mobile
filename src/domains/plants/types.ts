@@ -15,10 +15,10 @@ export type EvalQuestion = {
 };
 
 /**
- * Respuestas capturadas, indexadas por `id` de pregunta. Es **un solo record
- * para todas las secciones**, así que los ids tienen que ser únicos entre
- * catálogos. Una clave puede existir con valor `undefined`: es lo que deja
- * deseleccionar una opción, y por eso lo que cuenta es el valor, no la clave.
+ * Respuestas de **una** sección, indexadas por `id` de pregunta: en el
+ * formulario cada sección tiene su propio record, bajo su `id`. Una clave puede
+ * existir con valor `undefined`: es lo que deja deseleccionar una opción, y
+ * por eso lo que cuenta es el valor, no la clave.
  */
 export type EvalAnswers = Record<string, string | undefined>;
 
