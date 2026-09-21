@@ -180,16 +180,18 @@ export function summarizeBrix(cortes: BrixCorte[]): BrixSummary {
 }
 
 /**
- * Solo se agrega un corte cuando el último ya tiene alguna lectura, para que no
- * se acumulen cortes vacíos.
+ * Solo se agrega un corte cuando el último ya tiene sus diez lecturas: se
+ * termina uno antes de empezar el siguiente.
+ *
+ * El «completo» es el de `summarizeBrixCorte`, el mismo que marca la cabecera
+ * con «10 de 10 lecturas», para que el botón aparezca justo cuando ella lo da
+ * por completo. Recorre siempre las diez posiciones: un arreglo más corto no
+ * pasa por completo.
  */
 export function canAddBrixCorte(cortes: BrixCorte[]): boolean {
   const last = cortes[cortes.length - 1];
 
-  return (
-    last !== undefined &&
-    last.readings.some((reading) => parseBrixReading(reading) !== null)
-  );
+  return last !== undefined && summarizeBrixCorte(last.readings).complete;
 }
 
 /**
