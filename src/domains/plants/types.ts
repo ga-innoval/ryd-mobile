@@ -23,6 +23,18 @@ export type EvalQuestion = {
 export type EvalAnswers = Record<string, string | undefined>;
 
 /**
+ * Un corte de Brix tal como se captura: sus diez lecturas de refractómetro, en
+ * orden.
+ *
+ * Texto y no número, por dos razones: así una lectura vacía no se confunde con
+ * un cero, y lo que está a medio escribir ("18.") no se reformatea bajo el
+ * dedo. Cómo se leen como números lo decide `lib/brix.ts`.
+ */
+export type BrixCorte = {
+  readings: string[];
+};
+
+/**
  * De dónde sale una fotografía de evidencia. Cada origen tiene su propio botón
  * en la tira, así que capturar no pasa por preguntar primero.
  */

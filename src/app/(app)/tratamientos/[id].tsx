@@ -1,10 +1,14 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Keyboard, ScrollView, View } from "react-native";
 import Animated, {
   useAnimatedRef,
   useScrollOffset,
 } from "react-native-reanimated";
+import {
+  KeyboardAwareScrollView,
+  type KeyboardAwareScrollViewRef,
+} from "react-native-keyboard-controller";
 import { useHideOnScroll } from "@/lib/use-hide-on-scroll";
 import { useTratamiento } from "@/domains/plants/hooks/use-tratamiento";
 import { TratamientosPageHeader } from "@/domains/navigation/tratamientos-page-header";
@@ -19,6 +23,15 @@ import {
 } from "@/components/collapsible-section";
 import { EvalQuestionsForm } from "@/domains/plants/components/eval-questions-form";
 import { EvalPhotos } from "@/domains/plants/components/eval-photos";
+import {
+  BrixHeaderSummary,
+  EvalBrix,
+} from "@/domains/plants/components/eval-brix";
+import {
+  createBrixCorte,
+  removeLastBrixCorte,
+  setBrixReading,
+} from "@/domains/plants/lib/brix";
 import { usePhotoCapture } from "@/domains/plants/hooks/use-photo-capture";
 import {
   EMPTY_PHOTOS,
@@ -33,11 +46,14 @@ import {
   GrapeIcon,
   MicroscopeIcon,
   PipetteIcon,
+  type LucideIcon,
 } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
 import type {
+  BrixCorte,
   EvalAnswers,
+  EvalQuestion,
   PhotoSource,
   PlantRecord,
 } from "@/domains/plants/types";
@@ -95,20 +111,38 @@ function PlantFieldsSkeleton() {
   );
 }
 
-const SECTIONS = [
+/**
+ * Qué lleva cada sección va declarado aquí —`kind` para el contenido,
+ * `hasPhotos` para la evidencia— y no como un `id === "..."` suelto en el
+ * render, para que esta lista siga describiendo por sí sola lo que lleva cada
+ * una.
+ */
+type Section = {
+  id: string;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  hasPhotos: boolean;
+} & (
+  | { kind: "questions"; questions: EvalQuestion[] }
+  // Brix no es un catálogo de preguntas: se captura por cortes, y su avance no
+  // es un porcentaje porque no tiene un número fijo de cortes.
+  | { kind: "brix" }
+);
+
+const SECTIONS: Section[] = [
   {
     id: "exterior",
+    kind: "questions",
     icon: GrapeIcon,
     title: "Evaluación Exterior",
     description: "Forma, color, firmeza y arreglo del racimo y de la baya.",
     questions: EVALS_EXTERIOR,
-    // Qué secciones piden evidencia fotográfica va como bandera y no como un
-    // `id === "..."` suelto en el render, para que esta lista siga describiendo
-    // por sí sola lo que lleva cada una.
     hasPhotos: true,
   },
   {
     id: "interior",
+    kind: "questions",
     icon: MicroscopeIcon,
     title: "Evaluación Interior",
     description:
@@ -118,10 +152,10 @@ const SECTIONS = [
   },
   {
     id: "brix",
+    kind: "brix",
     icon: PipetteIcon,
     title: "Brix",
-    description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-    questions: [],
+    description: "Azúcar de la baya: diez lecturas de refractómetro por corte.",
     hasPhotos: false,
   },
 ];
@@ -144,6 +178,12 @@ export default function TratamientoScreen() {
   // tabla `respuestas`.
   const [answers, setAnswers] = useState<EvalAnswers>({});
 
+  // TODO(respuestas): igual que `answers`, se pierde al salir de la pantalla.
+  // Arranca con un corte vacío para que el primero se capture sin pedirlo.
+  const [brixCortes, setBrixCortes] = useState<BrixCorte[]>(() => [
+    createBrixCorte(),
+  ]);
+
   // En un store y no en estado de pantalla porque la cuadrícula a pantalla
   // completa es otra ruta y no podría verlo. Sigue indexado por sección, que
   // es lo que separa la evidencia de Exterior de la de Interior.
@@ -162,7 +202,7 @@ export default function TratamientoScreen() {
 
   // `useScrollOffset` escucha por su propio canal de eventos, así que
   // convive con el `onScroll` de `useHideOnScroll` sin quitárselo.
-  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollRef = useAnimatedRef<KeyboardAwareScrollViewRef>();
   const scrollOffset = useScrollOffset(scrollRef);
 
   // Dónde cae cada cabecera cuando no está pegada, en coordenadas del
@@ -202,6 +242,10 @@ export default function TratamientoScreen() {
     (sectionId: string, isOpen: boolean) => {
       const { bodyY, headerHeight } = sectionLayouts.current[sectionId] ?? {};
 
+      // El cuerpo plegado sigue montado: un campo de Brix enfocado conservaría
+      // el foco sin verse, y lo tecleado iría a parar ahí.
+      if (isOpen) Keyboard.dismiss();
+
       if (isOpen && bodyY !== undefined && headerHeight !== undefined) {
         const headerY = bodyY - headerHeight;
 
@@ -228,6 +272,7 @@ export default function TratamientoScreen() {
 
     previousId.current = id;
     setAnswers({});
+    setBrixCortes([createBrixCorte()]);
   }, [id]);
 
   // En cada montaje y en cada cambio de id, pero el vaciado lo decide el
@@ -259,6 +304,23 @@ export default function TratamientoScreen() {
     },
     [],
   );
+
+  // Sin `useCallback`: `EvalBrix` no está memoizado, así que una referencia
+  // estable no le ahorraría ningún render.
+  const handleBrixReadingChange = (
+    corteIndex: number,
+    readingIndex: number,
+    text: string,
+  ) =>
+    setBrixCortes((prev) =>
+      setBrixReading(prev, corteIndex, readingIndex, text),
+    );
+
+  const handleAddBrixCorte = () =>
+    setBrixCortes((prev) => [...prev, createBrixCorte()]);
+
+  const handleRemoveLastBrixCorte = () =>
+    setBrixCortes((prev) => removeLastBrixCorte(prev));
 
   const capturePhoto = usePhotoCapture();
 
@@ -392,8 +454,21 @@ export default function TratamientoScreen() {
       )}
 
       {data && (
-        <Animated.ScrollView
+        // Brix trae campos de texto y va al final: sin esto, el teclado
+        // taparía las lecturas. Por dentro es un `Reanimated.ScrollView` que
+        // recibe los hijos tal cual —así `stickyHeaderIndices` sigue contando
+        // bien—, deja pasar el `onScroll` worklet y su ref es la instancia del
+        // scroll. `contentContainerClassName` funciona porque está registrado
+        // en `nativewind-interop.ts`.
+        <KeyboardAwareScrollView
           ref={scrollRef}
+          // Deja a la vista el resultado del par bajo la lectura enfocada, no
+          // solo el campo.
+          bottomOffset={56}
+          // Con el teclado abierto, el primer toque en un botón —«Agregar
+          // corte», la cabecera de un corte— solo cerraba el teclado y había
+          // que tocar dos veces. Así el toque llega a quien lo maneja.
+          keyboardShouldPersistTaps="handled"
           onScroll={scrollHandler}
           scrollEventThrottle={16}
           // Fija la cabecera de la sección en curso; al entrar la siguiente,
@@ -434,7 +509,16 @@ export default function TratamientoScreen() {
                 // TODO(respuestas): sale del estado de la pantalla, así que se
                 // pierde al salir. Cuando exista la tabla cambia el origen del
                 // dato, no el cálculo.
-                progress={calcEvalProgress(section.questions, answers)}
+                progress={
+                  section.kind === "questions"
+                    ? calcEvalProgress(section.questions, answers)
+                    : undefined
+                }
+                summary={
+                  section.kind === "brix" ? (
+                    <BrixHeaderSummary cortes={brixCortes} />
+                  ) : undefined
+                }
               />,
               <CollapsibleBody
                 key={`${section.id}-body`}
@@ -465,15 +549,27 @@ export default function TratamientoScreen() {
                     <Separator className="mb-6 mt-7" />
                   </>
                 )}
-                <EvalQuestionsForm
-                  questions={section.questions}
-                  answers={answers}
-                  onAnswerChange={handleAnswerChange}
-                />
+                {section.kind === "questions" ? (
+                  <EvalQuestionsForm
+                    questions={section.questions}
+                    answers={answers}
+                    onAnswerChange={handleAnswerChange}
+                  />
+                ) : (
+                  <EvalBrix
+                    // Su estado de interfaz —qué corte está abierto— es del
+                    // tratamiento; con `setParams` la pantalla no se desmonta.
+                    key={id}
+                    cortes={brixCortes}
+                    onReadingChange={handleBrixReadingChange}
+                    onAddCorte={handleAddBrixCorte}
+                    onRemoveLastCorte={handleRemoveLastBrixCorte}
+                  />
+                )}
               </CollapsibleBody>,
             ];
           })}
-        </Animated.ScrollView>
+        </KeyboardAwareScrollView>
       )}
     </View>
   );
