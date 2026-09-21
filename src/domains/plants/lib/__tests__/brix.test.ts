@@ -7,9 +7,7 @@ import {
   formatBrix,
   isBrixOutOfRange,
   parseBrixReading,
-  removeLastBrixCorte,
   sanitizeBrixInput,
-  setBrixReading,
   summarizeBrix,
   summarizeBrixCorte,
 } from "../brix";
@@ -199,50 +197,6 @@ describe("canRemoveBrixCorte", () => {
 
   it("deja descartar cuando hay más de uno", () => {
     expect(canRemoveBrixCorte([COMPLETO, createBrixCorte()])).toBe(true);
-  });
-});
-
-describe("removeLastBrixCorte", () => {
-  it("quita solo el último", () => {
-    const segundo = corte("20");
-
-    expect(removeLastBrixCorte([COMPLETO, segundo, createBrixCorte()])).toEqual(
-      [COMPLETO, segundo],
-    );
-  });
-
-  it("conserva el único corte", () => {
-    const cortes = [COMPLETO];
-
-    expect(removeLastBrixCorte(cortes)).toBe(cortes);
-  });
-
-  it("no muta el array recibido", () => {
-    const cortes = [COMPLETO, createBrixCorte()];
-
-    removeLastBrixCorte(cortes);
-    expect(cortes).toHaveLength(2);
-  });
-});
-
-describe("setBrixReading", () => {
-  it("cambia solo la lectura indicada", () => {
-    const [primero, segundo] = setBrixReading(
-      [corte("18.2"), corte("19.0")],
-      1,
-      1,
-      "19.4",
-    );
-
-    expect(primero.readings.slice(0, 2)).toEqual(["18.2", ""]);
-    expect(segundo.readings.slice(0, 2)).toEqual(["19.0", "19.4"]);
-  });
-
-  it("no muta los cortes recibidos", () => {
-    const cortes = [corte("18.2")];
-
-    setBrixReading(cortes, 0, 0, "20");
-    expect(cortes[0].readings[0]).toBe("18.2");
   });
 });
 

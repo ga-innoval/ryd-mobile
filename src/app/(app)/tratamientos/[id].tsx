@@ -37,11 +37,6 @@ import {
   BrixHeaderSummary,
   EvalBrix,
 } from "@/domains/plants/components/eval-brix";
-import {
-  createBrixCorte,
-  removeLastBrixCorte,
-  setBrixReading,
-} from "@/domains/plants/lib/brix";
 import { usePhotoCapture } from "@/domains/plants/hooks/use-photo-capture";
 import {
   EMPTY_PHOTOS,
@@ -68,7 +63,6 @@ import {
 import { Text } from "@/components/ui/text";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
 import type {
-  BrixCorte,
   EvalQuestion,
   PhotoSource,
   PlantRecord,
@@ -208,13 +202,6 @@ export default function TratamientoScreen() {
   });
   const { reset } = form;
 
-  // TODO(brix-rhf): pasa al formulario con `useFieldArray`; mientras tanto va
-  // aparte y se pierde al salir de la pantalla, como el resto.
-  // Arranca con un corte vacío para que el primero se capture sin pedirlo.
-  const [brixCortes, setBrixCortes] = useState<BrixCorte[]>(() => [
-    createBrixCorte(),
-  ]);
-
   // En un store y no en estado de pantalla porque la cuadrícula a pantalla
   // completa es otra ruta y no podría verlo. Sigue indexado por sección, que
   // es lo que separa la evidencia de Exterior de la de Interior.
@@ -303,7 +290,6 @@ export default function TratamientoScreen() {
 
     previousId.current = id;
     reset(buildEvaluationDefaults());
-    setBrixCortes([createBrixCorte()]);
   }, [id, reset]);
 
   // En cada montaje y en cada cambio de id, pero el vaciado lo decide el
@@ -328,23 +314,6 @@ export default function TratamientoScreen() {
   const { scrollHandler, animatedStyle } = useHideOnScroll({
     distance: reservedHeight,
   });
-
-  // Sin `useCallback`: `EvalBrix` no está memoizado, así que una referencia
-  // estable no le ahorraría ningún render.
-  const handleBrixReadingChange = (
-    corteIndex: number,
-    readingIndex: number,
-    text: string,
-  ) =>
-    setBrixCortes((prev) =>
-      setBrixReading(prev, corteIndex, readingIndex, text),
-    );
-
-  const handleAddBrixCorte = () =>
-    setBrixCortes((prev) => [...prev, createBrixCorte()]);
-
-  const handleRemoveLastBrixCorte = () =>
-    setBrixCortes((prev) => removeLastBrixCorte(prev));
 
   const capturePhoto = usePhotoCapture();
 
@@ -545,7 +514,7 @@ export default function TratamientoScreen() {
                   <CollapsibleHeader
                     key={`${section.id}-header`}
                     {...headerProps}
-                    summary={<BrixHeaderSummary cortes={brixCortes} />}
+                    summary={<BrixHeaderSummary />}
                   />
                 ),
                 <CollapsibleBody
@@ -589,10 +558,6 @@ export default function TratamientoScreen() {
                       // Su estado de interfaz —qué corte está abierto— es del
                       // tratamiento; con `setParams` la pantalla no se desmonta.
                       key={id}
-                      cortes={brixCortes}
-                      onReadingChange={handleBrixReadingChange}
-                      onAddCorte={handleAddBrixCorte}
-                      onRemoveLastCorte={handleRemoveLastBrixCorte}
                     />
                   )}
                 </CollapsibleBody>,
