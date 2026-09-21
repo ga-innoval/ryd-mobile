@@ -1,9 +1,11 @@
 import {
+  BRIX_EXPECTED_RANGE,
   BRIX_READINGS_PER_CORTE,
   canAddBrixCorte,
   canRemoveBrixCorte,
   createBrixCorte,
   formatBrix,
+  isBrixOutOfRange,
   parseBrixReading,
   removeLastBrixCorte,
   sanitizeBrixInput,
@@ -64,6 +66,18 @@ describe("parseBrixReading", () => {
 
   it("lee un número a medio escribir", () => {
     expect(parseBrixReading("18.")).toBe(18);
+  });
+});
+
+describe("isBrixOutOfRange", () => {
+  it("toma los extremos del rango como dentro", () => {
+    expect(isBrixOutOfRange(BRIX_EXPECTED_RANGE.min)).toBe(false);
+    expect(isBrixOutOfRange(BRIX_EXPECTED_RANGE.max)).toBe(false);
+  });
+
+  it("marca lo que queda por debajo o por encima", () => {
+    expect(isBrixOutOfRange(BRIX_EXPECTED_RANGE.min - 0.01)).toBe(true);
+    expect(isBrixOutOfRange(BRIX_EXPECTED_RANGE.max + 0.01)).toBe(true);
   });
 });
 

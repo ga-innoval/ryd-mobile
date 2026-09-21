@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { BrixCorte } from "../types";
 
 /**
@@ -71,16 +72,47 @@ export function sanitizeBrixInput(text: string): string {
   return joined.slice(0, MAX_INPUT_LENGTH);
 }
 
-/** `null` si está vacía o aún no es un número ("." a medio escribir). */
-export function parseBrixReading(text: string): number | null {
+/**
+ * Una lectura tal como se captura (texto) y tal como se guarda (número).
+ *
+ * No rechaza nada, a propósito: reproduce lo que ya hacía `parseBrixReading`,
+ * donde lo vacío y lo que aún no es un número ("." a medio escribir) cuentan
+ * como sin lectura. Tampoco hay mucho que rechazar: `sanitizeBrixInput` ya
+ * impide teclear otra cosa que dígitos y un separador. Lo que aporta es la
+ * salida tipada: lo que llegue al guardado serán números, no strings.
+ */
+export const brixReadingSchema = z.string().transform((text): number | null => {
   if (text.trim() === "") return null;
 
   const value = Number(text);
   return Number.isFinite(value) ? value : null;
+});
+
+/**
+ * El rango habitual, como esquema para el **aviso**, no para el guardado.
+ *
+ * Va aparte del esquema del formulario y así debe seguir: una lectura fuera
+ * de rango se avisa pero cuenta igual (ver `BRIX_EXPECTED_RANGE`). Metido en el
+ * resolver, se convertiría en un error que impediría guardar una lectura que
+ * podría ser real.
+ */
+export const brixReadingRangeSchema = z
+  .number()
+  .min(BRIX_EXPECTED_RANGE.min)
+  .max(BRIX_EXPECTED_RANGE.max);
+
+/** Un corte completo: sus diez lecturas, en orden. */
+export const brixCorteSchema = z.object({
+  readings: z.array(brixReadingSchema).length(BRIX_READINGS_PER_CORTE),
+});
+
+/** `null` si está vacía o aún no es un número ("." a medio escribir). */
+export function parseBrixReading(text: string): number | null {
+  return brixReadingSchema.parse(text);
 }
 
 export function isBrixOutOfRange(value: number): boolean {
-  return value < BRIX_EXPECTED_RANGE.min || value > BRIX_EXPECTED_RANGE.max;
+  return !brixReadingRangeSchema.safeParse(value).success;
 }
 
 function mean(values: number[]): number | null {
