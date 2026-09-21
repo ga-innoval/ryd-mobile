@@ -9,12 +9,10 @@ import { cssInterop } from "nativewind";
 
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pressable as GesturePressable } from "react-native-gesture-handler";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 cssInterop(Image, { className: "style" });
 cssInterop(LinearGradient, { className: "style" });
-cssInterop(GesturePressable, { className: "style" });
 // También `contentContainerClassName`: la pantalla de tratamiento lo usa, y sin
 // mapearlo su padding se perdería en silencio.
 cssInterop(KeyboardAwareScrollView, {

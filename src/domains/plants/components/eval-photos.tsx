@@ -11,9 +11,11 @@ import type { PhotoSource } from "../types";
  * Medida fija en vez de derivada del ancho de la fila: el cuadro ya no crece
  * con la tablet, pero tampoco depende de cuántos huecos haya ni del padding que
  * le deje la tarjeta.
+ *
+ * Sin `overflow-hidden`: el único con contenido que llegue al borde es el
+ * resumen, y ese recorta por dentro, al radio interior.
  */
-const SLOT_CN =
-  "w-20 h-20 overflow-hidden rounded-xl border border-border bg-secondary";
+const SLOT_CN = "w-20 h-20 rounded-xl border border-border bg-secondary";
 
 const SUMMARY_BLUR = 2;
 
@@ -83,20 +85,26 @@ export function EvalPhotos({
                 : `Ver las ${summary.total} fotografías adjuntas`
             }
           >
-            <Image
-              source={summary.uri}
-              contentFit="cover"
-              blurRadius={SUMMARY_BLUR}
-              transition={150}
-              className="flex-1"
-            />
-            {/* El velo va sobre la imagen y no es un `opacity` de ella: hay que
+            {/* Foto y velo se recortan al radio interior del borde —11:
+                `rounded-xl` (12) menos `border` (1)—. Recortados al de fuera,
+                sus esquinas rectas se metían en la franja curva del borde
+                translúcido y la teñían. */}
+            <View className="flex-1 overflow-hidden rounded-[11px]">
+              <Image
+                source={summary.uri}
+                contentFit="cover"
+                blurRadius={SUMMARY_BLUR}
+                transition={150}
+                className="flex-1"
+              />
+              {/* El velo va sobre la imagen y no es un `opacity` de ella: hay que
                 oscurecer para que el número contraste, no transparentar la foto
                 contra el fondo de la tarjeta. */}
-            <View className="absolute inset-0 items-center justify-center bg-foreground/80">
-              <Text className="text-xl font-semibold text-primary-foreground">
-                {summary.total}
-              </Text>
+              <View className="absolute inset-0 items-center justify-center bg-foreground/80">
+                <Text className="text-xl font-semibold text-primary-foreground">
+                  {summary.total}
+                </Text>
+              </View>
             </View>
           </Pressable>
         )}

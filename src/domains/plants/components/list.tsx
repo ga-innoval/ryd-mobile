@@ -157,48 +157,59 @@ export const PlantCard = memo(function PlantCard({
 
   return (
     <View className="rounded-xl bg-card shadow-md shadow-black/5">
-      <View className="rounded-xl border-2 border-border overflow-hidden">
-        <CardHeader item={item} match={match} />
-        <CardRecordSection
-          icon={LeafIcon}
-          label="tratamiento"
-          variant="outlined"
-        >
-          {item.tratamientos.map((trat) => (
-            // Desde la tarjeta se entra al detalle: `push`.
-            <TratamientoChip
-              key={trat.id}
-              tratamiento={trat}
-              onPress={() =>
-                router.push({
-                  pathname: "/tratamientos/[id]",
-                  params: { id: trat.id },
-                })
-              }
-            />
-          ))}
-          {item.tratamientos.length === 0 && (
-            <Text variant="muted">Sin tratamientos configurados</Text>
-          )}
-        </CardRecordSection>
-        <CardRecordSection
-          icon={BoxIcon}
-          label="post-cosecha"
-          variant="secondary"
-        >
-          {EVALS_POST_COSECHA.map(({ id, title, subtitle }) => (
-            // TODO: navegar al formulario de post-cosecha cuando exista su
-            // ruta. De momento solo da el feedback táctil.
-            <PressableScale
-              key={id}
-              testID={`post-cosecha-${id}`}
-              className="w-28 rounded-xl border-2 border-border py-2 items-center"
-            >
-              <Text className="font-medium">{title}</Text>
-              <Text variant="muted">{subtitle}</Text>
-            </PressableScale>
-          ))}
-        </CardRecordSection>
+      <View className="rounded-xl border-2 border-border">
+        {/* Las secciones se recortan al radio **interior** del borde —el 10
+            es `rounded-xl` (12) menos `border-2` (2)— y no al de fuera. El
+            fondo de la última (post-cosecha) tiene esquinas rectas: recortado
+            al radio de fuera se metía en la franja curva del borde, y como el
+            borde es translúcido las esquinas de abajo salían más oscuras en
+            iOS (el borde va delante del contenido) y más claras en Android
+            (el verde lo tapa). Recortando aquí, bajo el borde queda siempre el
+            blanco de la tarjeta, sea cual sea la sección que toque abajo. El
+            porqué completo está en la cabecera de `collapsible-section.tsx`. */}
+        <View className="overflow-hidden rounded-[10px]">
+          <CardHeader item={item} match={match} />
+          <CardRecordSection
+            icon={LeafIcon}
+            label="tratamiento"
+            variant="outlined"
+          >
+            {item.tratamientos.map((trat) => (
+              // Desde la tarjeta se entra al detalle: `push`.
+              <TratamientoChip
+                key={trat.id}
+                tratamiento={trat}
+                onPress={() =>
+                  router.push({
+                    pathname: "/tratamientos/[id]",
+                    params: { id: trat.id },
+                  })
+                }
+              />
+            ))}
+            {item.tratamientos.length === 0 && (
+              <Text variant="muted">Sin tratamientos configurados</Text>
+            )}
+          </CardRecordSection>
+          <CardRecordSection
+            icon={BoxIcon}
+            label="post-cosecha"
+            variant="secondary"
+          >
+            {EVALS_POST_COSECHA.map(({ id, title, subtitle }) => (
+              // TODO: navegar al formulario de post-cosecha cuando exista su
+              // ruta. De momento solo da el feedback táctil.
+              <PressableScale
+                key={id}
+                testID={`post-cosecha-${id}`}
+                className="w-28 rounded-xl border-2 border-border py-2 items-center"
+              >
+                <Text className="font-medium">{title}</Text>
+                <Text variant="muted">{subtitle}</Text>
+              </PressableScale>
+            ))}
+          </CardRecordSection>
+        </View>
       </View>
     </View>
   );
