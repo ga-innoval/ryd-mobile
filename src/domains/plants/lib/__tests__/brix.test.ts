@@ -173,20 +173,32 @@ describe("summarizeBrix", () => {
 });
 
 describe("canAddBrixCorte", () => {
+  // Las nueve primeras de COMPLETO: a una lectura de terminar el corte.
+  const NUEVE_LECTURAS = COMPLETO.readings.slice(0, 9);
+
   it("no deja agregar si el último corte está vacío", () => {
     expect(canAddBrixCorte([createBrixCorte()])).toBe(false);
   });
 
-  it("deja agregar en cuanto el último tiene una lectura", () => {
-    expect(canAddBrixCorte([corte("18.2")])).toBe(true);
+  it("no deja agregar con el último corte a medias", () => {
+    expect(canAddBrixCorte([corte(...NUEVE_LECTURAS)])).toBe(false);
+  });
+
+  it("deja agregar cuando el último tiene sus diez lecturas", () => {
+    expect(canAddBrixCorte([COMPLETO])).toBe(true);
   });
 
   it("mira solo el último corte", () => {
     expect(canAddBrixCorte([COMPLETO, createBrixCorte()])).toBe(false);
+    expect(canAddBrixCorte([corte(...NUEVE_LECTURAS), COMPLETO])).toBe(true);
   });
 
   it("no cuenta como lectura un separador suelto", () => {
-    expect(canAddBrixCorte([corte(".")])).toBe(false);
+    expect(canAddBrixCorte([corte(...NUEVE_LECTURAS, ".")])).toBe(false);
+  });
+
+  it("cuenta la lectura fuera de rango", () => {
+    expect(canAddBrixCorte([corte(...NUEVE_LECTURAS, "184")])).toBe(true);
   });
 });
 
