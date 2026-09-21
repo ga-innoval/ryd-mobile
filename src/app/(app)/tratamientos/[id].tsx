@@ -1,7 +1,10 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, {
+  useAnimatedRef,
+  useScrollOffset,
+} from "react-native-reanimated";
 import { useHideOnScroll } from "@/lib/use-hide-on-scroll";
 import { useTratamiento } from "@/domains/plants/hooks/use-tratamiento";
 import { TratamientosPageHeader } from "@/domains/navigation/tratamientos-page-header";
@@ -157,6 +160,61 @@ export default function TratamientoScreen() {
     setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
+  // `useScrollOffset` escucha por su propio canal de eventos, así que
+  // convive con el `onScroll` de `useHideOnScroll` sin quitárselo.
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollOffset = useScrollOffset(scrollRef);
+
+  // Dónde cae cada cabecera cuando no está pegada, en coordenadas del
+  // contenido. En un ref y no en estado: se reescribe en cada frame del
+  // pliegue de cualquier sección de más arriba, y nada de lo que se pinta
+  // depende de ello.
+  const sectionLayouts = useRef<
+    Record<string, { bodyY?: number; headerHeight?: number }>
+  >({});
+
+  const rememberLayout = useCallback(
+    (sectionId: string, patch: { bodyY?: number; headerHeight?: number }) => {
+      sectionLayouts.current[sectionId] = {
+        ...sectionLayouts.current[sectionId],
+        ...patch,
+      };
+    },
+    [],
+  );
+
+  /**
+   * Al plegar una sección con su cabecera pegada, lleva el scroll a la
+   * posición natural de esa cabecera: no se mueve en pantalla, el cuerpo se
+   * pliega bajo ella y la sección siguiente sube a su encuentro. Sin esto, el
+   * offset se quedaba donde estaba y, con la sección de abajo abierta,
+   * aparecías de golpe en mitad de ella.
+   *
+   * La posición natural es la `y` del cuerpo menos el alto de la cabecera. La
+   * `y` no puede salir de la propia cabecera: siendo sticky, `ScrollView` la
+   * envuelve en su propio componente y su `y` es relativa a ese envoltorio.
+   *
+   * El salto es instantáneo a propósito: la cabecera está pegada todo el
+   * rato, así que un scroll suave haría desfilar debajo el cuerpo entero
+   * mientras se pliega. Así, lo que se ve es el pliegue de siempre.
+   */
+  const handleToggle = useCallback(
+    (sectionId: string, isOpen: boolean) => {
+      const { bodyY, headerHeight } = sectionLayouts.current[sectionId] ?? {};
+
+      if (isOpen && bodyY !== undefined && headerHeight !== undefined) {
+        const headerY = bodyY - headerHeight;
+
+        if (scrollOffset.value > headerY) {
+          scrollRef.current?.scrollTo({ y: headerY, animated: false });
+        }
+      }
+
+      toggleSection(sectionId);
+    },
+    [scrollOffset, scrollRef, toggleSection],
+  );
+
   // `setParams` cambia de hermano sin desmontar la pantalla, así que sin esto
   // las respuestas del tratamiento anterior seguirían aquí.
   //
@@ -255,7 +313,20 @@ export default function TratamientoScreen() {
         // `overflow-hidden` es lo que hace que parezca meterse bajo el
         // header: el transform no cambia el layout, así que este contenedor
         // conserva la altura del bloque y recorta lo que se desplaza fuera.
-        <View className="absolute top-0 left-0 right-0 z-10 overflow-hidden">
+        //
+        // Y por eso mismo tiene que dejar pasar los toques (`box-none`): con
+        // el bloque escondido, este contenedor sigue ahí, invisible y en
+        // `z-10`, justo donde se pega la cabecera sticky de la sección. Sin
+        // esto se tragaba sus toques y no había forma de plegarla desde
+        // abajo. Sus hijos —los chips— siguen recibiéndolos con el bloque a
+        // la vista.
+        //
+        // Prop y no clase: `react-native-css-interop` no conoce `box-none`,
+        // y una clase inexistente fallaría en silencio.
+        <View
+          pointerEvents="box-none"
+          className="absolute top-0 left-0 right-0 z-10 overflow-hidden"
+        >
           <Animated.View style={animatedStyle}>
             {/* Un solo `onLayout` para el bloque entero: campos y hermanos se
                 esconden como una pieza, así que lo que hay que medir —y lo que
@@ -322,6 +393,7 @@ export default function TratamientoScreen() {
 
       {data && (
         <Animated.ScrollView
+          ref={scrollRef}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
           // Fija la cabecera de la sección en curso; al entrar la siguiente,
@@ -353,13 +425,26 @@ export default function TratamientoScreen() {
                 title={section.title}
                 description={section.description}
                 open={open}
-                onToggle={() => toggleSection(section.id)}
+                onToggle={() => handleToggle(section.id, open)}
+                onLayout={(event) =>
+                  rememberLayout(section.id, {
+                    headerHeight: event.nativeEvent.layout.height,
+                  })
+                }
                 // TODO(respuestas): sale del estado de la pantalla, así que se
                 // pierde al salir. Cuando exista la tabla cambia el origen del
                 // dato, no el cálculo.
                 progress={calcEvalProgress(section.questions, answers)}
               />,
-              <CollapsibleBody key={`${section.id}-body`} open={open}>
+              <CollapsibleBody
+                key={`${section.id}-body`}
+                open={open}
+                onLayout={(event) =>
+                  rememberLayout(section.id, {
+                    bodyY: event.nativeEvent.layout.y,
+                  })
+                }
+              >
                 {section.hasPhotos && (
                   <>
                     <EvalPhotos

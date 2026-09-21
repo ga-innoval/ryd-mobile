@@ -9,6 +9,8 @@ import { cssInterop } from "nativewind";
 
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { Pressable as GesturePressable } from "react-native-gesture-handler";
 
 cssInterop(Image, { className: "style" });
 cssInterop(LinearGradient, { className: "style" });
+cssInterop(GesturePressable, { className: "style" });
