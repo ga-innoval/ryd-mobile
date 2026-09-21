@@ -146,48 +146,77 @@ export function CollapsibleHeader({
         role="button"
         aria-expanded={open}
         className={cn(
-          "border-2 border-border bg-card overflow-hidden",
+          // Sin `overflow-hidden`: no hay nada que recortar —el verde ya viene
+          // redondeado—, y con él iOS dibujaba cerrada y abierta por caminos
+          // distintos (ver el contenedor de dentro).
+          "border-2 border-border bg-card",
           // Cerrada es una tarjeta entera; abierta, solo la tapa de una que
           // continúa en el cuerpo.
           open ? "rounded-t-xl" : "rounded-xl",
         )}
       >
-        <View className="flex-row items-center justify-between gap-2 bg-secondary px-4 py-3">
-          <View className="gap-1">
-            <View className="flex-row gap-2 items-center">
-              <Icon as={icon} size={16} className="text-primary" />
-              <Text className="font-bold flex-1">{title}</Text>
+        {/* **Todo el verde en un solo contenedor redondeado al radio interior
+            del borde, y no en cada fila.**
+
+            Con el fondo en las filas, sus esquinas rectas se metían en la
+            franja curva del borde, y como el borde es translúcido lo que tiene
+            debajo se nota. iOS además lo dibuja de dos formas: con radios
+            iguales y recorte, delante del contenido —cerrada: el borde sobre
+            verde en las esquinas, más oscuro, parecía más grueso—; con radios
+            distintos, detrás —abierta: el verde lo tapaba y el borde
+            desaparecía en las esquinas—. `RCTViewComponentView.mm` elige entre
+            los dos.
+
+            Así, bajo el borde queda siempre el blanco de la tarjeta, igual que
+            en el cuerpo, y el tono no cambia en la unión.
+
+            El 10 es `rounded-xl` (12) menos `border-2` (2): si cambia el radio
+            o el grosor, tiene que moverse con ellos. */}
+        <View
+          className={cn(
+            "bg-secondary",
+            open ? "rounded-t-[10px]" : "rounded-[10px]",
+          )}
+        >
+          <View className="flex-row items-center justify-between gap-2 px-4 py-3">
+            <View className="gap-1">
+              <View className="flex-row gap-2 items-center">
+                <Icon as={icon} size={16} className="text-primary" />
+                <Text className="font-bold flex-1">{title}</Text>
+              </View>
+              <Text variant="muted" className="text-base">
+                {description}
+              </Text>
             </View>
-            <Text variant="muted" className="text-base">
-              {description}
-            </Text>
+
+            <CollapsibleChevron open={open} />
           </View>
 
-          <CollapsibleChevron open={open} />
-        </View>
-
-        {progress !== undefined && (
-          <View className="flex-row items-center gap-4 bg-secondary px-4 pb-3">
-            {/* `w-auto` neutraliza el `w-full` que trae la raíz de `Progress`:
+          {progress !== undefined && (
+            <View className="flex-row items-center gap-4 px-4 pb-3">
+              {/* `w-auto` neutraliza el `w-full` que trae la raíz de `Progress`:
                 en una fila ocupaba el ancho entero y, como en React Native el
                 `flexShrink` por defecto es 0, empujaba el porcentaje fuera del
                 borde de la tarjeta. Al ir por `cn` -> `twMerge`, la clase de
                 fuera reemplaza a la interna en vez de competir con ella. */}
-            <Progress
-              value={progress}
-              className="w-auto flex-1 bg-white"
-              indicatorClassName={cn("bg-foreground/90")}
-            />
-            {/* Ancho mínimo para que la barra no dé un tirón al pasar de
+              <Progress
+                value={progress}
+                className="w-auto flex-1 bg-white"
+                indicatorClassName={cn("bg-foreground/90")}
+              />
+              {/* Ancho mínimo para que la barra no dé un tirón al pasar de
                 "0%" a "100%", y alineado a la derecha para que el número
                 quede a ras del borde de la tarjeta. */}
-            <Text className="min-w-12 text-right font-medium">{progress}%</Text>
-          </View>
-        )}
+              <Text className="min-w-12 text-right font-medium">
+                {progress}%
+              </Text>
+            </View>
+          )}
 
-        {summary !== undefined && (
-          <View className="bg-secondary px-4 pb-3">{summary}</View>
-        )}
+          {summary !== undefined && (
+            <View className="px-4 pb-3">{summary}</View>
+          )}
+        </View>
       </GesturePressable>
     </View>
   );
