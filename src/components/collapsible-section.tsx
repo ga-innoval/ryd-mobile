@@ -141,21 +141,37 @@ export function CollapsibleHeader({
           de `onLayout`: el desplazamiento del sticky le da igual. Y si el
           scroll arranca sobre la cabecera, el toque llega cancelado y no
           dispara `onPress`, así que desplazarse no la pliega. */}
-      <GesturePressable
-        onPress={onToggle}
-        role="button"
-        aria-expanded={open}
-        className={cn(
-          // Sin `overflow-hidden`: no hay nada que recortar —el verde ya viene
-          // redondeado—, y con él iOS dibujaba cerrada y abierta por caminos
-          // distintos (ver el contenedor de dentro).
-          "border-2 border-border bg-card",
-          // Cerrada es una tarjeta entera; abierta, solo la tapa de una que
-          // continúa en el cuerpo.
-          open ? "rounded-t-xl" : "rounded-xl",
-        )}
-      >
-        {/* **Todo el verde en un solo contenedor redondeado al radio interior
+      <GesturePressable onPress={onToggle} role="button" aria-expanded={open}>
+        {/* **La tarjeta —borde, blanco y radio— va en una `View` normal, no en
+            el botón.** En Android, el botón de gesture-handler pinta su borde
+            con un trazo centrado sobre su contorno (`Paint.Style.STROKE` en
+            `createBorderDrawable`), así que la mitad le queda fuera. Arriba no
+            se notaba; abajo, esa mitad caía bajo la franja opaca de la cabecera
+            siguiente, y el borde inferior de todas menos la última salía a
+            medias. Las vistas de React Native lo dibujan entero hacia dentro,
+            como el cuerpo de la sección, así que la unión queda con el mismo
+            trazo. El botón se queda solo con el toque. */}
+        <View
+          className={cn(
+            // Sin `overflow-hidden`: no hay nada que recortar —el verde ya
+            // viene redondeado—, y con él iOS dibujaba cerrada y abierta por
+            // caminos distintos (ver el contenedor de dentro).
+            "border-2 border-border bg-card",
+            // Cerrada es una tarjeta entera; abierta, solo la tapa de una que
+            // continúa en el cuerpo.
+            //
+            // **Las cuatro esquinas siempre, y no `rounded-xl` ↔
+            // `rounded-t-xl`.** Parece redundante y no lo es: así el estilo
+            // lleva las mismas claves en los dos estados y plegar solo cambia
+            // el valor de las de abajo. Alternar entre el radio general y los
+            // de cada esquina obliga a quitar claves al volver, y en Android
+            // eso dejaba la cabecera sin redondear tras el primer abrir y
+            // cerrar.
+            "rounded-t-xl",
+            open ? "rounded-b-none" : "rounded-b-xl",
+          )}
+        >
+          {/* **Todo el verde en un solo contenedor redondeado al radio interior
             del borde, y no en cada fila.**
 
             Con el fondo en las filas, sus esquinas rectas se metían en la
@@ -172,50 +188,52 @@ export function CollapsibleHeader({
 
             El 10 es `rounded-xl` (12) menos `border-2` (2): si cambia el radio
             o el grosor, tiene que moverse con ellos. */}
-        <View
-          className={cn(
-            "bg-secondary",
-            open ? "rounded-t-[10px]" : "rounded-[10px]",
-          )}
-        >
-          <View className="flex-row items-center justify-between gap-2 px-4 py-3">
-            <View className="gap-1">
-              <View className="flex-row gap-2 items-center">
-                <Icon as={icon} size={16} className="text-primary" />
-                <Text className="font-bold flex-1">{title}</Text>
+          <View
+            className={cn(
+              // Las cuatro esquinas explícitas por lo mismo que en la tarjeta.
+              "bg-secondary rounded-t-[10px]",
+              open ? "rounded-b-none" : "rounded-b-[10px]",
+            )}
+          >
+            <View className="flex-row items-center justify-between gap-2 px-4 py-3">
+              <View className="gap-1">
+                <View className="flex-row gap-2 items-center">
+                  <Icon as={icon} size={16} className="text-primary" />
+                  <Text className="font-bold flex-1">{title}</Text>
+                </View>
+                <Text variant="muted" className="text-base">
+                  {description}
+                </Text>
               </View>
-              <Text variant="muted" className="text-base">
-                {description}
-              </Text>
+
+              <CollapsibleChevron open={open} />
             </View>
 
-            <CollapsibleChevron open={open} />
-          </View>
-
-          {progress !== undefined && (
-            <View className="flex-row items-center gap-4 px-4 pb-3">
-              {/* `w-auto` neutraliza el `w-full` que trae la raíz de `Progress`:
+            {progress !== undefined && (
+              <View className="flex-row items-center gap-4 px-4 pb-3">
+                {/* `w-auto` neutraliza el `w-full` que trae la raíz de `Progress`:
                 en una fila ocupaba el ancho entero y, como en React Native el
                 `flexShrink` por defecto es 0, empujaba el porcentaje fuera del
                 borde de la tarjeta. Al ir por `cn` -> `twMerge`, la clase de
                 fuera reemplaza a la interna en vez de competir con ella. */}
-              <Progress
-                value={progress}
-                className="w-auto flex-1 bg-white"
-                indicatorClassName={cn("bg-foreground/90")}
-              />
-              {/* Ancho mínimo para que la barra no dé un tirón al pasar de
+                <Progress
+                  value={progress}
+                  className="w-auto flex-1 bg-white"
+                  indicatorClassName={cn("bg-foreground/90")}
+                />
+                {/* Ancho mínimo para que la barra no dé un tirón al pasar de
                 "0%" a "100%", y alineado a la derecha para que el número
                 quede a ras del borde de la tarjeta. */}
-              <Text className="min-w-12 text-right font-medium">
-                {progress}%
-              </Text>
-            </View>
-          )}
+                <Text className="min-w-12 text-right font-medium">
+                  {progress}%
+                </Text>
+              </View>
+            )}
 
-          {summary !== undefined && (
-            <View className="px-4 pb-3">{summary}</View>
-          )}
+            {summary !== undefined && (
+              <View className="px-4 pb-3">{summary}</View>
+            )}
+          </View>
         </View>
       </GesturePressable>
     </View>
