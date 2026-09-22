@@ -486,7 +486,7 @@ export default function TratamientoScreen() {
               Los valores de cada sección viven en el formulario, bajo su
               propio `id` (ver `evaluationSchema`). */}
             {SECTIONS.flatMap((section) => {
-              const open = openSections[section.id] ?? false;
+              const open = openSections[section.id] ?? true;
 
               const headerProps = {
                 icon: section.icon,
