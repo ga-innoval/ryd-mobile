@@ -1,14 +1,87 @@
 import { Icon } from "@/components/ui/icon";
 import { Text, TextClassContext } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
+import { cva, type VariantProps } from "class-variance-authority";
 import type { LucideIcon } from "lucide-react-native";
 import * as React from "react";
 import { View } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 
+const alertVariants = cva(
+  "bg-card border-border relative w-full rounded-lg border px-4 pb-2 pt-3.5",
+  {
+    variants: {
+      variant: {
+        default: "",
+        destructive: "",
+        // El aviso que no bloquea nada: el rango de Brix, el peso promedio por
+        // baya de Criba. Ámbar y no rojo porque el dato sigue contando; el rojo
+        // queda para lo que sí impide seguir.
+        warning: "border-amber-300 bg-amber-50",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  },
+);
+
+const alertIconVariants = cva("size-4", {
+  variants: {
+    variant: {
+      default: "",
+      destructive: "text-destructive",
+      warning: "text-amber-700",
+    },
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+});
+
+/** El color que heredan los hijos del aviso; `Text` lo toma del contexto. */
+const alertTextVariants = cva("text-sm text-foreground", {
+  variants: {
+    variant: {
+      default: "",
+      destructive: "text-destructive",
+      warning: "text-amber-800",
+    },
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+});
+
+const alertDescriptionVariants = cva(
+  "text-muted-foreground ml-0.5 pb-1.5 pl-6 text-sm leading-relaxed",
+  {
+    variants: {
+      variant: {
+        default: "",
+        destructive: "text-destructive/90",
+        warning: "text-amber-800",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  },
+);
+
+type AlertVariant = NonNullable<VariantProps<typeof alertVariants>["variant"]>;
+
+/**
+ * La variante llega a `AlertDescription` por contexto y no por props: quien
+ * monta un aviso la declara una vez, en el `Alert`, y el color del texto sale
+ * de ahí. Antes se deducía mirando si la clase heredada contenía
+ * "text-destructive", que con una variante más dejaba de distinguir.
+ */
+const AlertVariantContext = React.createContext<AlertVariant>("default");
+
 function Alert({
   className,
-  variant,
+  variant = "default",
   children,
   icon,
   iconClassName,
@@ -16,38 +89,28 @@ function Alert({
 }: React.ComponentProps<typeof View> &
   React.RefAttributes<View> & {
     icon: LucideIcon;
-    variant?: "default" | "destructive";
+    variant?: AlertVariant;
     iconClassName?: string;
   }) {
   return (
-    <TextClassContext.Provider
-      value={cn(
-        "text-sm text-foreground",
-        variant === "destructive" && "text-destructive",
-      )}
-    >
-      <Animated.View
-        entering={FadeInUp.duration(250)}
-        role="alert"
-        className={cn(
-          "bg-card border-border relative w-full rounded-lg border px-4 pb-2 pt-3.5",
-          className,
-        )}
-        {...props}
-      >
-        <View className="absolute left-3.5 top-3">
-          <Icon
-            as={icon}
-            className={cn(
-              "size-4",
-              variant === "destructive" && "text-destructive",
-              iconClassName,
-            )}
-          />
-        </View>
-        {children}
-      </Animated.View>
-    </TextClassContext.Provider>
+    <AlertVariantContext.Provider value={variant}>
+      <TextClassContext.Provider value={alertTextVariants({ variant })}>
+        <Animated.View
+          entering={FadeInUp.duration(250)}
+          role="alert"
+          className={cn(alertVariants({ variant }), className)}
+          {...props}
+        >
+          <View className="absolute left-3.5 top-3">
+            <Icon
+              as={icon}
+              className={cn(alertIconVariants({ variant }), iconClassName)}
+            />
+          </View>
+          {children}
+        </Animated.View>
+      </TextClassContext.Provider>
+    </AlertVariantContext.Provider>
   );
 }
 
@@ -70,14 +133,11 @@ function AlertDescription({
   className,
   ...props
 }: React.ComponentProps<typeof Text>) {
-  const textClass = React.useContext(TextClassContext);
+  const variant = React.useContext(AlertVariantContext);
+
   return (
     <Text
-      className={cn(
-        "text-muted-foreground ml-0.5 pb-1.5 pl-6 text-sm leading-relaxed",
-        textClass?.includes("text-destructive") && "text-destructive/90",
-        className,
-      )}
+      className={cn(alertDescriptionVariants({ variant }), className)}
       {...props}
     />
   );

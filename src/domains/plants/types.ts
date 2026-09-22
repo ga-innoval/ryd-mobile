@@ -35,6 +35,19 @@ export type BrixCorte = {
 };
 
 /**
+ * Un calibre de la criba tal como se captura: el peso de todo lo que cayó en
+ * ese calibre y el de una baya promedio.
+ *
+ * Texto y no número, por lo mismo que las lecturas de Brix, y aquí con más
+ * motivo: 0 g significa un calibre sin fruta, así que un peso vacío no se puede
+ * confundir con un cero. Cómo se leen como números lo decide `lib/criba.ts`.
+ */
+export type CribaCalibre = {
+  total: string;
+  average: string;
+};
+
+/**
  * De dónde sale una fotografía de evidencia. Cada origen tiene su propio botón
  * en la tira, así que capturar no pasa por preguntar primero.
  */

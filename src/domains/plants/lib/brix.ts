@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  decimalTextSchema,
+  formatDecimal,
+  parseDecimalText,
+  sanitizeDecimalText,
+} from "./decimal-text";
 import type { BrixCorte } from "../types";
 
 /**
@@ -55,38 +61,10 @@ export function createBrixCorte(): BrixCorte {
   };
 }
 
-/**
- * Deja solo lo que puede formar una lectura: dígitos y un separador decimal.
- *
- * La coma se convierte en punto porque según el teclado sale una u otra, y así
- * lo guardado siempre se puede leer como número.
- */
+/** Deja solo lo que puede formar una lectura: dígitos y un separador decimal. */
 export function sanitizeBrixInput(text: string): string {
-  const [integer, ...decimals] = text
-    .replace(/,/g, ".")
-    .replace(/[^0-9.]/g, "")
-    .split(".");
-  const joined =
-    decimals.length > 0 ? `${integer}.${decimals.join("")}` : integer;
-
-  return joined.slice(0, MAX_INPUT_LENGTH);
+  return sanitizeDecimalText(text, MAX_INPUT_LENGTH);
 }
-
-/**
- * Una lectura tal como se captura (texto) y tal como se guarda (número).
- *
- * No rechaza nada, a propósito: reproduce lo que ya hacía `parseBrixReading`,
- * donde lo vacío y lo que aún no es un número ("." a medio escribir) cuentan
- * como sin lectura. Tampoco hay mucho que rechazar: `sanitizeBrixInput` ya
- * impide teclear otra cosa que dígitos y un separador. Lo que aporta es la
- * salida tipada: lo que llegue al guardado serán números, no strings.
- */
-export const brixReadingSchema = z.string().transform((text): number | null => {
-  if (text.trim() === "") return null;
-
-  const value = Number(text);
-  return Number.isFinite(value) ? value : null;
-});
 
 /**
  * El rango habitual, como esquema para el **aviso**, no para el guardado.
@@ -103,12 +81,12 @@ export const brixReadingRangeSchema = z
 
 /** Un corte completo: sus diez lecturas, en orden. */
 export const brixCorteSchema = z.object({
-  readings: z.array(brixReadingSchema).length(BRIX_READINGS_PER_CORTE),
+  readings: z.array(decimalTextSchema).length(BRIX_READINGS_PER_CORTE),
 });
 
 /** `null` si está vacía o aún no es un número ("." a medio escribir). */
 export function parseBrixReading(text: string): number | null {
-  return brixReadingSchema.parse(text);
+  return parseDecimalText(text);
 }
 
 export function isBrixOutOfRange(value: number): boolean {
@@ -211,17 +189,9 @@ export function canRemoveBrixCorte(cortes: BrixCorte[]): boolean {
   return cortes.length > 1;
 }
 
-/**
- * Solo para mostrar. Dos decimales fijos, y no "hasta dos", para que los
- * resultados queden alineados en sus columnas.
- *
- * No basta con `toFixed(2)`: redondea el número binario, no el decimal. 59.725
- * se guarda como 59.72499… y saldría "59.72", distinto de la cuenta a mano o de
- * Excel. Pasarlo a centésimas y limpiar ese ruido antes de redondear da 59.73.
- */
+/** Solo para mostrar: dos decimales fijos, y un guion cuando no hay valor. */
 export function formatBrix(value: number | null): string {
   if (value === null) return "—";
 
-  const hundredths = Math.round(Number((value * 100).toFixed(6)));
-  return (hundredths / 100).toFixed(2);
+  return formatDecimal(value, 2);
 }

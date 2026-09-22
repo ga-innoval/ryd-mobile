@@ -63,7 +63,7 @@ type CollapsibleHeaderProps = {
   /**
    * Contenido libre en el lugar de la barra, para secciones cuyo avance no es
    * un porcentaje: Brix no tiene un número fijo de cortes, así que muestra
-   * cuántos lleva y su promedio.
+   * cuántos lleva y su promedio, y Criba resume el peso de la muestra.
    */
   summary?: ReactNode;
   open: boolean;

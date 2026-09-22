@@ -387,12 +387,8 @@ function BrixCorteCard({
 
           {summary.firstOutOfRange !== null && (
             <View className="-mt-1 px-4 pb-4">
-              <Alert
-                icon={TriangleAlertIcon}
-                className="border-amber-300 bg-amber-50"
-                iconClassName="text-amber-700"
-              >
-                <AlertDescription className="text-amber-800">
+              <Alert variant="warning" icon={TriangleAlertIcon}>
+                <AlertDescription>
                   {`L${summary.firstOutOfRange + 1} = ${readings[summary.firstOutOfRange]} está fuera del rango habitual. ¿Faltó el punto decimal?`}
                 </AlertDescription>
               </Alert>
