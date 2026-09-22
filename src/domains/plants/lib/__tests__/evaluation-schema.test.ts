@@ -4,6 +4,7 @@ import {
   evaluationSchema,
 } from "../evaluation-schema";
 import { BRIX_READINGS_PER_CORTE, isBrixOutOfRange } from "../brix";
+import { CRIBA_CALIBRES } from "../criba";
 import { EVALS_EXTERIOR } from "../evals-exterior";
 import type { EvalQuestion } from "../../types";
 
@@ -24,10 +25,23 @@ const corte = (...readings: string[]) => ({
   ),
 });
 
+/** Los nueve calibres con los pesos dados en orden y el resto sin pesar. */
+const calibres = (...pesos: [string, string][]) =>
+  CRIBA_CALIBRES.map((_, index) => ({
+    total: pesos[index]?.[0] ?? "",
+    average: pesos[index]?.[1] ?? "",
+  }));
+
 /** Una evaluación en blanco salvo por los cortes de Brix dados. */
 const conCortes = (...cortes: { readings: string[] }[]) => ({
   ...buildEvaluationDefaults(),
   brix: { cortes },
+});
+
+/** Una evaluación en blanco salvo por los calibres de criba dados. */
+const conCalibres = (...pesos: [string, string][]) => ({
+  ...buildEvaluationDefaults(),
+  criba: { calibres: calibres(...pesos) },
 });
 
 describe("buildQuestionsSchema", () => {
@@ -49,11 +63,12 @@ describe("buildQuestionsSchema", () => {
 });
 
 describe("buildEvaluationDefaults", () => {
-  it("arranca sin respuestas y con un corte vacío", () => {
+  it("arranca sin respuestas, con un corte vacío y sin pesar", () => {
     expect(buildEvaluationDefaults()).toEqual({
       exterior: {},
       interior: {},
       brix: { cortes: [corte()] },
+      criba: { calibres: calibres() },
     });
   });
 
@@ -115,5 +130,26 @@ describe("evaluationSchema", () => {
 
   it("no admite una evaluación sin cortes", () => {
     expect(evaluationSchema.safeParse(conCortes()).success).toBe(false);
+  });
+
+  it("devuelve los pesos de la criba como números", () => {
+    const resultado = evaluationSchema.parse(conCalibres(["1483.5", ""]));
+
+    // Un calibre sin promedio no es un cero: el peso que falta queda en `null`.
+    expect(resultado.criba.calibres[0]).toEqual({
+      total: 1483.5,
+      average: null,
+    });
+  });
+
+  it("exige los nueve calibres", () => {
+    // Es la posición la que dice de qué calibre es cada peso, así que una tabla
+    // más corta no se puede leer.
+    expect(
+      evaluationSchema.safeParse({
+        ...buildEvaluationDefaults(),
+        criba: { calibres: [{ total: "1483.5", average: "8.18" }] },
+      }).success,
+    ).toBe(false);
   });
 });

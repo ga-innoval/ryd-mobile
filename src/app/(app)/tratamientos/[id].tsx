@@ -37,6 +37,10 @@ import {
   BrixHeaderSummary,
   EvalBrix,
 } from "@/domains/plants/components/eval-brix";
+import {
+  CribaHeaderSummary,
+  EvalCriba,
+} from "@/domains/plants/components/eval-criba";
 import { usePhotoCapture } from "@/domains/plants/hooks/use-photo-capture";
 import {
   EMPTY_PHOTOS,
@@ -56,6 +60,7 @@ import { EVALS_INTERIOR } from "@/domains/plants/lib/evals-interior";
 import {
   GhostIcon,
   GrapeIcon,
+  Grid3x3Icon,
   MicroscopeIcon,
   PipetteIcon,
   type LucideIcon,
@@ -142,6 +147,9 @@ type Section = {
   // Brix no es un catálogo de preguntas: se captura por cortes, y su avance no
   // es un porcentaje porque no tiene un número fijo de cortes.
   | { kind: "brix"; id: Extract<EvaluationSectionId, "brix"> }
+  // Criba tampoco: es una tabla fija de nueve calibres, y lo que resume no es
+  // un avance sino el peso de la muestra.
+  | { kind: "criba"; id: Extract<EvaluationSectionId, "criba"> }
 );
 
 const SECTIONS: Section[] = [
@@ -170,6 +178,14 @@ const SECTIONS: Section[] = [
     icon: PipetteIcon,
     title: "Brix",
     description: "Diez lecturas de refractómetro por corte.",
+    hasPhotos: false,
+  },
+  {
+    id: "criba",
+    kind: "criba",
+    icon: Grid3x3Icon,
+    title: "Criba",
+    description: "Peso de la muestra por calibre, del 8 al 16.",
     hasPhotos: false,
   },
 ];
@@ -511,10 +527,19 @@ export default function TratamientoScreen() {
                     questions={section.questions}
                   />
                 ) : (
+                  // Las dos que no son preguntas resumen lo suyo en el mismo
+                  // hueco de la cabecera, y cada resumen lee sus propios
+                  // valores del formulario.
                   <CollapsibleHeader
                     key={`${section.id}-header`}
                     {...headerProps}
-                    summary={<BrixHeaderSummary />}
+                    summary={
+                      section.kind === "brix" ? (
+                        <BrixHeaderSummary />
+                      ) : (
+                        <CribaHeaderSummary />
+                      )
+                    }
                   />
                 ),
                 <CollapsibleBody
@@ -553,12 +578,14 @@ export default function TratamientoScreen() {
                       sectionId={section.id}
                       questions={section.questions}
                     />
-                  ) : (
+                  ) : section.kind === "brix" ? (
                     <EvalBrix
                       // Su estado de interfaz —qué corte está abierto— es del
                       // tratamiento; con `setParams` la pantalla no se desmonta.
                       key={id}
                     />
+                  ) : (
+                    <EvalCriba />
                   )}
                 </CollapsibleBody>,
               ];

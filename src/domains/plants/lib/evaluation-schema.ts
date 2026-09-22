@@ -1,6 +1,11 @@
 import { z } from "zod";
 import type { EvalQuestion } from "../types";
 import { brixCorteSchema, createBrixCorte } from "./brix";
+import {
+  createCribaCalibres,
+  cribaCalibreSchema,
+  CRIBA_CALIBRES,
+} from "./criba";
 import { EVALS_EXTERIOR } from "./evals-exterior";
 import { EVALS_INTERIOR } from "./evals-interior";
 
@@ -41,6 +46,11 @@ export const evaluationSchema = z.object({
     // único. Aquí queda escrito como invariante del dato.
     cortes: z.array(brixCorteSchema).min(1),
   }),
+  criba: z.object({
+    // Los nueve calibres siempre, en orden: la tabla es fija y es su posición
+    // la que dice de qué calibre es cada peso. Lo que no se capturó va vacío.
+    calibres: z.array(cribaCalibreSchema).length(CRIBA_CALIBRES.length),
+  }),
 });
 
 /** Lo que tienen los campos mientras se captura: las lecturas, como texto. */
@@ -52,8 +62,11 @@ export type EvaluationValues = z.output<typeof evaluationSchema>;
 /** El `id` de cada sección tiene que ser una de estas claves. */
 export type EvaluationSectionId = keyof EvaluationFormValues;
 
-/** Las secciones que son un catálogo de preguntas; Brix va por cortes. */
-export type QuestionsSectionId = Exclude<EvaluationSectionId, "brix">;
+/**
+ * Las secciones que son un catálogo de preguntas. Brix va por cortes y Criba
+ * por calibres, así que quedan fuera y el tipo obliga a tratarlas aparte.
+ */
+export type QuestionsSectionId = Exclude<EvaluationSectionId, "brix" | "criba">;
 
 /**
  * Una evaluación en blanco. Devuelve objetos nuevos en cada llamada, a propósito:
@@ -64,5 +77,6 @@ export function buildEvaluationDefaults(): EvaluationFormValues {
     exterior: {},
     interior: {},
     brix: { cortes: [createBrixCorte()] },
+    criba: { calibres: createCribaCalibres() },
   };
 }
