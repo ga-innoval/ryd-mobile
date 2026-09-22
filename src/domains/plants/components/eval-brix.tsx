@@ -37,6 +37,12 @@ import type { EvaluationFormValues } from "../lib/evaluation-schema";
 /** Cuánto espera «Confirmar descarte» antes de volver solo a su estado normal. */
 const CONFIRM_DELETE_TIMEOUT_MS = 4_000;
 
+/**
+ * Cuánto espera el aviso de fuera de rango a que se deje de teclear. Salir del
+ * campo no espera: el aviso sale en el acto.
+ */
+const RANGE_WARNING_DELAY_MS = 900;
+
 const styles = StyleSheet.create({
   // Cifras de ancho fijo, para que los resultados queden en columna. En
   // `style` y no como clase: react-native-css-interop solo traduce
@@ -252,13 +258,28 @@ function BrixCorteCard({
 }: BrixCorteCardProps) {
   const number = index + 1;
 
+  // La lectura que se está tecleando, que no avisa de fuera de rango hasta que
+  // se deja de teclear (ver `summarizeBrixCorte`): una pausa o salir del campo.
+  //
+  // Cada tecla guarda un objeto nuevo y no el índice a secas: con el índice,
+  // React descartaría las teclas siguientes por ser el mismo valor, el efecto
+  // no se reiniciaría y la espera contaría desde la primera, no desde la última.
+  const [typing, setTyping] = useState<{ index: number } | null>(null);
+
+  useEffect(() => {
+    if (typing === null) return;
+
+    const timeout = setTimeout(() => setTyping(null), RANGE_WARNING_DELAY_MS);
+    return () => clearTimeout(timeout);
+  }, [typing]);
+
   // Solo las lecturas de este corte: teclear re-renderiza esta tarjeta y no
   // las demás. El resumen se deriva aquí, de ellas, en cada render.
   const readingsName = `brix.cortes.${index}.readings` as const;
   const readings = useWatch<EvaluationFormValues, typeof readingsName>({
     name: readingsName,
   });
-  const summary = summarizeBrixCorte(readings);
+  const summary = summarizeBrixCorte(readings, typing?.index ?? null);
 
   const inputs = useRef<(TextInput | null)[]>([]);
   const [focused, setFocused] = useState<number | null>(null);
@@ -325,7 +346,10 @@ function BrixCorteCard({
                   <BrixReadingField
                     key={readingIndex}
                     name={`brix.cortes.${index}.readings.${readingIndex}`}
-                    onEdit={onEdit}
+                    onEdit={() => {
+                      onEdit();
+                      setTyping({ index: readingIndex });
+                    }}
                     ref={(input) => {
                       inputs.current[readingIndex] = input;
                     }}
@@ -335,11 +359,14 @@ function BrixCorteCard({
                     outOfRange={summary.outOfRange[readingIndex]}
                     isLast={readingIndex === BRIX_READINGS_PER_CORTE - 1}
                     onFocus={() => setFocused(readingIndex)}
-                    onBlur={() =>
+                    onBlur={() => {
                       setFocused((current) =>
                         current === readingIndex ? null : current,
-                      )
-                    }
+                      );
+                      // Salir del campo es terminar de teclear: el aviso sale
+                      // ya, sin esperar la pausa.
+                      setTyping(null);
+                    }}
                     onSubmitEditing={() =>
                       inputs.current[readingIndex + 1]?.focus()
                     }
@@ -397,12 +424,9 @@ function BrixCorteCard({
 function CorteProgress({ summary }: { summary: BrixCorteSummary }) {
   if (summary.complete) {
     return (
-      <View className="flex-row items-center gap-1">
-        <Icon as={CheckIcon} size={14} className="text-primary" />
-        <Text className="text-sm font-medium text-primary">
-          {`${BRIX_READINGS_PER_CORTE} de ${BRIX_READINGS_PER_CORTE} lecturas`}
-        </Text>
-      </View>
+      <Text className="text-sm font-medium text-primary">
+        {`${BRIX_READINGS_PER_CORTE} de ${BRIX_READINGS_PER_CORTE} lecturas`}
+      </Text>
     );
   }
 

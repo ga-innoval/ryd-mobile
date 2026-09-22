@@ -35,7 +35,7 @@ export type BrixCorteSummary = {
   /** Lecturas capturadas, de 0 a 10. */
   filled: number;
   complete: boolean;
-  /** Una marca por lectura, para señalar su campo. */
+  /** Una marca por lectura, para señalar su campo; nunca la que se teclea. */
   outOfRange: boolean[];
   /** Índice de la primera lectura fuera de rango, para el aviso. */
   firstOutOfRange: number | null;
@@ -131,13 +131,22 @@ function presentValues(pairs: BrixPairSummary[]): number[] {
  * Nada se redondea aquí: los dos decimales son cosa de `formatBrix`, al
  * mostrar. Un resultado sin su par completo queda vacío y no entra en el
  * promedio, que se hace solo con los que existen.
+ *
+ * `typingIndex` es la lectura que se está tecleando: cuenta para los
+ * resultados, pero no se marca fuera de rango hasta que se deja de teclear. A
+ * medio escribir casi siempre lo está —«1» camino de «14.5»—, y el aviso
+ * saldría y se iría a cada tecla.
  */
-export function summarizeBrixCorte(readings: string[]): BrixCorteSummary {
+export function summarizeBrixCorte(
+  readings: string[],
+  typingIndex: number | null = null,
+): BrixCorteSummary {
   const values = Array.from({ length: BRIX_READINGS_PER_CORTE }, (_, index) =>
     parseBrixReading(readings[index] ?? ""),
   );
   const outOfRange = values.map(
-    (value) => value !== null && isBrixOutOfRange(value),
+    (value, index) =>
+      index !== typingIndex && value !== null && isBrixOutOfRange(value),
   );
 
   const pairs = Array.from({ length: BRIX_PAIRS_PER_CORTE }, (_, index) => {
