@@ -147,6 +147,26 @@ describe("summarizeBrixCorte", () => {
   it("no marca nada con lecturas en rango", () => {
     expect(summarizeBrixCorte(COMPLETO.readings).firstOutOfRange).toBeNull();
   });
+
+  // A medio escribir casi siempre está fuera: «1» camino de «14.5».
+  it("no marca la lectura que se está tecleando, pero la cuenta", () => {
+    const summary = summarizeBrixCorte(corte("14.5", "1").readings, 1);
+
+    expect(summary.pairs[0]).toEqual({
+      value: expect.closeTo(7.75),
+      outOfRange: false,
+    });
+    expect(summary.outOfRange[1]).toBe(false);
+    expect(summary.firstOutOfRange).toBeNull();
+  });
+
+  it("sigue marcando las demás mientras se teclea una", () => {
+    const summary = summarizeBrixCorte(corte("184", "1").readings, 1);
+
+    expect(summary.outOfRange.slice(0, 2)).toEqual([true, false]);
+    expect(summary.pairs[0].outOfRange).toBe(true);
+    expect(summary.firstOutOfRange).toBe(0);
+  });
 });
 
 describe("summarizeBrix", () => {
