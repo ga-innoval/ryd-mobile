@@ -117,7 +117,12 @@ export function EvalCriba() {
     name: "criba.calibres",
   });
   const summary = summarizeCriba(calibres, typing?.index ?? null);
-  const hasWarning = summary.calibres.some((calibre) => calibre.warn);
+  // Qué reglas están rotas, no cuántos calibres: el aviso de abajo es uno solo
+  // y enseña una línea por regla.
+  const overTotal = summary.calibres.some((calibre) => calibre.overTotal);
+  const belowPrevious = summary.calibres.some(
+    (calibre) => calibre.belowPrevious,
+  );
 
   // Un hueco por campo, en el orden de captura: el peso total de un calibre, su
   // promedio, y de ahí al calibre siguiente. Es lo que encadena «Siguiente».
@@ -170,9 +175,12 @@ export function EvalCriba() {
                   placeholder={
                     key === "average" && calibre.noFruit ? "No aplica" : ""
                   }
-                  // El aviso es del promedio: es el peso que no cuadra con el
-                  // total, no al revés.
-                  warn={key === "average" && calibre.warn}
+                  // Los dos avisos son del promedio: es el peso que no cuadra,
+                  // ni con el total de su calibre ni con el calibre anterior.
+                  warn={
+                    key === "average" &&
+                    (calibre.overTotal || calibre.belowPrevious)
+                  }
                   isFocused={focused === fieldIndex}
                   isLast={fieldIndex === lastFieldIndex}
                   onEdit={() => setTyping({ index })}
@@ -216,15 +224,24 @@ export function EvalCriba() {
         ))}
       </View>
 
-      {hasWarning && (
+      {(overTotal || belowPrevious) && (
         // Uno solo para toda la tarjeta, y no uno colgando de cada fila: qué
         // calibre no cuadra ya lo dice su campo en ámbar, así que el aviso solo
-        // tiene que explicar qué pasa. La variante `warning` es la misma que
-        // usa el aviso de rango de Brix.
+        // tiene que explicar qué pasa. Si fallan las dos reglas, salen las dos
+        // líneas bajo el mismo icono. La variante `warning` es la misma que usa
+        // el aviso de rango de Brix.
         <Alert variant="warning" icon={TriangleAlertIcon}>
-          <AlertDescription>
-            El peso promedio no puede ser mayor que el peso total del calibre.
-          </AlertDescription>
+          {overTotal && (
+            <AlertDescription>
+              El peso promedio no puede ser mayor que el peso total del calibre.
+            </AlertDescription>
+          )}
+          {belowPrevious && (
+            <AlertDescription>
+              El peso promedio por baya tiene que aumentar con el calibre; hay
+              uno más bajo que el del calibre anterior.
+            </AlertDescription>
+          )}
         </Alert>
       )}
 

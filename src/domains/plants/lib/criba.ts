@@ -27,7 +27,12 @@ export type CribaCalibreSummary = {
   noFruit: boolean;
   complete: boolean;
   /** Imposible: una baya no puede pesar más que todo su calibre. */
-  warn: boolean;
+  overTotal: boolean;
+  /**
+   * Incoherente: la criba separa por tamaño, así que la baya de un calibre no
+   * puede pesar menos que la de uno más pequeño.
+   */
+  belowPrevious: boolean;
   /** Qué parte de la muestra es este calibre, en %; `null` si no hay peso. */
   share: number | null;
 };
@@ -69,7 +74,9 @@ export function sanitizeCribaInput(text: string): string {
  * - `typingIndex` es el calibre que se está tecleando: no avisa hasta que se
  *   deja de teclear, como las lecturas de Brix. Al corregir un peso total con
  *   el promedio ya escrito, el primer dígito es menor que el promedio y el
- *   aviso saldría para irse a la tecla siguiente.
+ *   aviso saldría para irse a la tecla siguiente. Tampoco entra en la cadena
+ *   del promedio creciente: si entrara, teclear un 9 camino de 5.2 haría saltar
+ *   el aviso en el calibre siguiente.
  */
 export function summarizeCriba(
   calibres: CribaCalibre[],
@@ -87,6 +94,20 @@ export function summarizeCriba(
     ? weights.reduce((sum, weight) => sum + weight, 0)
     : null;
 
+  // El promedio por baya sube con el calibre, que es lo que la criba separa. Se
+  // compara con el último capturado y no con el de al lado: un calibre sin
+  // promedio —sin capturar, o con 0 g— no rompe la cadena ni sirve de
+  // referencia.
+  let previousAverage: number | null = null;
+  const belowPrevious = values.map(({ average }, index) => {
+    if (index === typingIndex || average === null) return false;
+
+    const below = previousAverage !== null && average < previousAverage;
+    previousAverage = average;
+
+    return below;
+  });
+
   const summaries = values.map(({ total, average }, index) => {
     const noFruit = total === 0;
 
@@ -96,12 +117,13 @@ export function summarizeCriba(
       average,
       noFruit,
       complete: total !== null && (noFruit || average !== null),
-      warn:
+      overTotal:
         index !== typingIndex &&
         total !== null &&
         !noFruit &&
         average !== null &&
         average > total,
+      belowPrevious: belowPrevious[index],
       share:
         total !== null && sampleWeight !== null && sampleWeight > 0
           ? (total / sampleWeight) * 100
