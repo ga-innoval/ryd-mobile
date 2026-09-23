@@ -6,6 +6,8 @@ import {
   cribaCalibreSchema,
   CRIBA_CALIBRES,
 } from "./criba";
+import { comentariosSchema, createComentarios } from "./comentarios";
+import { createRendimientoCorte, rendimientoCorteSchema } from "./rendimiento";
 import { EVALS_EXTERIOR } from "./evals-exterior";
 import { EVALS_INTERIOR } from "./evals-interior";
 
@@ -51,6 +53,13 @@ export const evaluationSchema = z.object({
     // la que dice de qué calibre es cada peso. Lo que no se capturó va vacío.
     calibres: z.array(cribaCalibreSchema).length(CRIBA_CALIBRES.length),
   }),
+  rendimiento: z.object({
+    // Nunca vacío: la pantalla arranca con un corte y no deja descartar el
+    // único. Sin tope por arriba, que está sin confirmar con el negocio.
+    cortes: z.array(rendimientoCorteSchema).min(1),
+  }),
+  // Texto libre, y ninguna obligatoria: son las notas del evaluador.
+  comentarios: comentariosSchema,
 });
 
 /** Lo que tienen los campos mientras se captura: las lecturas, como texto. */
@@ -63,10 +72,14 @@ export type EvaluationValues = z.output<typeof evaluationSchema>;
 export type EvaluationSectionId = keyof EvaluationFormValues;
 
 /**
- * Las secciones que son un catálogo de preguntas. Brix va por cortes y Criba
- * por calibres, así que quedan fuera y el tipo obliga a tratarlas aparte.
+ * Las secciones que son un catálogo de preguntas. Brix va por cortes, Criba por
+ * calibres, Rendimiento por cosechas y Comentarios por notas de texto libre,
+ * así que quedan fuera y el tipo obliga a tratarlas aparte.
  */
-export type QuestionsSectionId = Exclude<EvaluationSectionId, "brix" | "criba">;
+export type QuestionsSectionId = Exclude<
+  EvaluationSectionId,
+  "brix" | "criba" | "rendimiento" | "comentarios"
+>;
 
 /**
  * Una evaluación en blanco. Devuelve objetos nuevos en cada llamada, a propósito:
@@ -78,5 +91,7 @@ export function buildEvaluationDefaults(): EvaluationFormValues {
     interior: {},
     brix: { cortes: [createBrixCorte()] },
     criba: { calibres: createCribaCalibres() },
+    rendimiento: { cortes: [createRendimientoCorte()] },
+    comentarios: createComentarios(),
   };
 }

@@ -52,6 +52,14 @@ import {
   CribaHeaderSummary,
   EvalCriba,
 } from "@/domains/plants/components/eval-criba";
+import {
+  EvalRendimiento,
+  RendimientoHeaderSummary,
+} from "@/domains/plants/components/eval-rendimiento";
+import {
+  ComentariosHeaderSummary,
+  EvalComentarios,
+} from "@/domains/plants/components/eval-comentarios";
 import { usePhotosStore } from "@/domains/plants/store/photos-store";
 import {
   buildEvaluationDefaults,
@@ -65,9 +73,11 @@ import { EVALS_EXTERIOR } from "@/domains/plants/lib/evals-exterior";
 import { EVALS_INTERIOR } from "@/domains/plants/lib/evals-interior";
 import {
   CameraIcon,
+  GaugeCircleIcon,
   GhostIcon,
   GrapeIcon,
   Grid3x3Icon,
+  MessageSquareTextIcon,
   MicroscopeIcon,
   PipetteIcon,
   type LucideIcon,
@@ -150,6 +160,12 @@ type Section = {
   // Criba tampoco: es una tabla fija de nueve calibres, y lo que resume no es
   // un avance sino el peso de la muestra.
   | { kind: "criba"; id: Extract<EvaluationSectionId, "criba"> }
+  // Rendimiento va por cosechas: los cortes que el evaluador agrega, y su
+  // resumen son los kilogramos cosechados.
+  | { kind: "rendimiento"; id: Extract<EvaluationSectionId, "rendimiento"> }
+  // Comentarios son tres notas de texto libre, sin nada que calcular ni que
+  // validar.
+  | { kind: "comentarios"; id: Extract<EvaluationSectionId, "comentarios"> }
   // Las fotografías no son campos del formulario: viven en su propio store
   // hasta que haya guardado, así que esta sección no tiene clave en el esquema
   // y su `id` solo la identifica en pantalla.
@@ -165,6 +181,10 @@ function sectionSummary(section: Section): ReactNode {
       return <BrixHeaderSummary />;
     case "criba":
       return <CribaHeaderSummary />;
+    case "rendimiento":
+      return <RendimientoHeaderSummary />;
+    case "comentarios":
+      return <ComentariosHeaderSummary />;
     case "photos":
       return <PhotosHeaderSummary />;
     case "questions":
@@ -189,6 +209,12 @@ function sectionBody(section: Section, tratamientoId: string): ReactNode {
       return <EvalBrix key={tratamientoId} />;
     case "criba":
       return <EvalCriba />;
+    case "rendimiento":
+      // Como Brix, los cortes que lleva son del tratamiento: con `setParams` la
+      // pantalla no se desmonta.
+      return <EvalRendimiento key={tratamientoId} />;
+    case "comentarios":
+      return <EvalComentarios />;
     case "photos":
       return <EvalPhotosForm />;
   }
@@ -232,6 +258,20 @@ const SECTIONS: Section[] = [
     icon: Grid3x3Icon,
     title: "Criba",
     description: "Peso de la muestra por calibre, del 8 al 16.",
+  },
+  {
+    id: "rendimiento",
+    kind: "rendimiento",
+    icon: GaugeCircleIcon,
+    title: "Rendimiento",
+    description: "Kilogramos y racimos cosechados en cada corte.",
+  },
+  {
+    id: "comentarios",
+    kind: "comentarios",
+    icon: MessageSquareTextIcon,
+    title: "Comentarios y observaciones",
+    description: "Notas del evaluador sobre la fruta y sobre la evaluación.",
   },
 ];
 

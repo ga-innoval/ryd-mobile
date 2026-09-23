@@ -51,7 +51,8 @@
           "initialOrientation": "DEFAULT"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "router": {},

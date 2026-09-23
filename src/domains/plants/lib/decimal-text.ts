@@ -30,6 +30,14 @@ export function sanitizeDecimalText(text: string, maxLength: number): string {
 }
 
 /**
+ * Lo mismo para lo que se cuenta de uno en uno, como los racimos de un corte:
+ * solo dígitos, sin separador decimal que quitar después.
+ */
+export function sanitizeIntegerText(text: string, maxLength: number): string {
+  return text.replace(/[^0-9]/g, "").slice(0, maxLength);
+}
+
+/**
  * Un valor tal como se captura (texto) y tal como se guarda (número).
  *
  * No rechaza nada, a propósito: lo vacío y lo que aún no es un número ("." a
@@ -64,4 +72,20 @@ export function formatDecimal(value: number, fractionDigits: number): string {
   const scaled = Math.round(Number((value * factor).toFixed(6)));
 
   return (scaled / factor).toFixed(fractionDigits);
+}
+
+/**
+ * Como `formatDecimal`, con los miles separados: es lo que hace legible una
+ * cifra de cuatro dígitos, y las hay en gramos de criba y en kilos de
+ * rendimiento.
+ *
+ * La separación va a mano y no con `toLocaleString`: el soporte de `Intl` de
+ * Hermes depende de la plataforma, y esto tiene que salir igual en la tablet
+ * que en los tests.
+ */
+export function formatGrouped(value: number, fractionDigits: number): string {
+  const [integer, decimals] = formatDecimal(value, fractionDigits).split(".");
+  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+  return decimals === undefined ? grouped : `${grouped}.${decimals}`;
 }

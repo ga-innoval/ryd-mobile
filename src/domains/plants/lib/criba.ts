@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   decimalTextSchema,
   formatDecimal,
+  formatGrouped,
   parseDecimalText,
   sanitizeDecimalText,
 } from "./decimal-text";
@@ -138,19 +139,11 @@ export function summarizeCriba(
   };
 }
 
-/**
- * Los gramos como se muestran: un decimal fijo y los miles separados, que es
- * lo que hace legible un peso de cuatro cifras.
- *
- * La separación va a mano y no con `toLocaleString`: el soporte de `Intl` de
- * Hermes depende de la plataforma, y esto tiene que salir igual en la tablet
- * que en los tests.
- */
+/** Los gramos como se muestran: un decimal fijo y los miles separados. */
 export function formatGrams(value: number | null): string {
   if (value === null) return "—";
 
-  const [integer, decimals] = formatDecimal(value, 1).split(".");
-  return `${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${decimals}`;
+  return formatGrouped(value, 1);
 }
 
 /** La distribución como se muestra: un decimal fijo y el signo separado. */
