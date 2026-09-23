@@ -41,6 +41,7 @@ import {
   EMPTY_PHOTOS,
   usePhotosStore,
 } from "@/domains/plants/store/photos-store";
+import { findPhotoCategory } from "@/domains/plants/lib/photo-categories";
 import { Separator } from "@/components/ui/separator";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { haptics } from "@/lib/haptics";
@@ -72,11 +73,14 @@ const SELECTION_DURATION_MS = 100;
  * cumplía y lo dejaba sin pintar, sin ningún error. Aquí siempre se pinta.
  */
 function PhotosHeader({
+  label,
   count,
   isSelecting,
   onToggleSelecting,
   onDismiss,
 }: {
+  /** La categoría que se está viendo: «Racimo», «Corte vertical»… */
+  label: string;
   count: number;
   isSelecting: boolean;
   onToggleSelecting: () => void;
@@ -85,7 +89,7 @@ function PhotosHeader({
   const title = (
     <>
       <Icon size={16} as={ImagesIcon} className="text-leaf" />
-      <Text className="font-bold text-primary-foreground">Fotografías</Text>
+      <Text className="font-bold text-primary-foreground">{label}</Text>
       <Text className="text-primary-foreground/40">/</Text>
       <Text className="font-medium text-primary-foreground/80">{count}</Text>
     </>
@@ -347,12 +351,15 @@ function PhotoCell({
  * cabe darlas por pocas cuando ni siquiera está puesto el tope.
  */
 export default function PhotosScreen() {
-  const { sectionId } = useLocalSearchParams<{ sectionId: string }>();
+  const { categoryId } = useLocalSearchParams<{ categoryId: string }>();
   const router = useRouter();
   const { width } = useWindowDimensions();
 
+  // El `id` llega como texto suelto en los params, así que puede no ser de
+  // ninguna categoría; la cabecera se queda entonces con su nombre genérico.
+  const category = findPhotoCategory(categoryId);
   const photos = usePhotosStore(
-    (state) => state.photos[sectionId] ?? EMPTY_PHOTOS,
+    (state) => state.photos[categoryId] ?? EMPTY_PHOTOS,
   );
 
   // `undefined` es "cerrado": el índice por el que abre el visor y su
@@ -390,10 +397,10 @@ export default function PhotosScreen() {
   // Todas de una vez: borrar de una en una desplazaría los índices siguientes
   // y se llevaría por delante fotos que nadie eligió.
   const deleteSelected = useCallback(() => {
-    removePhotos(sectionId, [...selected]);
+    removePhotos(categoryId, [...selected]);
     setIsSelecting(false);
     setSelected(new Set());
-  }, [removePhotos, sectionId, selected]);
+  }, [removePhotos, categoryId, selected]);
 
   const columns = Math.max(2, Math.floor(width / MIN_CELL));
   // Tamaño explícito y no `flex-1`: con `flex-1`, una última fila incompleta
@@ -420,7 +427,7 @@ export default function PhotosScreen() {
           setGalleryIndex(index);
         }}
         onOpenChange={(open) => setSelectedIndex(open ? index : undefined)}
-        onDelete={() => removePhotos(sectionId, [index])}
+        onDelete={() => removePhotos(categoryId, [index])}
       />
     ),
     [
@@ -429,7 +436,7 @@ export default function PhotosScreen() {
       selected,
       selectedIndex,
       toggleSelected,
-      sectionId,
+      categoryId,
       removePhotos,
     ],
   );
@@ -448,6 +455,7 @@ export default function PhotosScreen() {
   return (
     <View className="flex-1 bg-background">
       <PhotosHeader
+        label={category?.label ?? "Fotografías"}
         count={photos.length}
         isSelecting={isSelecting}
         onToggleSelecting={toggleSelecting}

@@ -53,6 +53,16 @@ export type CribaCalibre = {
  */
 export type PhotoSource = "camera" | "library";
 
+/**
+ * Una de las tomas que se piden de cada tratamiento. El catálogo está en
+ * `lib/photo-categories.ts`, y su `id` es la clave con la que se guardan las
+ * fotografías de esa toma.
+ */
+export type PhotoCategory = {
+  id: string;
+  label: string;
+};
+
 export enum SyncStatus {
   pending = "pending",
   synced = "synced",
