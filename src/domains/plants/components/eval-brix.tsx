@@ -469,7 +469,7 @@ function PairResult({ pair }: { pair: BrixPairSummary }) {
           ? "bg-amber-50"
           : pair.value === null
             ? "bg-background"
-            : "bg-secondary",
+            : "bg-foreground",
       )}
     >
       {pair.outOfRange && (
@@ -477,7 +477,7 @@ function PairResult({ pair }: { pair: BrixPairSummary }) {
       )}
       <Text
         className={cn(
-          "text-lg font-bold",
+          "text-lg font-bold text-white",
           pair.value === null && "text-muted-foreground",
           pair.outOfRange && "text-amber-800",
         )}
