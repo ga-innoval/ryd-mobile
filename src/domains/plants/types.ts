@@ -48,6 +48,21 @@ export type CribaCalibre = {
 };
 
 /**
+ * Un corte de cosecha tal como se captura: cuándo se cortó, cuántos kilogramos
+ * salieron y cuántos racimos.
+ *
+ * La fecha va en ISO (`2026-08-12`) y los dos pesos como texto, por lo mismo
+ * que en Brix y Criba: un dato vacío no se confunde con un cero, y aquí 0 kg y
+ * 0 racimos significan un corte sin fruta. Cómo se leen lo decide
+ * `lib/rendimiento.ts`.
+ */
+export type RendimientoCorte = {
+  fecha: string;
+  kilogramos: string;
+  racimos: string;
+};
+
+/**
  * De dónde sale una fotografía de evidencia. Cada origen tiene su propio botón
  * en la tira, así que capturar no pasa por preguntar primero.
  */

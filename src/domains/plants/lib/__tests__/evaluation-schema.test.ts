@@ -69,6 +69,8 @@ describe("buildEvaluationDefaults", () => {
       interior: {},
       brix: { cortes: [corte()] },
       criba: { calibres: calibres() },
+      rendimiento: { cortes: [{ fecha: "", kilogramos: "", racimos: "" }] },
+      comentarios: { positivos: "", negativos: "", observaciones: "" },
     });
   });
 

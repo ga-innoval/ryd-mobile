@@ -1,15 +1,22 @@
 import { Pressable, type PressableProps } from "react-native";
+import type { LucideIcon } from "lucide-react-native";
 import {
   PILL_CONTENT_CN,
   pillVariants,
   type PillVariant,
 } from "@/components/ui/icon-button";
+import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 
 type TextButtonProps = Omit<PressableProps, "children"> & {
   children: string;
   variant?: PillVariant;
+  /**
+   * Un icono a la izquierda del texto, del color de la variante. Para acciones
+   * que se reconocen antes por el dibujo que por la palabra, como descartar.
+   */
+  icon?: LucideIcon;
 };
 
 /**
@@ -25,13 +32,14 @@ export function TextButton({
   className,
   disabled,
   variant = "default",
+  icon,
   children,
   ...props
 }: TextButtonProps) {
   return (
     <Pressable
       className={cn(
-        "h-8 px-3",
+        "h-8 gap-2 px-3",
         pillVariants({ variant }),
         disabled ? "opacity-50" : "opacity-100",
         className,
@@ -39,6 +47,9 @@ export function TextButton({
       disabled={disabled}
       {...props}
     >
+      {icon && (
+        <Icon as={icon} size={16} className={PILL_CONTENT_CN[variant]} />
+      )}
       <Text className={cn("text-sm font-medium", PILL_CONTENT_CN[variant])}>
         {children}
       </Text>

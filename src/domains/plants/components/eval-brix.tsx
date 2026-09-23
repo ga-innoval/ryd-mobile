@@ -6,7 +6,12 @@ import {
   View,
   type TextInput,
 } from "react-native";
-import { CheckIcon, PlusIcon, TriangleAlertIcon } from "lucide-react-native";
+import {
+  CheckIcon,
+  PlusIcon,
+  Trash2Icon,
+  TriangleAlertIcon,
+} from "lucide-react-native";
 import { useController, useFieldArray, useWatch } from "react-hook-form";
 import {
   CollapsibleBody,
@@ -205,26 +210,35 @@ export function EvalBrix() {
 
 /**
  * «Agregar corte», aparte para que sea lo único que sigue las lecturas desde
- * aquí: decidir si se puede agregar mira el último corte, y hacerlo desde
- * `EvalBrix` re-renderizaría todos los cortes con cada tecla.
+ * aquí: decidir si se puede agregar mira el último corte —y con qué nota—, y
+ * hacerlo desde `EvalBrix` re-renderizaría todos los cortes con cada tecla.
  */
 function AddCorteButton({ onAdd }: { onAdd: () => void }) {
   const cortes = useWatch<EvaluationFormValues, "brix.cortes">({
     name: "brix.cortes",
   });
-
-  if (!canAddBrixCorte(cortes)) return null;
+  const canAdd = canAddBrixCorte(cortes);
 
   return (
-    <Button
-      variant="secondary"
-      size="lg"
-      className="mt-1 border border-border"
-      onPress={onAdd}
-    >
-      <Icon as={PlusIcon} size={16} className="text-primary" />
-      <Text className="text-base">{`Agregar corte ${cortes.length + 1}`}</Text>
-    </Button>
+    <View className="mt-1 gap-2">
+      {/* Deshabilitado y no escondido: que el botón desaparezca no dice qué
+          falta para poder agregar otro corte, y la nota de abajo sí. */}
+      <Button
+        variant="secondary"
+        size="lg"
+        className="border border-border"
+        disabled={!canAdd}
+        onPress={onAdd}
+      >
+        <Icon as={PlusIcon} size={16} className="text-primary" />
+        <Text className="text-base">{`Agregar corte ${cortes.length + 1}`}</Text>
+      </Button>
+      {!canAdd && (
+        <Text variant="muted" className="text-center">
+          {`Captura las ${BRIX_READINGS_PER_CORTE} lecturas del corte ${cortes.length} para agregar otro.`}
+        </Text>
+      )}
+    </View>
   );
 }
 
@@ -401,6 +415,7 @@ function BrixCorteCard({
                 <Text variant="muted">{deleteHint(summary.filled)}</Text>
               )}
               <TextButton
+                icon={Trash2Icon}
                 variant={confirmingDelete ? "destructive" : "onLight"}
                 onPress={onDelete}
               >
