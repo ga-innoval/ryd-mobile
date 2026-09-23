@@ -549,6 +549,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
     zIndex: 99,
+    backgroundColor: "rgba(0,0,0,0.8)",
   },
   bottomBar: {
     position: "absolute",
@@ -557,5 +558,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    backgroundColor: "rgba(0,0,0,0.8)",
   },
 });

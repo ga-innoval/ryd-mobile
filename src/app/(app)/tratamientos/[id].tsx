@@ -1,5 +1,12 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Keyboard,
   ScrollView,
@@ -32,7 +39,10 @@ import {
   EvalQuestionsForm,
   EvalQuestionsHeader,
 } from "@/domains/plants/components/eval-questions-form";
-import { EvalPhotos } from "@/domains/plants/components/eval-photos";
+import {
+  EvalPhotosForm,
+  PhotosHeaderSummary,
+} from "@/domains/plants/components/eval-photos";
 import {
   BrixHeaderSummary,
   EvalBrix,
@@ -41,12 +51,7 @@ import {
   CribaHeaderSummary,
   EvalCriba,
 } from "@/domains/plants/components/eval-criba";
-import { usePhotoCapture } from "@/domains/plants/hooks/use-photo-capture";
-import {
-  EMPTY_PHOTOS,
-  usePhotosStore,
-} from "@/domains/plants/store/photos-store";
-import { Separator } from "@/components/ui/separator";
+import { usePhotosStore } from "@/domains/plants/store/photos-store";
 import {
   buildEvaluationDefaults,
   evaluationSchema,
@@ -58,6 +63,7 @@ import {
 import { EVALS_EXTERIOR } from "@/domains/plants/lib/evals-exterior";
 import { EVALS_INTERIOR } from "@/domains/plants/lib/evals-interior";
 import {
+  CameraIcon,
   GhostIcon,
   GrapeIcon,
   Grid3x3Icon,
@@ -67,11 +73,7 @@ import {
 } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
-import type {
-  EvalQuestion,
-  PhotoSource,
-  PlantRecord,
-} from "@/domains/plants/types";
+import type { EvalQuestion, PlantRecord } from "@/domains/plants/types";
 import { cn } from "@/lib/utils";
 
 const PLANT_FIELDS = [
@@ -127,21 +129,18 @@ function PlantFieldsSkeleton() {
 }
 
 /**
- * Qué lleva cada sección va declarado aquí —`kind` para el contenido,
- * `hasPhotos` para la evidencia— y no como un `id === "..."` suelto en el
- * render, para que esta lista siga describiendo por sí sola lo que lleva cada
- * una.
- */
-/**
- * El `id` de cada sección es también su clave en `evaluationSchema`, y el tipo
- * lo obliga: una errata entre esta lista y el esquema es un error de
- * compilación, no un campo que no se guarda.
+ * Qué lleva cada sección va declarado aquí, en su `kind`, y no como un
+ * `id === "..."` suelto en el render, para que esta lista siga describiendo por
+ * sí sola lo que lleva cada una.
+ *
+ * El `id` de las que se capturan en el formulario es también su clave en
+ * `evaluationSchema`, y el tipo lo obliga: una errata entre esta lista y el
+ * esquema es un error de compilación, no un campo que no se guarda.
  */
 type Section = {
   icon: LucideIcon;
   title: string;
   description: string;
-  hasPhotos: boolean;
 } & (
   | { kind: "questions"; id: QuestionsSectionId; questions: EvalQuestion[] }
   // Brix no es un catálogo de preguntas: se captura por cortes, y su avance no
@@ -150,9 +149,58 @@ type Section = {
   // Criba tampoco: es una tabla fija de nueve calibres, y lo que resume no es
   // un avance sino el peso de la muestra.
   | { kind: "criba"; id: Extract<EvaluationSectionId, "criba"> }
+  // Las fotografías no son campos del formulario: viven en su propio store
+  // hasta que haya guardado, así que esta sección no tiene clave en el esquema
+  // y su `id` solo la identifica en pantalla.
+  | { kind: "photos"; id: "fotografias" }
 );
 
+/** Lo que cada sección sin preguntas enseña en el hueco del resumen de su
+ *  cabecera. Las de preguntas no pasan por aquí: la suya es
+ *  `EvalQuestionsHeader`, con su barra de avance. */
+function sectionSummary(section: Section): ReactNode {
+  switch (section.kind) {
+    case "brix":
+      return <BrixHeaderSummary />;
+    case "criba":
+      return <CribaHeaderSummary />;
+    case "photos":
+      return <PhotosHeaderSummary />;
+    case "questions":
+      return undefined;
+  }
+}
+
+/** El contenido de cada sección. Cada uno lee y escribe lo suyo del formulario
+ *  —o del store, en las fotografías—, así que solo hay que montarlo. */
+function sectionBody(section: Section, tratamientoId: string): ReactNode {
+  switch (section.kind) {
+    case "questions":
+      return (
+        <EvalQuestionsForm
+          sectionId={section.id}
+          questions={section.questions}
+        />
+      );
+    case "brix":
+      // Su estado de interfaz —qué corte está abierto— es del tratamiento; con
+      // `setParams` la pantalla no se desmonta.
+      return <EvalBrix key={tratamientoId} />;
+    case "criba":
+      return <EvalCriba />;
+    case "photos":
+      return <EvalPhotosForm />;
+  }
+}
+
 const SECTIONS: Section[] = [
+  {
+    id: "fotografias",
+    kind: "photos",
+    icon: CameraIcon,
+    title: "Fotografías",
+    description: "Evidencia del racimo y de los dos cortes de la baya.",
+  },
   {
     id: "exterior",
     kind: "questions",
@@ -160,7 +208,6 @@ const SECTIONS: Section[] = [
     title: "Evaluación Exterior",
     description: "Forma, color, firmeza y arreglo del racimo y de la baya.",
     questions: EVALS_EXTERIOR,
-    hasPhotos: true,
   },
   {
     id: "interior",
@@ -170,7 +217,6 @@ const SECTIONS: Section[] = [
     description:
       "Características de la pulpa, la piel, el sabor y la experiencia de consumo.",
     questions: EVALS_INTERIOR,
-    hasPhotos: true,
   },
   {
     id: "brix",
@@ -178,7 +224,6 @@ const SECTIONS: Section[] = [
     icon: PipetteIcon,
     title: "Brix",
     description: "Diez lecturas de refractómetro por corte.",
-    hasPhotos: false,
   },
   {
     id: "criba",
@@ -186,7 +231,6 @@ const SECTIONS: Section[] = [
     icon: Grid3x3Icon,
     title: "Criba",
     description: "Peso de la muestra por calibre, del 8 al 16.",
-    hasPhotos: false,
   },
 ];
 
@@ -218,11 +262,9 @@ export default function TratamientoScreen() {
   });
   const { reset } = form;
 
-  // En un store y no en estado de pantalla porque la cuadrícula a pantalla
-  // completa es otra ruta y no podría verlo. Sigue indexado por sección, que
-  // es lo que separa la evidencia de Exterior de la de Interior.
-  const photos = usePhotosStore((state) => state.photos);
-  const addPhotos = usePhotosStore((state) => state.addPhotos);
+  // Lo único que la pantalla sabe de las fotografías: quién es su dueño. Lo
+  // demás —leerlas, capturarlas y abrir la cuadrícula— vive en
+  // `EvalPhotosForm`, que es la sección que las muestra.
   const claimFor = usePhotosStore((state) => state.claimFor);
 
   // El `open` vive aquí y no en la sección: cabecera y cuerpo son hijos
@@ -330,20 +372,6 @@ export default function TratamientoScreen() {
   const { scrollHandler, animatedStyle } = useHideOnScroll({
     distance: reservedHeight,
   });
-
-  const capturePhoto = usePhotoCapture();
-
-  // Llegan varias de golpe cuando se eligen de la galería, y ninguna al
-  // cancelar o quedarse sin permiso — que es el caso normal, no un error.
-  const handleCapture = useCallback(
-    async (sectionId: string, source: PhotoSource) => {
-      const uris = await capturePhoto(source);
-      if (uris.length === 0) return;
-
-      addPhotos(sectionId, uris);
-    },
-    [capturePhoto, addPhotos],
-  );
 
   // Sin memo, cada respuesta capturada re-renderiza la pantalla, reconstruye
   // este objeto y empuja opciones nuevas al navigator. Depende solo de los dos
@@ -527,19 +555,12 @@ export default function TratamientoScreen() {
                     questions={section.questions}
                   />
                 ) : (
-                  // Las dos que no son preguntas resumen lo suyo en el mismo
-                  // hueco de la cabecera, y cada resumen lee sus propios
-                  // valores del formulario.
+                  // Las que no son preguntas resumen lo suyo en el mismo hueco
+                  // de la cabecera, y cada resumen lee sus propios valores.
                   <CollapsibleHeader
                     key={`${section.id}-header`}
                     {...headerProps}
-                    summary={
-                      section.kind === "brix" ? (
-                        <BrixHeaderSummary />
-                      ) : (
-                        <CribaHeaderSummary />
-                      )
-                    }
+                    summary={sectionSummary(section)}
                   />
                 ),
                 <CollapsibleBody
@@ -551,42 +572,7 @@ export default function TratamientoScreen() {
                     })
                   }
                 >
-                  {section.hasPhotos && (
-                    <>
-                      <EvalPhotos
-                        photos={photos[section.id] ?? EMPTY_PHOTOS}
-                        onCapture={(source) =>
-                          handleCapture(section.id, source)
-                        }
-                        onOpenPhotos={() =>
-                          router.push({
-                            pathname: "/photos",
-                            params: { sectionId: section.id },
-                          })
-                        }
-                      />
-                      {/* El separador que el formulario pone entre preguntas, con
-                        sus mismos márgenes: así las fotos se leen como un bloque
-                        más de la lista. Tiene que ir aquí porque la primera
-                        pregunta no trae el suyo —solo lo llevan de la segunda en
-                        adelante—, y sin él quedarían pegadas a la tira. */}
-                      <Separator className="mb-6 mt-7" />
-                    </>
-                  )}
-                  {section.kind === "questions" ? (
-                    <EvalQuestionsForm
-                      sectionId={section.id}
-                      questions={section.questions}
-                    />
-                  ) : section.kind === "brix" ? (
-                    <EvalBrix
-                      // Su estado de interfaz —qué corte está abierto— es del
-                      // tratamiento; con `setParams` la pantalla no se desmonta.
-                      key={id}
-                    />
-                  ) : (
-                    <EvalCriba />
-                  )}
+                  {sectionBody(section, id)}
                 </CollapsibleBody>,
               ];
             })}

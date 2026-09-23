@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 /**
- * Referencia estable para las secciones sin fotos.
+ * Referencia estable para las categorías sin fotos.
  *
  * No es cosmética: zustand 5 compara lo que devuelve el selector con
  * `Object.is`, así que un `?? []` escrito dentro del selector crearía un array
@@ -20,14 +20,15 @@ type PhotosStore = {
    */
   ownerId: string | null;
   /**
-   * URIs por sección de la encuesta, del tratamiento que está abierto.
+   * URIs por categoría de fotografía (`lib/photo-categories.ts`), del
+   * tratamiento que está abierto.
    *
-   * La clave es solo la sección y no también el tratamiento porque esto se
+   * La clave es solo la categoría y no también el tratamiento porque esto se
    * vacía al cambiar de uno a otro, igual que las respuestas del formulario: lo
    * capturado pertenece a la evaluación en curso.
    */
   photos: Record<string, string[]>;
-  addPhotos: (sectionId: string, uris: string[]) => void;
+  addPhotos: (categoryId: string, uris: string[]) => void;
   /**
    * Por posición y no por URI: elegir dos veces la misma foto de la galería
    * repite URI, y borrar por URI se llevaría las dos.
@@ -36,7 +37,7 @@ type PhotosStore = {
    * desplaza los índices siguientes, así que encadenar llamadas acabaría
    * eliminando fotos que nadie eligió.
    */
-  removePhotos: (sectionId: string, indices: number[]) => void;
+  removePhotos: (categoryId: string, indices: number[]) => void;
   /**
    * Deja el store listo para ese tratamiento: lo vacía solo si lo que había
    * era de otro. Volver a reclamarlo para el mismo no toca nada, que es lo
@@ -46,9 +47,9 @@ type PhotosStore = {
 };
 
 /**
- * Las fotografías capturadas, fuera de la pantalla porque ahora las leen dos:
- * la tarjeta de la sección y la cuadrícula a pantalla completa, que es otra
- * ruta y no podría ver un `useState`.
+ * Las fotografías capturadas, fuera de la pantalla porque las leen dos: la
+ * sección de fotografías y la cuadrícula a pantalla completa, que es otra ruta
+ * y no podría ver un `useState`.
  *
  * **Sin `persist`, a propósito.** Persistir es una decisión aparte y aquí no
  * está tomada: falta decidir dónde acaban los archivos —lo más probable, una
@@ -61,20 +62,20 @@ type PhotosStore = {
 export const usePhotosStore = create<PhotosStore>()((set) => ({
   ownerId: null,
   photos: {},
-  addPhotos: (sectionId, uris) =>
+  addPhotos: (categoryId, uris) =>
     set((state) => ({
       photos: {
         ...state.photos,
-        [sectionId]: [...(state.photos[sectionId] ?? []), ...uris],
+        [categoryId]: [...(state.photos[categoryId] ?? []), ...uris],
       },
     })),
-  removePhotos: (sectionId, indices) => {
+  removePhotos: (categoryId, indices) => {
     const removed = new Set(indices);
 
     set((state) => ({
       photos: {
         ...state.photos,
-        [sectionId]: (state.photos[sectionId] ?? []).filter(
+        [categoryId]: (state.photos[categoryId] ?? []).filter(
           (_, index) => !removed.has(index),
         ),
       },
