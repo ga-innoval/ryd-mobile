@@ -65,16 +65,20 @@ describe("summarizeCriba", () => {
   });
 
   it("avisa del promedio mayor que el peso total", () => {
-    expect(summarizeCriba(criba(["5.2", "52"])).calibres[0].warn).toBe(true);
+    expect(summarizeCriba(criba(["5.2", "52"])).calibres[0].overTotal).toBe(
+      true,
+    );
   });
 
   it("no avisa en el calibre sin fruta", () => {
-    expect(summarizeCriba(criba(["0", "3.6"])).calibres[0].warn).toBe(false);
+    expect(summarizeCriba(criba(["0", "3.6"])).calibres[0].overTotal).toBe(
+      false,
+    );
   });
 
   // A medio escribir, el peso total es menor que el promedio ya capturado.
   it("no avisa del calibre que se está tecleando", () => {
-    expect(summarizeCriba(criba(["5.2", "52"]), 0).calibres[0].warn).toBe(
+    expect(summarizeCriba(criba(["5.2", "52"]), 0).calibres[0].overTotal).toBe(
       false,
     );
   });
@@ -82,8 +86,48 @@ describe("summarizeCriba", () => {
   it("sigue avisando de los demás mientras se teclea uno", () => {
     const { calibres } = summarizeCriba(criba(["5.2", "52"], ["4", "40"]), 1);
 
-    expect(calibres[0].warn).toBe(true);
-    expect(calibres[1].warn).toBe(false);
+    expect(calibres[0].overTotal).toBe(true);
+    expect(calibres[1].overTotal).toBe(false);
+  });
+
+  // La criba separa por tamaño: la baya de un calibre no puede pesar menos que
+  // la de uno más pequeño.
+  it("avisa del promedio más bajo que el del calibre anterior", () => {
+    const { calibres } = summarizeCriba(criba(["100", "5"], ["100", "4"]));
+
+    expect(calibres[0].belowPrevious).toBe(false);
+    expect(calibres[1].belowPrevious).toBe(true);
+  });
+
+  it("no avisa mientras el promedio sube o se repite", () => {
+    const { calibres } = summarizeCriba(
+      criba(["100", "5"], ["100", "5"], ["100", "6"]),
+    );
+
+    expect(calibres.some((calibre) => calibre.belowPrevious)).toBe(false);
+  });
+
+  it("compara con el último capturado, saltando los calibres sin promedio", () => {
+    // El de en medio se pesó en 0 g: sin bayas que pesar no rompe la cadena,
+    // así que el 4 se compara con el 5 y no con nada.
+    const { calibres } = summarizeCriba(
+      criba(["100", "5"], ["0", ""], ["100", "4"]),
+    );
+
+    expect(calibres[1].belowPrevious).toBe(false);
+    expect(calibres[2].belowPrevious).toBe(true);
+  });
+
+  it("deja fuera de la cadena el calibre que se está tecleando", () => {
+    // Un 9 camino de 5.2 en el de en medio: ni avisa él ni hace saltar al
+    // siguiente, que se compara con el 5 de antes.
+    const { calibres } = summarizeCriba(
+      criba(["100", "5"], ["100", "9"], ["100", "6"]),
+      1,
+    );
+
+    expect(calibres[1].belowPrevious).toBe(false);
+    expect(calibres[2].belowPrevious).toBe(false);
   });
 });
 
