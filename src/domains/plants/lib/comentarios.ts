@@ -11,12 +11,12 @@ import { z } from "zod";
 export const COMENTARIO_FIELDS = [
   {
     key: "positivos",
-    label: "Comentarios positivos (👍)",
+    label: "Comentarios positivos",
     placeholder: "Ej: Sabor, color, firmeza o presentación de la fruta.",
   },
   {
     key: "negativos",
-    label: "Comentarios negativos (👎)",
+    label: "Comentarios negativos",
     placeholder:
       "Ej: Falta de estructura, desuniformidad, partidura u otros defectos.",
   },
