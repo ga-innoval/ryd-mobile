@@ -5,7 +5,7 @@ import { SyncStatus } from "../types";
 import { StatusDot } from "./status-dot";
 import { SyncButton } from "./sync-button";
 import { StatusTooltip } from "./status-tooltip";
-import { useCallback, useRef, useState } from "react";
+import { useRef } from "react";
 import type { TriggerRef } from "@rn-primitives/tooltip";
 import { View } from "react-native";
 import { useRelativeTimeLabel } from "../hooks/use-relative-time-label";

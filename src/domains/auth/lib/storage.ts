@@ -39,7 +39,7 @@ export const storage = {
     if (!raw) return null;
     try {
       return userSchema.parse(JSON.parse(raw));
-    } catch (error) {
+    } catch {
       await AsyncStorage.removeItem(USER_KEY);
       return null;
     }
