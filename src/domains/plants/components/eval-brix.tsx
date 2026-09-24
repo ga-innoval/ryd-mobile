@@ -6,12 +6,7 @@ import {
   View,
   type TextInput,
 } from "react-native";
-import {
-  CheckIcon,
-  PlusIcon,
-  Trash2Icon,
-  TriangleAlertIcon,
-} from "lucide-react-native";
+import { PlusIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react-native";
 import { useController, useFieldArray, useWatch } from "react-hook-form";
 import {
   CollapsibleBody,

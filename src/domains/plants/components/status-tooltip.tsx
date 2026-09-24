@@ -1,4 +1,4 @@
-import type { RefObject, ReactNode, Ref } from "react";
+import type { ReactNode, Ref } from "react";
 import type { TriggerRef } from "@rn-primitives/tooltip";
 import {
   Tooltip,

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { ActivityIndicator } from "react-native";
 import { LogOutIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
