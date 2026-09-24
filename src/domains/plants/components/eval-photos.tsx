@@ -30,6 +30,16 @@ const SLOT_CN = "rounded-xl border border-border bg-secondary";
 const SUMMARY_SLOT_CN = "w-20 h-20";
 const CAPTURE_SLOT_CN = "w-14 h-14";
 
+/**
+ * La fila reserva de entrada el alto del resumen —el hueco más alto que puede
+ * contener— para que no crezca al adjuntar la primera fotografía: sin esto pasa
+ * de los 56 de los botones a los 80 del cuadrado, y el salto se ve.
+ *
+ * Si cambia `SUMMARY_SLOT_CN`, cambia con él. Es `min-h` y no alto fijo para
+ * que un nombre que envuelva a dos líneas empuje en vez de salirse.
+ */
+const ROW_CN = "min-h-20";
+
 /** Ancho mínimo del nombre, para que el resumen empiece en el mismo punto en
  *  las tres filas: «Corte horizontal» es bastante más largo que «Racimo». */
 const LABEL_CN = "min-w-[160px]";
@@ -177,7 +187,7 @@ export function EvalPhotos({
   const summary = buildPhotoSummary(photos);
 
   return (
-    <View className="flex-row items-center gap-4">
+    <View className={cn("flex-row items-center gap-4", ROW_CN)}>
       <View className={cn(LABEL_CN, "gap-0.5")}>
         <Text className="font-medium">{label}</Text>
         {/* Cuántas lleva, en texto: el cuadrado del resumen lo dice con un
