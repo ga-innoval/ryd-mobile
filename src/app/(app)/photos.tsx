@@ -7,7 +7,8 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
+import { useAppRouter } from "@/lib/use-app-router";
 import { Image } from "expo-image";
 import Animated, {
   useAnimatedStyle,
@@ -352,7 +353,7 @@ function PhotoCell({
  */
 export default function PhotosScreen() {
   const { categoryId } = useLocalSearchParams<{ categoryId: string }>();
-  const router = useRouter();
+  const router = useAppRouter();
   const { width } = useWindowDimensions();
 
   // El `id` llega como texto suelto en los params, así que puede no ser de

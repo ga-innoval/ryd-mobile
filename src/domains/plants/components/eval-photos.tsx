@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { Pressable, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useAppRouter } from "@/lib/use-app-router";
 import { Image } from "expo-image";
 import { CameraIcon, ImagesIcon, type LucideIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
@@ -102,7 +102,7 @@ export function PhotosHeaderSummary() {
  * de tratamiento.
  */
 export function EvalPhotosForm() {
-  const router = useRouter();
+  const router = useAppRouter();
   const photos = usePhotosStore((state) => state.photos);
   const addPhotos = usePhotosStore((state) => state.addPhotos);
   const capturePhoto = usePhotoCapture();

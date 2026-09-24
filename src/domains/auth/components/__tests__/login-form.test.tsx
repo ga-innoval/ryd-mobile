@@ -1,13 +1,17 @@
 import { render, userEvent, waitFor } from "@testing-library/react-native";
 import { LoginForm } from "../login-form";
 import { useLogin } from "../../hooks/use-login";
-import { router } from "expo-router";
 
 jest.mock("../../hooks/use-login", () => ({
   useLogin: jest.fn(),
 }));
-jest.mock("expo-router", () => ({
-  router: { replace: jest.fn() },
+// La navegación de la app va por `useAppRouter`, así que se moquea eso y no
+// `expo-router`: el candado antirrebote que envuelve al router de Expo es de
+// módulo, y dejarlo en medio haría que un caso se tragara la navegación del
+// siguiente.
+const mockReplace = jest.fn();
+jest.mock("@/lib/use-app-router", () => ({
+  useAppRouter: () => ({ replace: mockReplace }),
 }));
 
 describe("<LoginForm />", () => {
@@ -78,6 +82,6 @@ describe("<LoginForm />", () => {
     await user.type(getByPlaceholderText("*******"), "a-password");
     await user.press(getByText("Iniciar sesión"));
 
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/"));
   });
 });

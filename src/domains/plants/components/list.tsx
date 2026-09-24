@@ -8,14 +8,13 @@ import {
 import Animated from "react-native-reanimated";
 import { ScrollView, View } from "react-native";
 import { FlashList, FlashListProps, FlashListRef } from "@shopify/flash-list";
-import { useRouter } from "expo-router";
+import { useAppRouter } from "@/lib/use-app-router";
 import { BoxIcon, LeafIcon, LucideIcon } from "lucide-react-native";
 import {
   type PlantWithMatch,
   type FieldMatch,
   type MatchableField,
   type Plant,
-  type TratamientoRecord,
   SyncStatus,
 } from "../types";
 import { cn } from "@/lib/utils";
@@ -153,7 +152,7 @@ export const PlantCard = memo(function PlantCard({
   item: Plant;
   match?: FieldMatch;
 }) {
-  const router = useRouter();
+  const router = useAppRouter();
 
   return (
     <View className="rounded-xl bg-card shadow-md shadow-black/5">

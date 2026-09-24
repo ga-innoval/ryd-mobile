@@ -6,7 +6,7 @@ import { usePulseAnimation } from "@/lib/use-pulse-animation";
 import { IconButton } from "@/components/ui/icon-button";
 import { Icon } from "@/components/ui/icon";
 import { ArrowLeft, LeafIcon, SaveIcon, XIcon } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useAppRouter } from "@/lib/use-app-router";
 
 interface TratamientosPageHeader {
   tratamientoName?: string;
@@ -38,7 +38,7 @@ export function TratamientosPageHeader({
   plantName,
   isLoading = false,
 }: TratamientosPageHeader) {
-  const router = useRouter();
+  const router = useAppRouter();
 
   return (
     <HeaderBase>
