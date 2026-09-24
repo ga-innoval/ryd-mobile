@@ -16,6 +16,9 @@ export function usePendingPlantsPolling() {
   const hasWatermark = useDownloadStore((s) => s.lastDownloadAt !== null);
 
   const latest = useRef({ pendingCount, checkPending });
+  // El patrón de «lo último»: el temporizador vive fuera de React y tiene que
+  // leer los valores de ahora sin volver a suscribirse en cada render.
+  // eslint-disable-next-line react-hooks/refs
   latest.current = { pendingCount, checkPending };
 
   const lastCheckedAtRef = useRef(0);

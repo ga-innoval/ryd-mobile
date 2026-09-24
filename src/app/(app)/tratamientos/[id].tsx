@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams } from "expo-router";
 import {
   useCallback,
   useEffect,
@@ -24,6 +24,7 @@ import {
   KeyboardAwareScrollView,
   type KeyboardAwareScrollViewRef,
 } from "react-native-keyboard-controller";
+import { useAppRouter } from "@/lib/use-app-router";
 import { useHideOnScroll } from "@/lib/use-hide-on-scroll";
 import { useTratamiento } from "@/domains/plants/hooks/use-tratamiento";
 import { TratamientosPageHeader } from "@/domains/navigation/tratamientos-page-header";
@@ -287,7 +288,7 @@ const STICKY_HEADER_INDICES = SECTIONS.map((_, index) => 1 + index * 2);
 export default function TratamientoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading } = useTratamiento(id);
-  const router = useRouter();
+  const router = useAppRouter();
 
   // La evaluación entera. Es el búfer de edición: cuando exista la tabla
   // `respuestas`, lo guardado serán sus `defaultValues`, guardar será

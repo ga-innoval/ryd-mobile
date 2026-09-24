@@ -1,6 +1,5 @@
 import { useRef } from "react";
 import { ActivityIndicator, Keyboard, TextInput, View } from "react-native";
-import { router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { AlertCircleIcon } from "lucide-react-native";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,8 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { loginSchema, type LoginFormValues } from "../schemas";
 import { useLogin } from "../hooks/use-login";
+import { useAppRouter } from "@/lib/use-app-router";
 
 export function LoginForm() {
+  const router = useAppRouter();
   const passwordInputRef = useRef<TextInput>(null);
 
   const {

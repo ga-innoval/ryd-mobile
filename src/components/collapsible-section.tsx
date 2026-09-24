@@ -12,11 +12,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  type LucideIcon,
-} from "lucide-react-native";
+import { ChevronDownIcon, type LucideIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
@@ -281,6 +277,9 @@ export function CollapsibleBody({
   // Lo que nunca se abre no se monta; lo que se abre no se vuelve a desmontar.
   const [hasMounted, setHasMounted] = useState(open);
   useEffect(() => {
+    // Es un pestillo de montaje, no un cálculo: el render de más es justamente
+    // el que monta el contenido la primera vez que se abre.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (open) setHasMounted(true);
   }, [open]);
 
