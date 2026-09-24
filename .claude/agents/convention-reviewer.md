@@ -61,8 +61,7 @@ devuelves un veredicto accionable.
 
 **Estado:**
 
-- [ ] Zustand SOLO para estado que no vive en SQLite y debe persistir entre
-      sesiones. Si el cambio mete `isPending`/`error` en un store, es
+- [ ] Zustand SOLO para estado que no vive en SQLite. Si el cambio mete `isPending`/`error` en un store, es
       duplicación: eso sale de la mutation. `sync-store.ts` es deuda conocida,
       no un patrón a copiar.
 
