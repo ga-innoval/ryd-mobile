@@ -30,19 +30,26 @@ sincronización manual.
 - **Testing**: Jest + `@testing-library/react-native`, factories en
   `src/test-utils/factories/`
 
-## Estado actual del schema (v2) — leer antes de tocar la DB
+## Estado actual del schema (v3) — leer antes de tocar la DB
 
-`src/lib/db/migrations.ts` crea **dos tablas**:
+`src/lib/db/migrations.ts` crea **tres tablas**:
 
 - `plants` (`id, name, campo, cuadro, programa, portainjerto, anio, syncStatus`)
 - `tratamientos` (`id, plantId, name, description, temporada, isActive`), con
   `FOREIGN KEY (plantId) REFERENCES plants(id) ON DELETE CASCADE` e índice en
   `plantId`
+- `respuestas` (`tratamientoId, seccion, payload, syncStatus, updatedAtLocal,
+syncedAt`), con PK compuesta `(tratamientoId, seccion)`, CASCADE contra
+  `tratamientos` e índice en `syncStatus`. Su repositorio es
+  `lib/db/respuestas.repository.ts` y el porqué de la forma está en **Guardado y
+  sincronización de respuestas**
 
-**NO existen todavía**: la tabla `respuestas` ni la VIEW
-`plantaciones_with_progress`. `src/app/(app)/index.tsx` sigue inyectando
-`progress: 0` a mano (los tratamientos ya salen del repositorio). No escribas
-SELECT contra nada que no esté en la migración v2.
+**NO existen todavía**: la tabla `respuesta_fotos` —espera la decisión de dónde
+acaban los archivos— ni la VIEW `plantaciones_with_progress`.
+`src/app/(app)/index.tsx` sigue inyectando `progress: 0` a mano (los
+tratamientos ya salen del repositorio), y **nada escribe en `respuestas`
+todavía**: la pantalla de evaluación sigue guardando solo en el formulario. No
+escribas SELECT contra nada que no esté en la migración v3.
 
 ## Modelo de dominio
 
@@ -107,9 +114,11 @@ Ver **Guardado y sincronización de respuestas** más abajo.
 
 ## Guardado y sincronización de respuestas
 
-> **Diseño acordado, nada implementado.** No existe ni la tabla local ni el lado
-> servidor. El contrato completo —payload de cada sección, endpoints, códigos de
-> error y modelos propuestos para Django— está en
+> **Qué hay de esto:** la tabla local y su repositorio existen y tienen tests
+> (migración v3, `lib/db/respuestas.repository.ts`). **Nadie los llama todavía**:
+> falta conectar el guardado a la pantalla, el push, y todo el lado servidor. El
+> contrato completo —payload de cada sección, endpoints, códigos de error y
+> modelos propuestos para Django— está en
 > [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md). Aquí solo van las
 > decisiones y su porqué, para no volver a discutirlas.
 
