@@ -1,3 +1,7 @@
+// Solo el tipo, así que la importación se borra al compilar y no hay ciclo con
+// `evaluation-schema.ts`, que toma `EvalQuestion` de aquí.
+import type { EvaluationSectionId } from "./lib/evaluation-schema";
+
 /**
  * Una pregunta de selección única de la encuesta. La comparten los catálogos de
  * evaluación (`lib/evals-*.ts`), que solo se diferencian en su contenido.
@@ -137,6 +141,25 @@ export interface TratamientoRecord {
   // Refleja `is_active` de la fila remota `EvaluacionTratamiento`, no el del
   // catálogo `Tratamiento`. Decide si la fila se conserva o se poda.
   isActive: boolean;
+}
+
+/**
+ * Una sección de la evaluación tal como se guarda, con su propio ciclo de
+ * sincronización. La identidad es `(tratamientoId, seccion)`.
+ *
+ * `payload` sale de SQLite como texto, así que aquí es `unknown` y no el tipo
+ * de la sección: quien lo lea decide con qué esquema validarlo. Al guardar sí
+ * está tipado — ver `saveRespuesta`.
+ */
+export interface RespuestaRecord {
+  tratamientoId: string;
+  seccion: EvaluationSectionId;
+  payload: unknown;
+  syncStatus: SyncStatus;
+  /** Cuándo se guardó en la tablet. Lo pone quien llama, en ISO. */
+  updatedAtLocal: string;
+  /** `null` mientras no haya llegado al servidor. */
+  syncedAt: string | null;
 }
 
 export interface PlantSyncEntry {
