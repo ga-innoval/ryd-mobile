@@ -71,7 +71,10 @@ se relaciona con el `id` de "tratamiento" tal como el cliente lo recibe
 algunos campos obligatorios al inicio, el resto se completa con el
 tiempo). Tiene su propio ciclo de sync: `sync_status`
 (`pending | syncing | synced | error`), `updated_at_local`, `synced_at`.
-Usa UUID como PK, generable en cliente para push idempotente.
+La unidad es la **sección**, no la evaluación entera, y su identidad es la
+llave natural `(tratamiento, sección)` — no hace falta generar un UUID: las
+dos partes ya existen en los dos lados, así que un reenvío no puede duplicar.
+Ver **Guardado y sincronización de respuestas** más abajo.
 
 **Reglas de sync clave**:
 
@@ -94,11 +97,113 @@ Usa UUID como PK, generable en cliente para push idempotente.
   sincronizar debe conservarse en vez de podarse, y hay que revisar la CASCADE
   de `tratamientos` (borrar uno destruiría sus respuestas). Los
   `TODO(respuestas)` del repositorio marcan los dos puntos exactos.
-- El admin puede cerrar una encuesta (`encuesta_abierta`/`is_active` a
-  nivel plantación) — el push de respuestas debe manejar el rechazo como
-  un estado distinguible (`rejected_closed`), no como error genérico.
+- El admin puede cerrar una encuesta — el push de respuestas debe manejar el
+  rechazo como un estado distinguible (`rejected_closed`), no como error
+  genérico. **Ojo: `encuesta_abierta` no existe en el backend.** Se revisó
+  `apps/ryd/` entero y el nombre solo aparece en su CLAUDE.md como pendiente;
+  de qué campo de `Plantacion` depende está sin decidir.
 - Batch push/pull debe devolver resultado granular por registro, no
   todo-o-nada.
+
+## Guardado y sincronización de respuestas
+
+> **Diseño acordado, nada implementado.** No existe ni la tabla local ni el lado
+> servidor. El contrato completo —payload de cada sección, endpoints, códigos de
+> error y modelos propuestos para Django— está en
+> [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md). Aquí solo van las
+> decisiones y su porqué, para no volver a discutirlas.
+
+**La tablet y el servidor guardan formas distintas a propósito.** La forma de
+una tabla la dictan sus lectores: los de la tablet son el formulario —que
+rehidrata la sección entera de golpe— y el conteo de progreso, sin una sola
+consulta analítica; los del servidor son los reportes y los dashboards, que
+preguntan cosas como la distribución de calibres por portainjerto y eso es
+`GROUP BY` sobre filas. Por eso la tablet guarda JSON y el servidor
+**desempaqueta ese JSON en tablas normalizadas**. Lo que une a los dos lados es
+el contrato del payload, no una réplica de tablas.
+
+**La unidad es la sección**, no la evaluación entera, porque la evaluación no se
+captura de una sentada: Rendimiento guarda una fecha por corte y los cortes
+ocurren en días distintos, y las post-cosecha son a 15 y 30 días. Una evaluación
+vive semanas. Con la sección como unidad, lo terminado se sincroniza y queda a
+salvo sin arrastrar lo que falta. Efecto lateral que encaja con el resto del
+modelo: **sin fila no es lo mismo que fila vacía** —una sección que nadie tocó
+no existe; una capturada y vaciada, sí—, el mismo "vacío no es cero" de Brix,
+Criba y Rendimiento un nivel más arriba.
+
+La tabla local, en la migración v3:
+
+```sql
+CREATE TABLE IF NOT EXISTS respuestas (
+  tratamientoId TEXT NOT NULL,
+  seccion TEXT NOT NULL,                      -- EvaluationSectionId
+  payload TEXT NOT NULL,                      -- la sección, tal como se capturó
+  syncStatus TEXT NOT NULL DEFAULT 'pending',
+  updatedAtLocal TEXT NOT NULL,
+  syncedAt TEXT,
+  PRIMARY KEY (tratamientoId, seccion),
+  FOREIGN KEY (tratamientoId) REFERENCES tratamientos(id) ON DELETE CASCADE
+);
+```
+
+**En SQLite se guarda lo capturado (`z.input`), no lo validado (`z.output`)** —
+los dos tipos ya están separados en `evaluation-schema.ts`. Reabrir la pantalla
+tiene que enseñar exactamente lo que se tecleó: si se guardara el número, `"14."`
+a medio escribir no existiría y al rehidratar habría que decidir si un `14` se
+pinta `"14"` o `"14.0"`. El parseo a números es un paso del push, en un mapper de
+`lib/` con test, no del guardado.
+
+**Las fotografías no van en `respuestas`** aunque sean una sección en pantalla:
+son archivos. Van en `respuesta_fotos`, una fila por archivo, con UUID de
+cliente —ahí sí, porque un archivo no tiene llave natural— y su subida es
+multipart, una petición por foto. Dos cosas pendientes antes de eso: las URIs
+que devuelve `expo-image-picker` apuntan a **caché** y el sistema puede
+purgarlas, así que hay que copiarlas a almacenamiento de la app, y eso es
+`expo-file-system`, **que no está instalado** (dependencia nueva: preguntar
+antes).
+
+**El progreso se calcula en TypeScript al guardar**, donde los valores ya están
+en memoria y tipados, y se escribe como columna en esa misma fila; la VIEW de
+plantación solo agrega. Así la regla de "qué cuenta como completo" vive una sola
+vez, en `lib/` con tests, en vez de reescrita en SQL, y el diseño no depende de
+las funciones JSON de SQLite. No contradice el "progress no se guarda como
+columna" de arriba: aquel es el de plantación, que se alimenta de otras tablas y
+por eso puede desincronizarse; este es un derivado de la misma fila, escrito en
+la misma transacción por el único escritor. Esa columna todavía no puede nacer:
+**cuándo cuenta una sección como completa sigue sin definir** —Brix no tiene un
+número fijo de cortes—.
+
+### Lo que hay que construir en Django
+
+El punto de partida real, verificado leyendo `apps/ryd/` entero:
+`RespuestaTratamiento` **existe pero está vacío** (`models.py:155`) —OneToOne
+contra `EvaluacionTratamiento` con `primary_key=True`, `evaluador`, las dos
+fechas, y un comentario `# respuestas here` donde irían las columnas—. La tabla
+no tiene filas, así que es modificable sin migrar datos. No hay serializer de
+escritura, no hay endpoint de escritura (`PlantacionViewSet` es un
+`ReadOnlyModelViewSet` y es la única vista), y no hay ni un `ImageField` en todo
+el módulo.
+
+Lo que el servidor tiene que hacer, con el detalle en el contrato:
+
+- **Aceptar escritura por sección** (`PUT .../respuesta/{seccion}/` y su versión
+  en lote), creando el ancla al primer envío con `get_or_create`.
+- **Reemplazar dentro del alcance de la sección**, nunca mezclar: el payload es
+  el estado completo de esa sección, y mezclando, "descarté el corte 3" sería
+  inexpresable y el corte borrado viviría para siempre en el reporte.
+- **No rechazar por contenido.** Valida forma y guarda; los rechazos se reservan
+  para encuesta cerrada, tratamiento inactivo, auth y JSON malformado. Un
+  rechazo por contenido deja el dato encerrado en la tablet.
+- **Guardar el payload crudo** en una columna además de desempaquetarlo. Es lo
+  que hace segura la regla anterior: una pregunta que la app ya manda y el
+  servidor todavía no tiene columna para ella no se pierde, se reprocesa.
+- **`DecimalField`, no `FloatField`**, en pesos y lecturas: los reportes los
+  suman por miles de filas y el error binario acaba descuadrando el dashboard
+  contra la tablet.
+- **Los derivados no se guardan**: R1–R5, los promedios, el peso de la muestra y
+  la distribución por calibre se calculan al consultar.
+- **`null` no es `0`** al desempaquetar. Es la regla que atraviesa todo el
+  formulario y coalescerla corrompe todos los promedios del reporte.
 
 ## Reglas de negocio
 
