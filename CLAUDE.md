@@ -142,14 +142,16 @@ además estos estados aparecen a media captura —por eso existe la pausa de
 tecleo—. Lo que el error impide es dar el tratamiento por terminado y mandarlo.
 Guardar y dar por bueno son dos cosas distintas.
 
-Dónde se ve, por orden de distancia: el campo y la alerta de la sección, el
-estado `invalid` de la cabecera ("Error de captura"), y —pendiente— el chip de
-la tarjeta. **La cabecera dice que hay un error pero no cuál**: con las secciones
-plegadas hay que buscarlo scrolleando. Es una decisión tomada, no un olvido.
+Dónde se ve: el campo y la alerta de la sección, y el **botón flotante**
+`EvaluationErrorButton` —«Ir al error de captura»—, que aparece cuando la sección
+que lo tiene se queda fuera de la pantalla y lleva hasta ella. Falta el chip de
+la tarjeta.
 
-En la cabecera hay dos rojos y no significan lo mismo: `error` es que la
-escritura falló y el trabajo está en peligro, `invalid` es que lo capturado está
-guardado pero tiene un dato imposible. Por eso `error` gana.
+**En la cabecera no va.** Se probó y se quitó: allí el error competía con el
+estado de guardado y acababa tapando el "Guardando…" justo cuando había algo sin
+escribir, que es cuando más falta hace verlo. La cabecera responde «¿está a
+salvo mi trabajo?» y el botón «¿hay algo que revisar y dónde?»; mezclarlas dejaba
+las dos peor.
 
 ## Guardado y sincronización de respuestas
 
@@ -226,6 +228,15 @@ diseño, que avisaba de un problema que se arregla solo. Quedan tres: nada al
 abrir, "Guardando…", "Guardado" en verde, y rojo si falla. La distinción interna
 sigue viva porque decide qué se bloquea: solo la escritura de verdad apaga
 volver, descartar y guardar.
+
+**Al salir de la pantalla se vacía lo pendiente** (la limpieza de
+`EvaluationAutosave`). Sin eso se perdía lo último tecleado en los dos segundos
+antes de salir, porque el temporizador del autoguardado moría con el componente:
+se veía clarísimo con un aviso delante —sale a los 900 ms, así que daba tiempo de
+leerlo y salir antes de que nada se hubiera escrito—, pero pasaba con cualquier
+dato. El vaciado llama al repositorio directamente y no a la mutation, que no
+llega viva al final del desmontaje. **Sigue sin cubrir que el sistema mate la
+app**: para eso haría falta engancharse a `AppState`.
 
 De ahí sale `MANUAL_FEEDBACK_MS`: **al pulsar «Guardar» la rueda se queda un
 momento aunque la escritura acabe antes**. Sin eso el botón parecía roto, porque
@@ -468,6 +479,21 @@ renombró) y `temporada` en español.
   pantalla (ej. empty states reciben todo por props)
 - `EmptyState` es genérico (`icon`, `title`, `body`, `renderAction`),
   reutilizable en toda la app
+- **Un campo marcado se marca con la variante del `Input`**, nunca con clases
+  sueltas: `warn` para el dato fuera de lo habitual y `destructive` para el
+  imposible. Estaban escritas a mano en Brix, Criba y Rendimiento, y cambiar el
+  ámbar obligaba a tocar los tres. Las variantes llevan también el color del
+  cursor y de la selección, que son props del `TextInput` y no salen del
+  `className`: sus hex son los tokens `warn` y `destructive` de
+  `tailwind.config.js`, copiados en `input.tsx` porque desde JS no hay forma de
+  leerlos.
+- **Los atajos flotantes entran y salen con `useAppearAnimation`**
+  (`src/lib/use-appear-animation.ts`): 200 ms de opacidad y 20 px de subida. Lo
+  usan el botón de volver arriba del listado y el de ir al error de captura, y
+  los números viven ahí y no en cada uno porque dos atajos que aparecen distinto
+  se leerían como dos cosas distintas de la app. `appearTo` es un worklet para
+  que dé igual si la decisión se toma en el hilo de la interfaz —el listado la
+  resuelve dentro de su `useAnimatedScrollHandler`— o desde JS.
 - **Las animaciones van con Reanimated manual, nunca con las clases
   `animate-*` de NativeWind** (ver el gotcha). El pulso de skeletons y dots de
   estado está en `usePulseAnimation` (`src/lib/use-pulse-animation.ts`): sus

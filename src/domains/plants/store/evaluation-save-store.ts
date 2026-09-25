@@ -10,11 +10,10 @@ import { create } from "zustand";
  * se distinguen aquí pero **se enseñan igual**, los dos como "Guardando…". La
  * separación la usa la cabecera para decidir qué bloquear: solo la escritura de
  * verdad apaga los botones.
- *
- * Los dos rojos no son lo mismo: `error` es que la escritura falló y el trabajo
- * está en peligro; `invalid` es que lo capturado tiene un dato imposible, ya
- * guardado pero que impedirá dar la evaluación por terminada. Por eso `error`
- * gana.
+ * **Aquí solo se habla de la escritura.** Que lo capturado tenga un dato
+ * imposible no es un estado de guardado y no entra: lo enseña el botón flotante
+ * de la pantalla. Mezclarlo tapaba el "Guardando…" justo cuando había algo sin
+ * escribir, que es cuando más falta hace verlo.
  */
 export type SaveStatus =
   "idle" | "pending" | "saving" | "saved" | "error" | "invalid";

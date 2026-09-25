@@ -1,4 +1,4 @@
-import { useSQLiteContext } from "expo-sqlite";
+import { useSQLiteContext, type SQLiteDatabase } from "expo-sqlite";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
 import {
@@ -33,6 +33,33 @@ type SaveRespuestasInput = {
 };
 
 /**
+ * Escribe las secciones indicadas. Fuera de la mutation porque hace falta
+ * también al salir de la pantalla, cuando el componente ya se está
+ * desmontando y su mutation no sobreviviría.
+ */
+export async function saveRespuestaSecciones(
+  db: SQLiteDatabase,
+  tratamientoId: string,
+  { values, secciones }: SaveRespuestasInput,
+): Promise<void> {
+  // Una marca de tiempo para toda la tanda: lo que se guardó junto se capturó
+  // junto, y así el orden de la cola del push no depende de en qué milisegundo
+  // cayó cada fila.
+  const updatedAtLocal = new Date().toISOString();
+
+  // Sin transacción: cada sección es independiente por diseño, y si una falla,
+  // que las otras hayan quedado guardadas es mejor que perderlas.
+  for (const seccion of secciones) {
+    await saveRespuesta(db, {
+      tratamientoId,
+      seccion,
+      payload: values[seccion],
+      updatedAtLocal,
+    });
+  }
+}
+
+/**
  * Escribe en SQLite las secciones que cambiaron.
  *
  * **No invalida su propia query a propósito.** Refrescarla volvería a volcar lo
@@ -48,23 +75,8 @@ export function useSaveRespuestas(tratamientoId: string) {
   const db = useSQLiteContext();
 
   return useMutation({
-    mutationFn: async ({ values, secciones }: SaveRespuestasInput) => {
-      // Una marca de tiempo para toda la tanda: lo que se guardó junto se
-      // capturó junto, y así el orden de la cola del push no depende de en qué
-      // milisegundo cayó cada fila.
-      const updatedAtLocal = new Date().toISOString();
-
-      // Sin transacción: cada sección es independiente por diseño, y si una
-      // falla, que las otras hayan quedado guardadas es mejor que perderlas.
-      for (const seccion of secciones) {
-        await saveRespuesta(db, {
-          tratamientoId,
-          seccion,
-          payload: values[seccion],
-          updatedAtLocal,
-        });
-      }
-    },
+    mutationFn: (input: SaveRespuestasInput) =>
+      saveRespuestaSecciones(db, tratamientoId, input),
     onError: (error) => {
       toast.error({
         title: "No se pudo guardar",
