@@ -6,7 +6,7 @@ import {
   View,
   type TextInput,
 } from "react-native";
-import { PlusIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react-native";
+import { PlusIcon, Trash2Icon, CircleAlertIcon } from "lucide-react-native";
 import { useController, useFieldArray, useWatch } from "react-hook-form";
 import {
   CollapsibleBody,
@@ -396,7 +396,7 @@ function BrixCorteCard({
 
           {summary.firstOutOfRange !== null && (
             <View className="-mt-1 px-4 pb-4">
-              <Alert variant="warning" icon={TriangleAlertIcon}>
+              <Alert variant="warning" icon={CircleAlertIcon}>
                 <AlertDescription>
                   {`L${summary.firstOutOfRange + 1} = ${readings[summary.firstOutOfRange]} está fuera del rango habitual. ¿Faltó el punto decimal?`}
                 </AlertDescription>
@@ -458,7 +458,7 @@ function CorteResults({ pairs }: { pairs: BrixPairSummary[] }) {
             className={cn(
               "font-medium",
               pair.value === null && "text-muted-foreground",
-              pair.outOfRange && "text-amber-800",
+              pair.outOfRange && "text-warn",
             )}
             style={styles.tabular}
           >
@@ -475,21 +475,13 @@ function PairResult({ pair }: { pair: BrixPairSummary }) {
     <View
       className={cn(
         "h-10 flex-row items-center justify-center gap-1.5 rounded-lg",
-        pair.outOfRange
-          ? "bg-amber-50"
-          : pair.value === null
-            ? "bg-background"
-            : "bg-foreground",
+        pair.value === null ? "bg-background" : "bg-foreground",
       )}
     >
-      {pair.outOfRange && (
-        <Icon as={TriangleAlertIcon} size={14} className="text-amber-700" />
-      )}
       <Text
         className={cn(
           "text-lg font-bold text-white",
           pair.value === null && "text-muted-foreground",
-          pair.outOfRange && "text-amber-800",
         )}
         style={styles.tabular}
       >
@@ -580,11 +572,8 @@ function BrixReadingInput({
         submitBehavior={isLast ? "blurAndSubmit" : "submit"}
         // Corregir una lectura es reescribirla entera, no editar un dígito.
         selectTextOnFocus
-        className={cn(
-          "pl-10 text-right text-lg font-medium leading-6",
-          isFocused && "border-primary",
-          outOfRange && "border-amber-600 bg-amber-50 text-amber-800",
-        )}
+        variant={outOfRange ? "warn" : "default"}
+        className="pl-10 text-right text-lg font-medium leading-6"
         style={styles.tabular}
       />
       {/* Encima del campo pero sin tragarse el toque: tocar la etiqueta

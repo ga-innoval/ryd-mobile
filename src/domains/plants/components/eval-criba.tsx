@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type Ref } from "react";
 import { StyleSheet, View, type TextInput } from "react-native";
-import { TriangleAlertIcon } from "lucide-react-native";
+import { CircleAlertIcon } from "lucide-react-native";
 import { useController, useWatch } from "react-hook-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
+import { Input, type InputVariant } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
@@ -43,16 +43,11 @@ const CRIBA_FIELDS = [
 const FIELDS_PER_CALIBRE = CRIBA_FIELDS.length;
 
 /**
- * Cómo se marca el campo según lo que pase con él. Rojo para el dato imposible
- * y ámbar para lo que solo se sale de lo habitual, que es la misma distinción
- * que hace `isCribaError` y la que usan las variantes del `Alert`.
+ * Cómo se marca el campo según lo que pase con él: `destructive` para el dato
+ * imposible y `warn` para lo que solo se sale de lo habitual. Es la misma
+ * distinción que hace `isCribaError` y la que usan las variantes del `Alert`.
  */
-const FIELD_TONE_CN = {
-  warning: "border-amber-600 bg-amber-50 text-amber-800",
-  error: "border-red-600 bg-red-50 text-red-800",
-} as const;
-
-type FieldTone = keyof typeof FIELD_TONE_CN;
+type FieldTone = Extract<InputVariant, "warn" | "destructive">;
 
 /** Qué dice cada aviso. Cuál toca lo decide `firstCribaWarning`, que es donde
  *  vive el orden y lo que tiene test. */
@@ -151,7 +146,7 @@ export function EvalCriba() {
   const warning = firstCribaWarning(summary);
   // Lo imposible se pinta en rojo; lo raro, en ámbar.
   const tone: FieldTone =
-    warning !== null && isCribaError(warning) ? "error" : "warning";
+    warning !== null && isCribaError(warning) ? "destructive" : "warn";
 
   // Un hueco por campo, en el orden de captura: el peso total de un calibre, su
   // promedio, y de ahí al calibre siguiente. Es lo que encadena «Siguiente».
@@ -263,8 +258,8 @@ export function EvalCriba() {
         // tiene que explicar qué pasa. La variante `warning` es la misma que usa
         // el aviso de rango de Brix.
         <Alert
-          variant={tone === "error" ? "destructive" : "warning"}
-          icon={TriangleAlertIcon}
+          variant={tone === "destructive" ? "destructive" : "warning"}
+          icon={CircleAlertIcon}
         >
           <AlertDescription>{WARNING_TEXT[warning]}</AlertDescription>
         </Alert>
@@ -369,10 +364,10 @@ function CribaWeightField({
         submitBehavior={isLast ? "blurAndSubmit" : "submit"}
         // Corregir un peso es reescribirlo entero, no editar un dígito.
         selectTextOnFocus
+        variant={warn ? tone : "default"}
         className={cn(
           "pr-8 text-right text-lg font-medium leading-6",
           isFocused && "border-primary",
-          warn && FIELD_TONE_CN[tone],
         )}
         style={styles.tabular}
       />

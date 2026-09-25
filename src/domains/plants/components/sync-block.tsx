@@ -39,7 +39,7 @@ const SYNC_STATUS_CONFIG: Record<SyncStatus, SyncStatusConfig> = {
     label: "Sin sincronizar",
   },
   [SyncStatus.error]: {
-    dotClassName: "bg-red-400",
+    dotClassName: "bg-destructive",
     showDot: true,
     label: "Error de sincronización",
   },
@@ -50,7 +50,7 @@ const SYNC_STATUS_CONFIG: Record<SyncStatus, SyncStatusConfig> = {
     label: "Sincronización pendiente",
   },
   [SyncStatus.rejected_closed]: {
-    dotClassName: "bg-red-400",
+    dotClassName: "bg-destructive",
     showDot: true,
     label: "Sincronización rechazada",
   },

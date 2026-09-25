@@ -72,7 +72,7 @@ const toastConfig: ToastConfig = {
   error: ({ text1, text2, hide }) => (
     <ToastBody
       icon={XIcon}
-      badgeTextClassName="text-red-500"
+      badgeTextClassName="text-destructive"
       title={text1}
       description={text2}
       onClose={() => hide()}

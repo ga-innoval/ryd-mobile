@@ -68,11 +68,7 @@ const STATUS_VIEW: Partial<
   pending: { text: "Guardando…" },
   saving: { text: "Guardando…" },
   saved: { text: "Guardado", dotCn: "bg-green-500" },
-  error: { text: "No se pudo guardar", dotCn: "bg-red-400" },
-  // Mismo rojo que el fallo de escritura, pero hablan de cosas distintas: aquí
-  // lo capturado está guardado y a salvo, lo que pasa es que tiene un dato
-  // imposible y por eso la evaluación no se podrá dar por terminada.
-  invalid: { text: "Error de captura", dotCn: "bg-red-400" },
+  error: { text: "No se pudo guardar", dotCn: "bg-destructive" },
 };
 
 /**

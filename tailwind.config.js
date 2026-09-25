@@ -23,8 +23,12 @@ module.exports = {
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+          background: "#faeceb",
+          DEFAULT: "#8a1e12",
+        },
+        warn: {
+          background: "#FFF5E1",
+          DEFAULT: "#B96419",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",

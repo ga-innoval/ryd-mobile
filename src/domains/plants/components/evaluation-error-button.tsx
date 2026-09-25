@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable } from "react-native";
 import { useWatch } from "react-hook-form";
 import Animated, {
   cancelAnimation,
