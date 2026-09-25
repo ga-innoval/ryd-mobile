@@ -2,10 +2,9 @@ import { useCallback, useRef } from "react";
 import type { FlashListRef } from "@shopify/flash-list";
 import {
   useSharedValue,
-  useAnimatedStyle,
   useAnimatedScrollHandler,
-  withTiming,
 } from "react-native-reanimated";
+import { appearTo, useAppearAnimation } from "@/lib/use-appear-animation";
 
 const SHOW_THRESHOLD_PX = 150;
 const DIRECTION_SENSITIVITY_PX = 4; // Para no contemplar micro-scrolls
@@ -13,7 +12,10 @@ const DIRECTION_SENSITIVITY_PX = 4; // Para no contemplar micro-scrolls
 export function useScrollToTopButton<T>() {
   const listRef = useRef<FlashListRef<T>>(null);
 
-  const isVisible = useSharedValue(0);
+  // La curva de entrada y salida es compartida con el atajo al error de
+  // captura: los dos flotan sobre el contenido y tienen que aparecer igual.
+  const { style: buttonAnimatedStyle, progress: isVisible } =
+    useAppearAnimation();
   const prevScrollY = useSharedValue(0);
 
   const scrollHandler = useAnimatedScrollHandler({
@@ -30,22 +32,13 @@ export function useScrollToTopButton<T>() {
       // movimiento, cubre el caso de llegar al fondo y detenerse ahí).
       // Se oculta solo si el usuario vuelve activamente hacia el top,
       // o si ya está lo suficientemente cerca de él.
-      if (pastThreshold) {
-        isVisible.value = withTiming(1, { duration: 200 });
-      } else {
-        isVisible.value = withTiming(0, { duration: 200 });
-      }
+      appearTo(isVisible, pastThreshold);
 
       if (Math.abs(diff) > DIRECTION_SENSITIVITY_PX) {
         prevScrollY.value = currentY;
       }
     },
   });
-
-  const buttonAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: isVisible.value,
-    transform: [{ translateY: (1 - isVisible.value) * 20 }],
-  }));
 
   const scrollToTop = useCallback(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: true });

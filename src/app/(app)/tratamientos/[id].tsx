@@ -30,6 +30,7 @@ import { useTratamiento } from "@/domains/plants/hooks/use-tratamiento";
 import { useRespuestas } from "@/domains/plants/hooks/use-respuestas";
 import { buildEvaluationFromRespuestas } from "@/domains/plants/lib/build-evaluation-from-respuestas";
 import { EvaluationAutosave } from "@/domains/plants/components/evaluation-autosave";
+import { EvaluationErrorButton } from "@/domains/plants/components/evaluation-error-button";
 import { TratamientosPageHeader } from "@/domains/navigation/tratamientos-page-header";
 import {
   TratamientoChip,
@@ -68,6 +69,7 @@ import { usePhotosStore } from "@/domains/plants/store/photos-store";
 import {
   buildEvaluationDefaults,
   evaluationSchema,
+  EVALUATION_SECTION_IDS,
   type EvaluationFormValues,
   type EvaluationSectionId,
   type EvaluationValues,
@@ -546,11 +548,17 @@ function EvaluationSections({
   // pliegue de cualquier sección de más arriba, y nada de lo que se pinta
   // depende de ello.
   const sectionLayouts = useRef<
-    Record<string, { bodyY?: number; headerHeight?: number }>
+    Record<
+      string,
+      { bodyY?: number; headerHeight?: number; bodyHeight?: number }
+    >
   >({});
 
   const rememberLayout = useCallback(
-    (sectionId: string, patch: { bodyY?: number; headerHeight?: number }) => {
+    (
+      sectionId: string,
+      patch: { bodyY?: number; headerHeight?: number; bodyHeight?: number },
+    ) => {
       sectionLayouts.current[sectionId] = {
         ...sectionLayouts.current[sectionId],
         ...patch,
@@ -595,89 +603,136 @@ function EvaluationSections({
     [scrollOffset, scrollRef, toggleSection],
   );
 
+  /**
+   * Dónde empieza y acaba una sección en coordenadas del contenido. La cabecera
+   * no puede dar su propia `y` —al ser sticky, `ScrollView` la envuelve—, así
+   * que el principio se deduce restándole su alto a la `y` del cuerpo.
+   */
+  const sectionBounds = useCallback((sectionId: string) => {
+    const { bodyY, headerHeight, bodyHeight } =
+      sectionLayouts.current[sectionId] ?? {};
+    if (bodyY === undefined || headerHeight === undefined) return undefined;
+
+    return { top: bodyY - headerHeight, bottom: bodyY + (bodyHeight ?? 0) };
+  }, []);
+
+  /** Lleva la sección a lo alto de la pantalla, como al plegar una cabecera. */
+  const scrollToSection = useCallback(
+    (sectionId: string) => {
+      const bounds = sectionBounds(sectionId);
+      if (!bounds) return;
+
+      Keyboard.dismiss();
+      scrollRef.current?.scrollTo({ y: bounds.top, animated: true });
+    },
+    [sectionBounds, scrollRef],
+  );
+
+  // Lo que se ve del scroll, para decidir si la sección con error está fuera.
+  const [viewportHeight, setViewportHeight] = useState(0);
+
   return (
-    // Brix trae campos de texto y va al final: sin esto, el teclado taparía las
-    // lecturas. Por dentro es un `Reanimated.ScrollView` que recibe los hijos
-    // tal cual —así `stickyHeaderIndices` sigue contando bien—, deja pasar el
-    // `onScroll` worklet y su ref es la instancia del scroll.
-    // `contentContainerClassName` funciona porque está registrado en
-    // `nativewind-interop.ts`.
-    <KeyboardAwareScrollView
-      ref={scrollRef}
-      // Deja a la vista el resultado del par bajo la lectura enfocada, no
-      // solo el campo.
-      bottomOffset={56}
-      // Con el teclado abierto, el primer toque en un botón —«Agregar
-      // corte», la cabecera de un corte— solo cerraba el teclado y había
-      // que tocar dos veces. Así el toque llega a quien lo maneja.
-      keyboardShouldPersistTaps="handled"
-      onScroll={onScroll}
-      scrollEventThrottle={16}
-      // Fija la cabecera de la sección en curso; al entrar la siguiente,
-      // esta la empuja fuera. Lo hace ScrollView por su cuenta: engancha su
-      // propio listener nativo, así que no se pisa con `onScroll`.
-      stickyHeaderIndices={STICKY_HEADER_INDICES}
-      // Sin `gap`: separaría cada cabecera de su propio cuerpo, que ahora
-      // son hijos hermanos. La separación entre secciones va en el cuerpo.
-      contentContainerClassName="px-4 pb-10"
+    // El scroll y el atajo al error, superpuestos: `flex-1` para que el hueco
+    // sea el de la pantalla, y el `onLayout` da el alto que hace falta para
+    // saber qué secciones se están viendo.
+    <View
+      className="flex-1"
+      onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
     >
-      {/* Reserva el hueco del bloque superpuesto. Sin holgura extra: la
+      {/* Brix trae campos de texto y va al final: sin esto, el teclado taparía
+          las lecturas. Por dentro es un `Reanimated.ScrollView` que recibe los
+          hijos tal cual —así `stickyHeaderIndices` sigue contando bien—, deja
+          pasar el `onScroll` worklet y su ref es la instancia del scroll.
+          `contentContainerClassName` funciona porque está registrado en
+          `nativewind-interop.ts`. */}
+      <KeyboardAwareScrollView
+        ref={scrollRef}
+        // Deja a la vista el resultado del par bajo la lectura enfocada, no
+        // solo el campo.
+        bottomOffset={56}
+        // Con el teclado abierto, el primer toque en un botón —«Agregar
+        // corte», la cabecera de un corte— solo cerraba el teclado y había
+        // que tocar dos veces. Así el toque llega a quien lo maneja.
+        keyboardShouldPersistTaps="handled"
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        // Fija la cabecera de la sección en curso; al entrar la siguiente,
+        // esta la empuja fuera. Lo hace ScrollView por su cuenta: engancha su
+        // propio listener nativo, así que no se pisa con `onScroll`.
+        stickyHeaderIndices={STICKY_HEADER_INDICES}
+        // Sin `gap`: separaría cada cabecera de su propio cuerpo, que ahora
+        // son hijos hermanos. La separación entre secciones va en el cuerpo.
+        contentContainerClassName="px-4 pb-10"
+      >
+        {/* Reserva el hueco del bloque superpuesto. Sin holgura extra: la
               primera cabecera ya trae la suya, y sumarlas dejaría la primera
               sección al doble de distancia que las demás. */}
-      <View style={{ height: reservedHeight }} />
-      {/* Un array se aplana en los hijos del scroll (un Fragment no), que
+        <View style={{ height: reservedHeight }} />
+        {/* Un array se aplana en los hijos del scroll (un Fragment no), que
               es lo que permite generar las secciones y seguir teniendo cabecera
               y cuerpo como hijos indexables.
 
               Los valores de cada sección viven en el formulario, bajo su
               propio `id` (ver `evaluationSchema`). */}
-      {SECTIONS.flatMap((section) => {
-        const open = openSections[section.id] ?? true;
+        {SECTIONS.flatMap((section) => {
+          const open = openSections[section.id] ?? true;
 
-        const headerProps = {
-          icon: section.icon,
-          title: section.title,
-          description: section.description,
-          open,
-          onToggle: () => handleToggle(section.id, open),
-          onLayout: (event: LayoutChangeEvent) =>
-            rememberLayout(section.id, {
-              headerHeight: event.nativeEvent.layout.height,
-            }),
-        };
-
-        return [
-          section.kind === "questions" ? (
-            // Su avance lo calcula ella con un `useWatch` de su sección,
-            // para que contestar no re-renderice la pantalla.
-            <EvalQuestionsHeader
-              key={`${section.id}-header`}
-              {...headerProps}
-              sectionId={section.id}
-              questions={section.questions}
-            />
-          ) : (
-            // Las que no son preguntas resumen lo suyo en el mismo hueco
-            // de la cabecera, y cada resumen lee sus propios valores.
-            <CollapsibleHeader
-              key={`${section.id}-header`}
-              {...headerProps}
-              summary={sectionSummary(section)}
-            />
-          ),
-          <CollapsibleBody
-            key={`${section.id}-body`}
-            open={open}
-            onLayout={(event) =>
+          const headerProps = {
+            icon: section.icon,
+            title: section.title,
+            description: section.description,
+            open,
+            onToggle: () => handleToggle(section.id, open),
+            onLayout: (event: LayoutChangeEvent) =>
               rememberLayout(section.id, {
-                bodyY: event.nativeEvent.layout.y,
-              })
-            }
-          >
-            {sectionBody(section, tratamientoId)}
-          </CollapsibleBody>,
-        ];
-      })}
-    </KeyboardAwareScrollView>
+                headerHeight: event.nativeEvent.layout.height,
+              }),
+          };
+
+          return [
+            section.kind === "questions" ? (
+              // Su avance lo calcula ella con un `useWatch` de su sección,
+              // para que contestar no re-renderice la pantalla.
+              <EvalQuestionsHeader
+                key={`${section.id}-header`}
+                {...headerProps}
+                sectionId={section.id}
+                questions={section.questions}
+              />
+            ) : (
+              // Las que no son preguntas resumen lo suyo en el mismo hueco
+              // de la cabecera, y cada resumen lee sus propios valores.
+              <CollapsibleHeader
+                key={`${section.id}-header`}
+                {...headerProps}
+                summary={sectionSummary(section)}
+              />
+            ),
+            <CollapsibleBody
+              key={`${section.id}-body`}
+              open={open}
+              onLayout={(event) =>
+                rememberLayout(section.id, {
+                  bodyY: event.nativeEvent.layout.y,
+                  // El alto lo usa el atajo al error para saber si la sección
+                  // sigue asomando por el borde de la pantalla.
+                  bodyHeight: event.nativeEvent.layout.height,
+                })
+              }
+            >
+              {sectionBody(section, tratamientoId)}
+            </CollapsibleBody>,
+          ];
+        })}
+      </KeyboardAwareScrollView>
+
+      <EvaluationErrorButton
+        order={EVALUATION_SECTION_IDS}
+        boundsOf={sectionBounds}
+        scrollOffset={scrollOffset}
+        viewportHeight={viewportHeight}
+        onGoTo={scrollToSection}
+      />
+    </View>
   );
 }
