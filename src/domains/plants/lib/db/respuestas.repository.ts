@@ -4,6 +4,7 @@ import type {
   EvaluationFormValues,
   EvaluationSectionId,
 } from "../evaluation-schema";
+import { seccionHasError } from "../evaluation-errors";
 
 // La fila tal como vive en SQLite: el payload es texto y los enums son strings
 // sueltos, porque SQLite no sabe de tipos nuestros.
@@ -79,21 +80,44 @@ export const saveRespuesta = async <S extends EvaluationSectionId>(
   { tratamientoId, seccion, payload, updatedAtLocal }: SaveRespuestaInput<S>,
 ): Promise<void> => {
   await db.runAsync(
-    `INSERT INTO respuestas (tratamientoId, seccion, payload, syncStatus, updatedAtLocal, syncedAt)
-     VALUES ($tratamientoId, $seccion, $payload, $syncStatus, $updatedAtLocal, NULL)
+    `INSERT INTO respuestas (tratamientoId, seccion, payload, syncStatus, updatedAtLocal, syncedAt, hasError)
+     VALUES ($tratamientoId, $seccion, $payload, $syncStatus, $updatedAtLocal, NULL, $hasError)
      ON CONFLICT(tratamientoId, seccion) DO UPDATE SET
        payload = excluded.payload,
        syncStatus = excluded.syncStatus,
        updatedAtLocal = excluded.updatedAtLocal,
-       syncedAt = excluded.syncedAt`,
+       syncedAt = excluded.syncedAt,
+       hasError = excluded.hasError`,
     {
       $tratamientoId: tratamientoId,
       $seccion: seccion,
       $payload: JSON.stringify(payload),
       $syncStatus: SyncStatus.pending,
       $updatedAtLocal: updatedAtLocal,
+      // La marca se calcula aquí y no la trae quien llama: así no hay forma de
+      // escribir una fila cuyo `hasError` no corresponda con su `payload`, que
+      // es lo único que hace seguro guardar un dato derivado.
+      $hasError: seccionHasError(seccion, payload) ? 1 : 0,
     },
   );
+};
+
+/**
+ * Los tratamientos con alguna captura marcada con un dato imposible.
+ *
+ * SQL puro contra la columna `hasError`: no abre un solo `payload`, así que el
+ * listado responde igual de rápido con diez capturas que con diez mil. Usa el
+ * índice parcial `idx_respuestas_hasError`, que solo contiene las filas
+ * marcadas.
+ */
+export const getTratamientoIdsWithErrors = async (
+  db: SQLiteDatabase,
+): Promise<Set<string>> => {
+  const rows = await db.getAllAsync<{ tratamientoId: string }>(
+    "SELECT DISTINCT tratamientoId FROM respuestas WHERE hasError = 1",
+  );
+
+  return new Set(rows.map((row) => row.tratamientoId));
 };
 
 /**

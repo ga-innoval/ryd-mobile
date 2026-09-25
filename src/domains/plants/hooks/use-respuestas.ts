@@ -1,5 +1,5 @@
 import { useSQLiteContext, type SQLiteDatabase } from "expo-sqlite";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
 import {
   getRespuestasByTratamiento,
@@ -67,16 +67,26 @@ export async function saveRespuestaSecciones(
  * el evaluador vería su campo reiniciarse mientras escribe. El formulario ya es
  * la copia viva; SQLite es el respaldo.
  *
- * TODO(progreso): cuando la tarjeta de plantación muestre estado y avance, aquí
- * va el `invalidateQueries(PLANTS_QUERY_KEY)` — es el único punto por el que
- * pasa toda escritura, así que la tarjeta se enterará sin cablear nada más.
+ * Lo que sí invalida es el listado, para que la tarjeta de plantación se entere
+ * de si la captura trae un error. Va con `exact` a propósito: sin él alcanzaría
+ * también a `["plants", "respuestas", id]` y estaríamos releyendo de SQLite las
+ * respuestas del tratamiento abierto cada dos segundos mientras se teclea.
+ *
+ * TODO(progreso): el mismo punto sirve cuando la tarjeta muestre el avance.
  */
 export function useSaveRespuestas(tratamientoId: string) {
   const db = useSQLiteContext();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: SaveRespuestasInput) =>
       saveRespuestaSecciones(db, tratamientoId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: PLANTS_QUERY_KEY,
+        exact: true,
+      });
+    },
     onError: (error) => {
       toast.error({
         title: "No se pudo guardar",

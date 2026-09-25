@@ -34,22 +34,49 @@ import type {
 export function evaluationErrors(
   values: EvaluationFormValues,
 ): EvaluationSectionId[] {
-  const errors: EvaluationSectionId[] = [];
+  return ERROR_SECTIONS.filter((seccion) =>
+    seccionHasError(seccion, values[seccion]),
+  );
+}
 
+/**
+ * Las únicas secciones que pueden traer un error. Que sean dos —y no las seis—
+ * es lo que deja preguntarlo fila a fila en `respuestas` sin reconstruir la
+ * evaluación entera: cada regla cabe dentro de su propia sección.
+ */
+export const ERROR_SECTIONS = ["criba", "rendimiento"] as const;
+
+type ErrorSection = (typeof ERROR_SECTIONS)[number];
+
+/**
+ * Si el contenido de una sección trae un dato imposible.
+ *
+ * Recibe el payload como `unknown` porque también se le pregunta por lo que sale
+ * de SQLite, que es texto libre hasta que alguien lo valida: lo que no encaje
+ * con la forma esperada no es un error, es algo que esta regla no sabe leer, y
+ * se responde que no.
+ */
+export function seccionHasError(seccion: string, payload: unknown): boolean {
   // Sin `typingIndex`: esto no describe lo que se está tecleando sino lo que
   // hay capturado. Quien quiera silencio mientras se escribe se lo da por su
   // lado, mirando valores ya reposados.
-  if (summarizeCriba(values.criba.calibres).calibres.some((c) => c.overTotal)) {
-    errors.push("criba");
+  if (seccion === "criba") {
+    const calibres = (payload as EvaluationFormValues["criba"] | undefined)
+      ?.calibres;
+    if (!Array.isArray(calibres)) return false;
+
+    return summarizeCriba(calibres).calibres.some((c) => c.overTotal);
   }
 
-  if (
-    summarizeRendimiento(values.rendimiento.cortes).cortes.some(
-      (c) => c.zeroRacimos,
-    )
-  ) {
-    errors.push("rendimiento");
+  if (seccion === "rendimiento") {
+    const cortes = (payload as EvaluationFormValues["rendimiento"] | undefined)
+      ?.cortes;
+    if (!Array.isArray(cortes)) return false;
+
+    return summarizeRendimiento(cortes).cortes.some((c) => c.zeroRacimos);
   }
 
-  return errors;
+  return false;
 }
+
+export type { ErrorSection };

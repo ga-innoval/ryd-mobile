@@ -15,6 +15,7 @@ export const buildPlant = (overrides = {}) => ({
     buildTratamiento({ id: "trat-3", name: "Trat 3" }),
   ],
   progress: 0.1,
+  tratamientosWithError: [],
   syncStatus: SyncStatus.pending,
   ...overrides,
 });

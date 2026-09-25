@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSQLiteContext } from "expo-sqlite";
+import { useQueryClient } from "@tanstack/react-query";
 import { useFormContext, useWatch } from "react-hook-form";
 import { useDebouncedValue } from "../hooks/use-debounced-value";
 import {
@@ -7,6 +8,7 @@ import {
   useRespuestas,
   useSaveRespuestas,
 } from "../hooks/use-respuestas";
+import { PLANTS_QUERY_KEY } from "../hooks/use-plants";
 import { buildEvaluationFromRespuestas } from "../lib/build-evaluation-from-respuestas";
 import type {
   EvaluationFormValues,
@@ -74,6 +76,7 @@ export function EvaluationAutosave({
   const debounced = useDebouncedValue(values, AUTOSAVE_QUIET_MS);
 
   const db = useSQLiteContext();
+  const queryClient = useQueryClient();
   const { data: respuestas } = useRespuestas(tratamientoId);
   const { mutate, isPending, isError } = useSaveRespuestas(tratamientoId);
 
@@ -216,11 +219,19 @@ export function EvaluationAutosave({
       if (changed.length === 0) return;
 
       // Directo al repositorio y no por la mutation: esto corre mientras el
-      // componente se desmonta, y su mutation no llega viva al final.
+      // componente se desmonta, y su mutation no llega viva al final. Por eso
+      // la invalidación del listado hay que repetirla aquí a mano — y es justo
+      // el caso que más importa, porque salir de la pantalla es volver a la
+      // tarjeta que tiene que enterarse del error.
       void saveRespuestaSecciones(db, tratamientoId, {
         values: current,
         secciones: changed,
-      });
+      }).then(() =>
+        queryClient.invalidateQueries({
+          queryKey: PLANTS_QUERY_KEY,
+          exact: true,
+        }),
+      );
     };
   });
 

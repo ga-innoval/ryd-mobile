@@ -97,6 +97,11 @@ export interface PlantWithTratamientos extends PlantRecord {
 
 export interface Plant extends PlantWithTratamientos {
   progress: number;
+  /**
+   * Los tratamientos con algún dato imposible (`evaluation-errors.ts`). Vacío es
+   * una plantación sin errores, y por eso no hace falta un booleano aparte.
+   */
+  tratamientosWithError: string[];
 }
 
 export type MatchableField =
