@@ -28,6 +28,13 @@ type EvaluationSaveStore = {
   status: SaveStatus;
   setStatus: (status: SaveStatus) => void;
   /**
+   * Lo capturado de la evaluación abierta, de 0 a 1. Viaja por aquí por lo
+   * mismo que el estado: la cabecera se pinta fuera del árbol de la pantalla y
+   * no ve ni el formulario ni el store de fotografías.
+   */
+  progress: number;
+  setProgress: (progress: number) => void;
+  /**
    * Las registra `EvaluationAutosave` al montarse, y son `null` mientras no haya
    * una evaluación abierta —con la cabecera montada y la pantalla todavía
    * cargando, por ejemplo—, que es lo que apaga los botones.
@@ -56,7 +63,9 @@ type EvaluationSaveStore = {
 export const useEvaluationSaveStore = create<EvaluationSaveStore>()((set) => ({
   status: "idle",
   setStatus: (status) => set({ status }),
+  progress: 0,
+  setProgress: (progress) => set({ progress }),
   actions: null,
   setActions: (actions) => set({ actions }),
-  reset: () => set({ status: "idle", actions: null }),
+  reset: () => set({ status: "idle", progress: 0, actions: null }),
 }));

@@ -13,12 +13,16 @@ import {
   ScrollView,
   View,
   type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Animated, {
   useAnimatedRef,
+  useAnimatedStyle,
   useScrollOffset,
+  type AnimatedStyle,
 } from "react-native-reanimated";
 import {
   KeyboardAwareScrollView,
@@ -88,7 +92,9 @@ import {
   PipetteIcon,
   type LucideIcon,
 } from "lucide-react-native";
+import { Progress } from "@/components/ui/progress";
 import { Text } from "@/components/ui/text";
+import { useEvaluationSaveStore } from "@/domains/plants/store/evaluation-save-store";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
 import type { EvalQuestion, PlantRecord } from "@/domains/plants/types";
 import { cn } from "@/lib/utils";
@@ -123,6 +129,45 @@ function PlantFields({ plant }: { plant: PlantRecord }) {
         </View>
       ))}
     </View>
+  );
+}
+
+/** Alto de la barra de avance, en px. Hace falta como número y no como clase:
+ *  es lo que se le resta al desplazamiento para que se quede pegada al header
+ *  en vez de irse con el bloque. */
+const PROGRESS_BAR_HEIGHT = 8;
+
+/**
+ * El avance de la evaluación, pegado al pie del bloque de la cabecera.
+ *
+ * Se queda a la vista cuando el bloque se esconde: sube con él pero solo lo
+ * justo para quedar bajo el header, que es lo que hace el `translateY` recortado
+ * que recibe. Lleva su propio fondo verde porque al quedarse arriba, lo que pasa
+ * por detrás es el formulario.
+ *
+ * Lee el avance del store y no del formulario para no re-renderizar la pantalla
+ * entera: la cabecera se pinta fuera de ella y este es el mismo camino.
+ */
+function EvaluationProgressBar({
+  style,
+}: {
+  style: StyleProp<AnimatedStyle<ViewStyle>>;
+}) {
+  const progress = useEvaluationSaveStore((state) => state.progress);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[style, { position: "absolute", left: 0, right: 0, bottom: 0 }]}
+    >
+      <View className="bg-primary">
+        <Progress
+          value={progress * 100}
+          className="h-2 w-auto rounded-none bg-primary-foreground/20 border-b-2 border-border"
+          indicatorClassName="bg-foreground rounded-none"
+        />
+      </View>
+    </Animated.View>
   );
 }
 
@@ -361,9 +406,20 @@ export default function TratamientoScreen() {
   const showSiblings =
     isLoading || (data ? data.tratamientos.length > 1 : false);
 
-  const { scrollHandler, animatedStyle } = useHideOnScroll({
+  const { scrollHandler, animatedStyle, hidden } = useHideOnScroll({
     distance: reservedHeight,
   });
+
+  // La barra acompaña al bloque pero se detiene bajo el header: sube su alto
+  // menos el suyo propio, así que acaba justo donde el bloque desaparece.
+  const progressBarStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY:
+          -hidden.value * Math.max(0, reservedHeight - PROGRESS_BAR_HEIGHT),
+      },
+    ],
+  }));
 
   // Sin memo, cada respuesta capturada re-renderiza la pantalla, reconstruye
   // este objeto y empuja opciones nuevas al navigator. Depende solo de los dos
@@ -442,7 +498,7 @@ export default function TratamientoScreen() {
                 {showSiblings && (
                   <ScrollView
                     className="-mx-4"
-                    contentContainerClassName="flex-row items-center gap-4 px-4 mt-2"
+                    contentContainerClassName="flex-row items-center gap-4 px-4 pb-2"
                     horizontal
                     showsHorizontalScrollIndicator={false}
                   >
@@ -471,6 +527,8 @@ export default function TratamientoScreen() {
                 )}
               </View>
             </Animated.View>
+
+            <EvaluationProgressBar style={progressBarStyle} />
           </View>
         )}
 

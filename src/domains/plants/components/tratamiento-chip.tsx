@@ -4,6 +4,7 @@ import { Text } from "@/components/ui/text";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 import type { TratamientoRecord } from "../types";
 
 type ChipVariant = "card" | "header";
@@ -22,17 +23,17 @@ type VariantStyles = {
 
 const VARIANTS: Record<ChipVariant, VariantStyles> = {
   card: {
-    container: "w-28 h-16 border-border",
+    container: "w-28 h-[72px] px-2.5 border-border",
     text: "max-w-24",
     activeContainer: "bg-primary border-primary",
     activeText: "text-primary-foreground",
   },
   // Más pequeño y con borde claro, porque va sobre `bg-primary`.
   header: {
-    container: "w-20 h-10 px-2 border-primary-foreground/30 border-2",
+    container: "w-28 h-10 px-2 border-primary-foreground/50 border",
     text: "text-primary-foreground text-sm",
-    activeContainer: "border-leaf/80",
-    activeText: "text-leaf",
+    activeContainer: "bg-foreground border-foreground/20",
+    activeText: "text-white",
   },
 };
 
@@ -43,6 +44,9 @@ type TratamientoChipProps = {
   isActive?: boolean;
   /** Su captura tiene un dato imposible: el borde lo dice sin abrirlo. */
   hasError?: boolean;
+  /** Lo capturado, de 0 a 1. Solo lo enseña la variante `card`; en la cabecera
+   *  el avance ya está a la vista en las propias secciones. */
+  progress?: number;
 };
 
 export function TratamientoChip({
@@ -51,6 +55,7 @@ export function TratamientoChip({
   variant = "card",
   isActive = false,
   hasError = false,
+  progress = 0,
 }: TratamientoChipProps) {
   const styles = VARIANTS[variant];
 
@@ -77,7 +82,18 @@ export function TratamientoChip({
       >
         {tratamiento.name}
       </Text>
-      <Text variant={"muted"}>0%</Text>
+      {variant === "card" && (
+        // Sin el porcentaje en texto: en un chip de 112 px el número le come el
+        // sitio al nombre, y la barra ya dice lo mismo de un vistazo.
+        //
+        // `w-auto` neutraliza el `w-full` de la raíz de `Progress`, que con el
+        // `flexShrink: 0` de React Native se saldría del chip.
+        <Progress
+          value={progress * 100}
+          className="mt-1.5 h-1.5 w-auto self-stretch bg-primary/15"
+          indicatorClassName="bg-foreground"
+        />
+      )}
     </PressableScale>
   );
 }

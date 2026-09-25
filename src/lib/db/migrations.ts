@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 5;
 
 export async function runMigrations(db: SQLiteDatabase) {
   await db.execAsync("PRAGMA foreign_keys = ON");
@@ -97,10 +97,23 @@ export async function runMigrations(db: SQLiteDatabase) {
     currentVersion = 4;
   }
 
+  if (currentVersion === 4) {
+    // Cuánto lleva capturado esa sección, de 0 a 100, calculado al escribirla
+    // (ver `seccionProgress`). Entero y no fracción porque es lo que se enseña.
+    //
+    // Guardado por la misma razón que `hasError`: el avance del tratamiento es
+    // la suma de sus secciones, y el listado lo pregunta de todas las
+    // plantaciones a la vez. Calcularlo al leer obligaba a abrir cada payload.
+    await db.execAsync(
+      `ALTER TABLE respuestas ADD COLUMN progress INTEGER NOT NULL DEFAULT 0;`,
+    );
+    currentVersion = 5;
+  }
+
   // Próxima migración. ej:
-  // if (currentVersion === 4) {
+  // if (currentVersion === 5) {
   //   await db.execAsync(`CREATE TABLE IF NOT EXISTS newTable (...)`);
-  //   currentVersion = 5;
+  //   currentVersion = 6;
   // }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

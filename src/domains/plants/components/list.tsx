@@ -188,6 +188,7 @@ export const PlantCard = memo(function PlantCard({
                 key={trat.id}
                 tratamiento={trat}
                 hasError={item.tratamientosWithError.includes(trat.id)}
+                progress={trat.progress}
                 onPress={() =>
                   router.push({
                     pathname: "/tratamientos/[id]",

@@ -29,7 +29,7 @@ const SYNC_STATUS_CONFIG: Record<SyncStatus, SyncStatusConfig> = {
     label: "Sincronizando...",
   },
   [SyncStatus.synced]: {
-    dotClassName: "bg-green-500",
+    dotClassName: "bg-leaf",
     showDot: true,
     label: "Sincronizado",
   },

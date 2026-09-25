@@ -95,7 +95,14 @@ export interface PlantWithTratamientos extends PlantRecord {
   tratamientos: TratamientoRecord[];
 }
 
-export interface Plant extends PlantWithTratamientos {
+/** Un tratamiento con lo que la tarjeta necesita saber de su captura. */
+export interface TratamientoWithProgress extends TratamientoRecord {
+  /** De 0 a 1, repartido entre las seis secciones (`evaluation-progress.ts`). */
+  progress: number;
+}
+
+export interface Plant extends Omit<PlantWithTratamientos, "tratamientos"> {
+  tratamientos: TratamientoWithProgress[];
   progress: number;
   /**
    * Los tratamientos con algún dato imposible (`evaluation-errors.ts`). Vacío es
