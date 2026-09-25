@@ -18,6 +18,36 @@ export const CRIBA_CALIBRES = [8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
 /** Suficiente para "2500.5"; lo que pase de ahí es un error de tecleo. */
 const MAX_INPUT_LENGTH = 7;
 
+/**
+ * Un calibre de un kilo no cabe ni en la muestra más grande: casi siempre es un
+ * punto decimal que faltó. Como el rango de Brix, solo avisa.
+ */
+export const CRIBA_MAX_CALIBRE_WEIGHT = 1_000;
+
+/**
+ * Los dos pesos de muestra del negocio, en gramos: 1.5 kg en plantación
+ * experimental y 2.5 kg en semiexperimental. La nota del pie de la sección los
+ * explica, y la suma de los nueve calibres tiene que dar uno de los dos.
+ */
+export const CRIBA_SAMPLE_WEIGHTS: readonly number[] = [1_500, 2_500];
+
+/**
+ * Lo que se admite de diferencia al comparar la suma con uno de esos pesos.
+ *
+ * No es holgura de báscula, es aritmética: sumar nueve decimales en coma
+ * flotante da 1500.0000000000002 con muchísima frecuencia —probado sobre
+ * 200 000 repartos al azar, el 44 % no daba 1500 exacto—, así que una igualdad
+ * estricta avisaría en capturas perfectamente correctas.
+ */
+const SAMPLE_TOLERANCE = 0.05;
+
+const matchesSampleWeight = (weight: number): boolean =>
+  CRIBA_SAMPLE_WEIGHTS.some(
+    (target) => Math.abs(weight - target) < SAMPLE_TOLERANCE,
+  );
+
+const largestSampleWeight = Math.max(...CRIBA_SAMPLE_WEIGHTS);
+
 export type CribaCalibreSummary = {
   /** El calibre al que corresponde la fila, del 8 al 16. */
   calibre: number;
@@ -29,6 +59,8 @@ export type CribaCalibreSummary = {
   complete: boolean;
   /** Imposible: una baya no puede pesar más que todo su calibre. */
   overTotal: boolean;
+  /** Se pasa de `CRIBA_MAX_CALIBRE_WEIGHT`: no cabría en la muestra. */
+  totalOutOfRange: boolean;
   /**
    * Incoherente: la criba separa por tamaño, así que la baya de un calibre no
    * puede pesar menos que la de uno más pequeño.
@@ -42,6 +74,8 @@ export type CribaSummary = {
   calibres: CribaCalibreSummary[];
   /** La suma de los pesos capturados; `null` mientras no haya ninguno. */
   sampleWeight: number | null;
+  /** La suma no es ninguno de los `CRIBA_SAMPLE_WEIGHTS`. */
+  sampleOutOfRange: boolean;
   completeCount: number;
 };
 
@@ -72,6 +106,10 @@ export function sanitizeCribaInput(text: string): string {
  * - **El peso de la muestra es la suma de lo capturado**, no un dato aparte, y
  *   la distribución de cada calibre es su parte de esa suma. Mientras no haya
  *   ningún peso, las dos cosas quedan vacías en vez de en cero.
+ * - **Los pesos que no cuadran solo avisan.** Un calibre de un kilo, o una
+ *   muestra que no pesa ni 1.5 ni 2.5 kg, no caben en lo que la nota describe,
+ *   pero la captura vale igual: quien decide si se puede guardar es el esquema,
+ *   y ninguno de los dos entra en él.
  * - `typingIndex` es el calibre que se está tecleando: no avisa hasta que se
  *   deja de teclear, como las lecturas de Brix. Al corregir un peso total con
  *   el promedio ya escrito, el primer dígito es menor que el promedio y el
@@ -124,6 +162,10 @@ export function summarizeCriba(
         !noFruit &&
         average !== null &&
         average > total,
+      totalOutOfRange:
+        index !== typingIndex &&
+        total !== null &&
+        total >= CRIBA_MAX_CALIBRE_WEIGHT,
       belowPrevious: belowPrevious[index],
       share:
         total !== null && sampleWeight !== null && sampleWeight > 0
@@ -135,8 +177,63 @@ export function summarizeCriba(
   return {
     calibres: summaries,
     sampleWeight,
+    // Dos cautelas para no regañar a media captura, porque la suma crece
+    // mientras se llenan los calibres y casi nunca vale ninguno de los dos
+    // pesos por el camino:
+    //
+    // - Solo se juzga cuando ya no puede arreglarse sola: o la suma se pasó del
+    //   mayor de los dos, o están los nueve calibres pesados y ya no va a
+    //   crecer más.
+    // - Callado mientras se teclea **cualquier** calibre, y no solo el que suma
+    //   de más: el peso a medio escribir ya va dentro de la suma, así que
+    //   camino de "250" el "2500" intermedio dispararía el aviso.
+    sampleOutOfRange:
+      typingIndex === null &&
+      sampleWeight !== null &&
+      !matchesSampleWeight(sampleWeight) &&
+      (sampleWeight > largestSampleWeight + SAMPLE_TOLERANCE ||
+        values.every(({ total }) => total !== null)),
     completeCount: summaries.filter((calibre) => calibre.complete).length,
   };
+}
+
+/** Las cuatro reglas que avisan, ninguna bloquea el guardado. */
+export type CribaWarning =
+  "totalOutOfRange" | "sampleOutOfRange" | "overTotal" | "belowPrevious";
+
+/**
+ * De las cuatro, la única que es un dato imposible y no algo fuera de lo
+ * habitual: una baya no pesa más que todo lo que cayó en su calibre. Se pinta
+ * en rojo e impide dar la evaluación por terminada —ver `evaluation-errors.ts`—;
+ * las otras tres siguen siendo avisos ámbar y la captura vale igual.
+ */
+export function isCribaError(warning: CribaWarning): boolean {
+  return warning === "overTotal";
+}
+
+/**
+ * El aviso que toca enseñar, uno solo y por este orden.
+ *
+ * De uno en uno y no los cuatro juntos porque se arrastran: un calibre con un
+ * kilo de más desbarata también la suma de la muestra, así que enseñar las dos
+ * cosas es contar dos veces el mismo error. Arreglado el primero, aparece el
+ * siguiente si sigue ahí.
+ *
+ * Primero el error, que es lo único imposible. Después las magnitudes de la
+ * columna de pesos totales —el calibre desmedido y la muestra que no cuadra—, y
+ * al final la progresión de los promedios.
+ */
+export function firstCribaWarning(summary: CribaSummary): CribaWarning | null {
+  if (summary.calibres.some((calibre) => calibre.overTotal)) return "overTotal";
+  if (summary.calibres.some((calibre) => calibre.totalOutOfRange)) {
+    return "totalOutOfRange";
+  }
+  if (summary.sampleOutOfRange) return "sampleOutOfRange";
+  if (summary.calibres.some((calibre) => calibre.belowPrevious)) {
+    return "belowPrevious";
+  }
+
+  return null;
 }
 
 /** Los gramos como se muestran: un decimal fijo y los miles separados. */

@@ -81,14 +81,6 @@ function cortesLabel(count: number): string {
   return count === 1 ? "1 corte registrado" : `${count} cortes registrados`;
 }
 
-function totalNote(count: number): string {
-  if (count === 0) return "Aún sin cortes registrados";
-
-  return count === 1
-    ? "Suma del corte registrado"
-    : `Suma de los ${count} cortes registrados`;
-}
-
 /**
  * Lo que la cabecera de la sección muestra en lugar de la barra de progreso:
  * cuántos cortes llevan kilogramos y cuánto se lleva cosechado.
@@ -187,14 +179,14 @@ export function EvalRendimiento() {
   const rows = fields.map(
     (_, index) => cortes[index] ?? createRendimientoCorte(),
   );
-  const summary = summarizeRendimiento(rows, typing?.index ?? null);
-  const hasWarning = summary.cortes.some((corte) => corte.warn);
-
   // Un hueco por campo tecleable, en el orden de captura: los kilogramos de un
   // corte, sus racimos, y de ahí al corte siguiente. Es lo que encadena
   // «Siguiente».
   const inputs = useRef<(TextInput | null)[]>([]);
   const [focused, setFocused] = useState<number | null>(null);
+
+  const summary = summarizeRendimiento(rows, typing?.index ?? null);
+  const hasError = summary.cortes.some((corte) => corte.zeroRacimos);
   const lastFieldIndex = summary.cortes.length * FIELDS_PER_CORTE - 1;
 
   const addCorte = () => {
@@ -270,9 +262,9 @@ export function EvalRendimiento() {
                     suffix={suffix}
                     className={FIELD_CN[key]}
                     accessibilityLabel={`${label} del corte ${corte.numero}`}
-                    // El aviso es del conteo: los kilogramos están, lo que
-                    // falta es cuántos racimos los dieron.
-                    warn={key === "racimos" && corte.warn}
+                    // El error es del conteo: los kilogramos están, y decir que
+                    // los dieron cero racimos es imposible.
+                    warn={key === "racimos" && corte.zeroRacimos}
                     isFocused={focused === fieldIndex}
                     isLast={fieldIndex === lastFieldIndex}
                     // Teclear cualquier dato cancela un descarte pendiente:
@@ -303,7 +295,7 @@ export function EvalRendimiento() {
                 className={cn(
                   "font-medium",
                   corte.average === null && "text-muted-foreground",
-                  corte.warn && "text-amber-800",
+                  corte.zeroRacimos && "text-red-800",
                 )}
                 style={styles.tabular}
               >
@@ -344,40 +336,22 @@ export function EvalRendimiento() {
         )}
 
         <Separator className="my-1" />
-
-        <View className="flex-row items-center gap-3">
-          <Text className={cn(CORTE_CN, "text-center font-bold")}>Total</Text>
-          <View className={FECHA_CN} />
-          <View className={FIELD_CN.kilogramos}>
-            <Text
-              className={cn(
-                "pr-8 text-right text-lg font-bold",
-                summary.total === null && "text-muted-foreground",
-              )}
-              style={styles.tabular}
-            >
-              {formatKilos(summary.total)}
-            </Text>
-            {summary.total !== null && (
-              <View className="absolute bottom-0 right-3 top-0 justify-center">
-                <Text variant="muted" className="text-sm">
-                  kg
-                </Text>
-              </View>
-            )}
-          </View>
-          <Text variant="muted" className="flex-1">
-            {totalNote(summary.registeredCount)}
-          </Text>
-        </View>
       </View>
 
-      {hasWarning && (
-        // Uno solo para toda la tabla: qué corte es lo dice su campo en ámbar.
-        // La variante `warning` es la misma que usan Brix y Criba.
-        <Alert variant="warning" icon={TriangleAlertIcon}>
+      {hasError && (
+        // Uno solo para toda la tabla: qué corte es lo dice su campo en rojo.
+        //
+        // Rojo y no ámbar porque no es raro, es imposible —la fruta salió de
+        // algún sitio—, y por eso impide dar la evaluación por terminada (ver
+        // `evaluation-errors.ts`). Guardar se guarda igual.
+        //
+        // Que el conteo esté todavía sin capturar no saca nada: de los datos
+        // que faltan habla el avance de la sección, y una alerta por cada hueco
+        // sería una alerta permanente.
+        <Alert variant="destructive" icon={TriangleAlertIcon}>
           <AlertDescription>
-            Hay kilogramos capturados y ningún racimo: revisa el conteo.
+            Hay kilogramos capturados y el conteo dice cero racimos: revisa el
+            conteo.
           </AlertDescription>
         </Alert>
       )}
@@ -397,11 +371,6 @@ export function EvalRendimiento() {
             {`Agregar corte ${summary.cortes.length + 1}`}
           </Text>
         </Button>
-        {!summary.canAdd && (
-          <Text variant="muted" className="text-center">
-            {`Termina el corte ${summary.cortes.length} para agregar otro.`}
-          </Text>
-        )}
       </View>
     </View>
   );
@@ -500,7 +469,7 @@ function RendimientoNumberField({
           "text-right text-lg font-medium leading-6",
           suffix === "" ? "pr-3" : "pr-8",
           isFocused && "border-primary",
-          warn && "border-amber-600 bg-amber-50 text-amber-800",
+          warn && "border-red-600 bg-red-50 text-red-800",
         )}
         style={styles.tabular}
       />
