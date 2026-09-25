@@ -5,6 +5,7 @@ import { PHOTO_CATEGORIES } from "../photo-categories";
 import { createBrixCorte } from "../brix";
 import {
   evaluationProgress,
+  plantProgress,
   PROGRESS_SECTIONS,
   seccionProgress,
 } from "../evaluation-progress";
@@ -126,5 +127,24 @@ describe("evaluationProgress", () => {
     );
 
     expect(evaluationProgress(values, photos)).toBe(1);
+  });
+});
+
+describe("plantProgress", () => {
+  it("promedia sus tratamientos", () => {
+    expect(plantProgress([{ progress: 1 }, { progress: 0 }])).toBeCloseTo(0.5);
+  });
+
+  // Sin tratamientos no hay nada capturado: cero, no un hueco.
+  it("es cero sin tratamientos", () => {
+    expect(plantProgress([])).toBe(0);
+  });
+
+  // De esto vive el estatus de la tarjeta y los filtros: en cuanto una sola
+  // encuesta arranca, la plantación deja de estar «sin iniciar».
+  it("deja de ser cero en cuanto un tratamiento arranca", () => {
+    expect(
+      plantProgress([{ progress: 0 }, { progress: 0.1 }, { progress: 0 }]),
+    ).toBeGreaterThan(0);
   });
 });

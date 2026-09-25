@@ -163,7 +163,7 @@ function EvaluationProgressBar({
       <View className="bg-primary">
         <Progress
           value={progress * 100}
-          className="h-2 w-auto rounded-none bg-primary-foreground/20 border-b-2 border-border"
+          className="h-2 w-auto rounded-none bg-primary-foreground/25 border-b-2 border-border"
           indicatorClassName="bg-foreground rounded-none"
         />
       </View>

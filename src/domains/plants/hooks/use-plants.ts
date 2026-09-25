@@ -1,6 +1,7 @@
 import { useSQLiteContext } from "expo-sqlite";
 import { useQuery } from "@tanstack/react-query";
 import { getAllPlants } from "../lib/db/plants.repository";
+import { plantProgress } from "../lib/evaluation-progress";
 import {
   getTratamientoIdsWithErrors,
   getTratamientoProgress,
@@ -33,16 +34,21 @@ export function usePlants() {
         getTratamientoProgress(db),
       ]);
 
-      return plants.map((plant) => ({
-        ...plant,
-        tratamientos: plant.tratamientos.map((tratamiento) => ({
+      return plants.map((plant) => {
+        const tratamientos = plant.tratamientos.map((tratamiento) => ({
           ...tratamiento,
           progress: progress.get(tratamiento.id) ?? 0,
-        })),
-        tratamientosWithError: plant.tratamientos
-          .filter((tratamiento) => withErrors.has(tratamiento.id))
-          .map((tratamiento) => tratamiento.id),
-      }));
+        }));
+
+        return {
+          ...plant,
+          tratamientos,
+          progress: plantProgress(tratamientos),
+          tratamientosWithError: tratamientos
+            .filter((tratamiento) => withErrors.has(tratamiento.id))
+            .map((tratamiento) => tratamiento.id),
+        };
+      });
     },
   });
 }
