@@ -358,6 +358,12 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
     vez y calcularlo al leer obligaba a abrir cada payload. El del tratamiento
     sale en SQL, sumando sus filas y dividiendo entre las seis secciones; las que
     no tienen fila cuentan cero, que es lo correcto.
+  - **El estatus de la tarjeta sale de ahí**: con avance cero, «Sin iniciar»;
+    con cualquier avance, «Iniciada». Es la palabra que usan los filtros, y por
+    eso el chip no enseña el porcentaje —cuánto lleva cada tratamiento ya lo
+    dice su barra—. El filtro por estatus nunca tuvo lógica rota: miraba
+    `progress`, que estaba clavado a `0` en `index.tsx`. «Pendientes» sigue
+    esperando a la sincronización.
   - **Dónde se ve**: en la pantalla de captura, una barra fina a ancho completo
     al pie del bloque de la cabecera, y en el chip de cada tratamiento del
     listado. La barra **no se esconde al scrollear** aunque los datos de la
@@ -676,9 +682,6 @@ renombró) y `temporada` en español.
   `delay(3_000)` simulado. Debe migrar al patrón de `usePlantsMutation`:
   mutation de TanStack Query para el ciclo de vida, store persistido solo para
   el timestamp. No copiar el patrón de `sync-store` en código nuevo.
-- **Los filtros "Sin iniciar" e "Iniciadas" no funcionan.** Ambos miran
-  `progress`, que sigue hardcodeado a `0` en `index.tsx`: uno hace match con
-  todo y el otro con nada, hasta que exista `respuestas`.
 - **El botón de dirección de `ListOrderBy`** todavía no emite nada: el criterio
   de orden ya funciona (`usePlantsOrder` + `sortPlants`), pero el toggle
   asc/desc y su animación están pendientes. El `ORDER BY name ASC` de

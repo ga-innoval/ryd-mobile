@@ -115,12 +115,10 @@ const CardHeader = ({ item, match }: { item: Plant; match?: FieldMatch }) => {
             text={item.name}
             match={match?.field === "name" ? match : undefined}
           />
+          {/* El estatus y no el porcentaje: cuánto lleva cada tratamiento ya lo
+              dice su propia barra, y esta palabra es la que usan los filtros. */}
           <Badge variant={item.progress === 0 ? "secondary" : "success"}>
-            <Text>
-              {item.progress === 0
-                ? "Sin iniciar "
-                : `${item.progress * 100}% completado`}
-            </Text>
+            <Text>{item.progress === 0 ? "Sin iniciar" : "Iniciada"}</Text>
           </Badge>
           {/* Después del de estatus y sin sustituirlo: una plantación iniciada
               también puede traer un dato inválido. */}

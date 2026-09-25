@@ -21,14 +21,7 @@ const EMPTY_PLANTS: Plant[] = [];
 
 export default function Index() {
   const { data, isLoading, isFetching, refetch } = usePlants();
-  const plants = useMemo(
-    () =>
-      data
-        ? // TODO: el progreso se obtendra calculado sobre el avance de las encuestas
-          data.map((item) => ({ ...item, progress: 0 }))
-        : EMPTY_PLANTS,
-    [data],
-  );
+  const plants = data ?? EMPTY_PLANTS;
 
   const isRefreshing = isFetching && !isLoading;
 

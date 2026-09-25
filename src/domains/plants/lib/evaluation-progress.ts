@@ -153,3 +153,24 @@ export function evaluationProgress(
 export function formatProgress(progress: number): number {
   return Math.round(progress * 100);
 }
+
+/**
+ * El avance de una plantación, de 0 a 1.
+ *
+ * **Por ahora solo cuentan los tratamientos**: la post-cosecha todavía no se
+ * captura, y repartir ya el 50 % que le toca dejaría toda plantación tope en la
+ * mitad. Cuando exista, esto pasa a ser la media de los dos bloques —cada uno
+ * prorrateado por dentro— y el resto de la app no se entera.
+ *
+ * Una plantación sin tratamientos es cero y no un hueco: no hay nada capturado.
+ */
+export function plantProgress(tratamientos: { progress: number }[]): number {
+  if (tratamientos.length === 0) return 0;
+
+  const total = tratamientos.reduce(
+    (sum, tratamiento) => sum + tratamiento.progress,
+    0,
+  );
+
+  return total / tratamientos.length;
+}
