@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSQLiteContext } from "expo-sqlite";
 import { useFormContext, useWatch } from "react-hook-form";
 import { useDebouncedValue } from "../hooks/use-debounced-value";
-import { useRespuestas, useSaveRespuestas } from "../hooks/use-respuestas";
+import {
+  saveRespuestaSecciones,
+  useRespuestas,
+  useSaveRespuestas,
+} from "../hooks/use-respuestas";
 import { buildEvaluationFromRespuestas } from "../lib/build-evaluation-from-respuestas";
-import { evaluationErrors } from "../lib/evaluation-errors";
 import type {
   EvaluationFormValues,
   EvaluationSectionId,
@@ -69,6 +73,7 @@ export function EvaluationAutosave({
   const { getValues, reset } = useFormContext<EvaluationFormValues>();
   const debounced = useDebouncedValue(values, AUTOSAVE_QUIET_MS);
 
+  const db = useSQLiteContext();
   const { data: respuestas } = useRespuestas(tratamientoId);
   const { mutate, isPending, isError } = useSaveRespuestas(tratamientoId);
 
@@ -156,8 +161,8 @@ export function EvaluationAutosave({
     write(changed, current);
   }, [saved, getValues, write]);
 
-  /** Vuelve a lo último guardado, que con el autoguardado es como mucho el
-   *  último segundo de escritura. */
+  /** Vuelve a lo último guardado, que con el autoguardado son como mucho los
+   *  dos últimos segundos de escritura. */
   const handleDiscard = useCallback(() => {
     if (!respuestas) return;
 
@@ -170,19 +175,13 @@ export function EvaluationAutosave({
     setActions(saved ? { save: handleSave, discard: handleDiscard } : null);
   }, [setActions, saved, handleSave, handleDiscard]);
 
-  // Se mira sobre `debounced` y no sobre `values` porque esto describe lo
-  // capturado, no lo que se está tecleando: con los valores en vivo, corregir un
-  // peso encendería el rojo a media tecla. Los dos segundos de espera hacen aquí
-  // de pausa de tecleo, sin un temporizador más.
-  const hasErrors = evaluationErrors(debounced).length > 0;
-
   // El fallo de escritura va antes que lo pendiente a propósito: tras un fallo
   // los cambios siguen sin guardar, y decir "Cambios por guardar" escondería que
   // la escritura ya se intentó y no salió.
   //
-  // Y "Error de captura" va después de lo pendiente pero antes de "Guardado":
-  // habla de los datos, no de la escritura, así que decir solo "Guardado"
-  // sonaría a que todo quedó bien.
+  // Los errores de captura **no entran aquí**: esto dice si el trabajo está
+  // escrito, y meterlos tapaba el "Guardando…" justo cuando había algo
+  // pendiente. De eso habla el botón flotante de la pantalla.
   const status: SaveStatus =
     isPending || confirming
       ? "saving"
@@ -190,19 +189,56 @@ export function EvaluationAutosave({
         ? "error"
         : pending.length > 0
           ? "pending"
-          : hasErrors
-            ? "invalid"
-            : written
-              ? "saved"
-              : "idle";
+          : written
+            ? "saved"
+            : "idle";
 
   useEffect(() => {
     setStatus(status);
   }, [status, setStatus]);
 
-  // Al salir, para que la cabecera de la siguiente evaluación no herede ni este
-  // estado ni estas acciones.
-  useEffect(() => resetStore, [resetStore]);
+  /**
+   * Lo que hay que escribir si la pantalla se cierra ahora mismo.
+   *
+   * En un ref y reasignado en cada render porque el vaciado corre en la
+   * limpieza del efecto de desmontaje, que solo se registra una vez: con las
+   * dependencias puestas se ejecutaría en cada cambio de `saved`, escribiendo
+   * de más; sin ellas, se llevaría por delante una copia vieja de los valores.
+   */
+  const flush = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    flush.current = () => {
+      if (!saved) return;
+
+      const current = getValues();
+      const changed = changedSecciones(current, saved);
+      if (changed.length === 0) return;
+
+      // Directo al repositorio y no por la mutation: esto corre mientras el
+      // componente se desmonta, y su mutation no llega viva al final.
+      void saveRespuestaSecciones(db, tratamientoId, {
+        values: current,
+        secciones: changed,
+      });
+    };
+  });
+
+  // Al salir: se escribe lo que quede pendiente y se limpia la cabecera, que si
+  // no heredaría el estado y las acciones de esta evaluación.
+  //
+  // Sin esto se perdía **lo último tecleado en los dos segundos antes de
+  // salir**: el temporizador del autoguardado moría con el componente. Se veía
+  // clarísimo con un aviso delante —sale a los 900 ms, así que daba tiempo de
+  // leerlo y salir antes de que nada se hubiera escrito—, pero pasaba con
+  // cualquier dato.
+  useEffect(
+    () => () => {
+      flush.current();
+      resetStore();
+    },
+    [resetStore],
+  );
 
   return null;
 }
