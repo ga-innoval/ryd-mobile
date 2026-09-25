@@ -46,11 +46,7 @@ export function LoginForm() {
       </View>
 
       {loginError && (
-        <Alert
-          variant="destructive"
-          icon={AlertCircleIcon}
-          className="border-red-300 bg-red-500/20"
-        >
+        <Alert variant="destructive" icon={AlertCircleIcon}>
           <AlertTitle>{loginError.message}</AlertTitle>
         </Alert>
       )}
@@ -59,7 +55,7 @@ export function LoginForm() {
         <View className="gap-1.5">
           <Label htmlFor="username">Nombre de usuario</Label>
           {errors.username && (
-            <Text variant="muted" className="text-red-500">
+            <Text variant="muted" className="text-destructive">
               {errors.username.message}
             </Text>
           )}
@@ -85,7 +81,7 @@ export function LoginForm() {
         <View className="gap-1.5">
           <Label htmlFor="password">Contraseña</Label>
           {errors.password && (
-            <Text variant="muted" className="text-red-500">
+            <Text variant="muted" className="text-destructive">
               {errors.password.message}
             </Text>
           )}

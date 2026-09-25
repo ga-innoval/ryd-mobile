@@ -6,7 +6,7 @@ import {
   type KeyboardTypeOptions,
   type TextInput,
 } from "react-native";
-import { PlusIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react-native";
+import { PlusIcon, Trash2Icon, CircleAlertIcon } from "lucide-react-native";
 import { useController, useFieldArray, useWatch } from "react-hook-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -295,7 +295,7 @@ export function EvalRendimiento() {
                 className={cn(
                   "font-medium",
                   corte.average === null && "text-muted-foreground",
-                  corte.zeroRacimos && "text-red-800",
+                  corte.zeroRacimos && "text-destructive",
                 )}
                 style={styles.tabular}
               >
@@ -348,7 +348,7 @@ export function EvalRendimiento() {
         // Que el conteo esté todavía sin capturar no saca nada: de los datos
         // que faltan habla el avance de la sección, y una alerta por cada hueco
         // sería una alerta permanente.
-        <Alert variant="destructive" icon={TriangleAlertIcon}>
+        <Alert variant="destructive" icon={CircleAlertIcon}>
           <AlertDescription>
             Hay kilogramos capturados y el conteo dice cero racimos: revisa el
             conteo.
@@ -465,11 +465,11 @@ function RendimientoNumberField({
         submitBehavior={isLast ? "blurAndSubmit" : "submit"}
         // Corregir un dato es reescribirlo entero, no editar un dígito.
         selectTextOnFocus
+        variant={warn ? "destructive" : "default"}
         className={cn(
           "text-right text-lg font-medium leading-6",
           suffix === "" ? "pr-3" : "pr-8",
           isFocused && "border-primary",
-          warn && "border-red-600 bg-red-50 text-red-800",
         )}
         style={styles.tabular}
       />

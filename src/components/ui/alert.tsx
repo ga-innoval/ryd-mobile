@@ -16,11 +16,11 @@ const alertVariants = cva(
         // El dato imposible: el promedio por baya mayor que el peso de su
         // calibre, los kilogramos sin racimos. No impide guardar —eso no se
         // toca—, pero sí que la evaluación se dé por terminada.
-        destructive: "border-red-300 bg-red-300/20",
+        destructive: "border-destructive/20 bg-destructive-background",
         // El aviso que no bloquea nada: el rango de Brix, el peso de la muestra
         // que no cuadra. Ámbar y no rojo porque el dato sigue contando; el rojo
         // queda para lo que no puede ser cierto.
-        warning: "border-amber-600 bg-amber-50",
+        warning: "border-warn/20 bg-warn-background",
       },
     },
     defaultVariants: {
@@ -33,8 +33,8 @@ const alertIconVariants = cva("size-4", {
   variants: {
     variant: {
       default: "",
-      destructive: "text-red-700",
-      warning: "text-amber-700",
+      destructive: "text-destructive",
+      warning: "text-warn",
     },
   },
   defaultVariants: {
@@ -43,11 +43,11 @@ const alertIconVariants = cva("size-4", {
 });
 
 /** El color que heredan los hijos del aviso; `Text` lo toma del contexto. */
-const alertTextVariants = cva("text-sm text-foreground", {
+const alertTextVariants = cva("text-sm text-foreground font-medium", {
   variants: {
     variant: {
       default: "",
-      destructive: "text-red-800",
+      destructive: "text-destructive",
       warning: "text-amber-800",
     },
   },
@@ -62,7 +62,7 @@ const alertDescriptionVariants = cva(
     variants: {
       variant: {
         default: "",
-        destructive: "text-red-800",
+        destructive: "text-destructive",
         warning: "text-amber-800",
       },
     },
@@ -104,10 +104,11 @@ function Alert({
           className={cn(alertVariants({ variant }), className)}
           {...props}
         >
-          <View className="absolute left-3.5 top-3">
+          <View className="absolute left-3.5 top-0 bottom-0 items-center justify-center">
             <Icon
               as={icon}
               className={cn(alertIconVariants({ variant }), iconClassName)}
+              strokeWidth={2.4}
             />
           </View>
           {children}
