@@ -10,6 +10,8 @@ import {
 } from "../hooks/use-respuestas";
 import { PLANTS_QUERY_KEY } from "../hooks/use-plants";
 import { buildEvaluationFromRespuestas } from "../lib/build-evaluation-from-respuestas";
+import { evaluationProgress } from "../lib/evaluation-progress";
+import { usePhotosStore } from "../store/photos-store";
 import type {
   EvaluationFormValues,
   EvaluationSectionId,
@@ -129,6 +131,17 @@ export function EvaluationAutosave({
 
     write(changedSecciones(debounced, saved), debounced);
   }, [debounced, saved, write]);
+
+  // Las fotografías no están en el formulario, así que el avance las toma de su
+  // propio store. Es el único sitio donde el sexto de fotografías cuenta de
+  // verdad: en la tarjeta vale cero hasta que se persistan.
+  const photos = usePhotosStore((state) => state.photos);
+  const progress = evaluationProgress(values, photos);
+  const setProgress = useEvaluationSaveStore((state) => state.setProgress);
+
+  useEffect(() => {
+    setProgress(progress);
+  }, [progress, setProgress]);
 
   const setStatus = useEvaluationSaveStore((state) => state.setStatus);
   const setActions = useEvaluationSaveStore((state) => state.setActions);

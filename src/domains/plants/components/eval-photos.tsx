@@ -81,10 +81,9 @@ export function PhotosHeaderSummary() {
 
   return (
     <View className="flex-row items-baseline justify-between gap-4">
+      {/* Siempre, también en cero: el hueco vacío no decía cuántas tomas hay. */}
       <Text variant="muted">
-        {withPhotos > 0
-          ? `${withPhotos} de ${PHOTO_CATEGORIES.length} categorías`
-          : ""}
+        {`${withPhotos} de ${PHOTO_CATEGORIES.length} categorías`}
       </Text>
       <View className="flex-row items-baseline gap-2">
         <Text variant="muted">Adjuntas</Text>

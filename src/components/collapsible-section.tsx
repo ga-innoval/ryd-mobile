@@ -16,7 +16,6 @@ import { ChevronDownIcon, type LucideIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
-import { Progress } from "@/components/ui/progress";
 
 const TOGGLE_DURATION_MS = 180;
 
@@ -55,7 +54,6 @@ type CollapsibleHeaderProps = {
    * cosa de quien monta la sección, no de la sección, o este componente
    * dejaría de servir para cualquier contenido que no sea una encuesta.
    */
-  progress?: number;
   /**
    * Contenido libre en el lugar de la barra, para secciones cuyo avance no es
    * un porcentaje: Brix no tiene un número fijo de cortes, así que muestra
@@ -106,7 +104,6 @@ export function CollapsibleHeader({
   icon,
   title,
   description,
-  progress,
   summary,
   open,
   onToggle,
@@ -204,27 +201,6 @@ export function CollapsibleHeader({
 
               <CollapsibleChevron open={open} />
             </View>
-
-            {progress !== undefined && (
-              <View className="flex-row items-center gap-4 px-4 pb-3">
-                {/* `w-auto` neutraliza el `w-full` que trae la raíz de `Progress`:
-                en una fila ocupaba el ancho entero y, como en React Native el
-                `flexShrink` por defecto es 0, empujaba el porcentaje fuera del
-                borde de la tarjeta. Al ir por `cn` -> `twMerge`, la clase de
-                fuera reemplaza a la interna en vez de competir con ella. */}
-                <Progress
-                  value={progress}
-                  className="w-auto flex-1 bg-white"
-                  indicatorClassName={cn("bg-foreground/90")}
-                />
-                {/* Ancho mínimo para que la barra no dé un tirón al pasar de
-                "0%" a "100%", y alineado a la derecha para que el número
-                quede a ras del borde de la tarjeta. */}
-                <Text className="min-w-12 text-right font-medium">
-                  {progress}%
-                </Text>
-              </View>
-            )}
 
             {summary !== undefined && (
               <View className="px-4 pb-3">{summary}</View>

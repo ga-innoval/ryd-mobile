@@ -59,5 +59,8 @@ export function useHideOnScroll({
     transform: [{ translateY: -hidden.value * distance }],
   }));
 
-  return { scrollHandler, animatedStyle };
+  // `hidden` sale fuera para que algo pueda acompañar al bloque sin irse del
+  // todo con él: la barra de avance sube lo justo para quedarse pegada bajo el
+  // header en vez de esconderse.
+  return { scrollHandler, animatedStyle, hidden };
 }

@@ -5,6 +5,11 @@ import type {
   EvaluationSectionId,
 } from "../evaluation-schema";
 import { seccionHasError } from "../evaluation-errors";
+import {
+  PROGRESS_SECTIONS,
+  seccionProgress,
+  formatProgress,
+} from "../evaluation-progress";
 
 // La fila tal como vive en SQLite: el payload es texto y los enums son strings
 // sueltos, porque SQLite no sabe de tipos nuestros.
@@ -80,14 +85,15 @@ export const saveRespuesta = async <S extends EvaluationSectionId>(
   { tratamientoId, seccion, payload, updatedAtLocal }: SaveRespuestaInput<S>,
 ): Promise<void> => {
   await db.runAsync(
-    `INSERT INTO respuestas (tratamientoId, seccion, payload, syncStatus, updatedAtLocal, syncedAt, hasError)
-     VALUES ($tratamientoId, $seccion, $payload, $syncStatus, $updatedAtLocal, NULL, $hasError)
+    `INSERT INTO respuestas (tratamientoId, seccion, payload, syncStatus, updatedAtLocal, syncedAt, hasError, progress)
+     VALUES ($tratamientoId, $seccion, $payload, $syncStatus, $updatedAtLocal, NULL, $hasError, $progress)
      ON CONFLICT(tratamientoId, seccion) DO UPDATE SET
        payload = excluded.payload,
        syncStatus = excluded.syncStatus,
        updatedAtLocal = excluded.updatedAtLocal,
        syncedAt = excluded.syncedAt,
-       hasError = excluded.hasError`,
+       hasError = excluded.hasError,
+       progress = excluded.progress`,
     {
       $tratamientoId: tratamientoId,
       $seccion: seccion,
@@ -98,6 +104,7 @@ export const saveRespuesta = async <S extends EvaluationSectionId>(
       // escribir una fila cuyo `hasError` no corresponda con su `payload`, que
       // es lo único que hace seguro guardar un dato derivado.
       $hasError: seccionHasError(seccion, payload) ? 1 : 0,
+      $progress: formatProgress(seccionProgress(seccion, payload)),
     },
   );
 };
@@ -118,6 +125,37 @@ export const getTratamientoIdsWithErrors = async (
   );
 
   return new Set(rows.map((row) => row.tratamientoId));
+};
+
+/**
+ * Cuánto lleva capturado cada tratamiento, de 0 a 1.
+ *
+ * Suma en SQL y divide entre las secciones que reparten, así que las que no
+ * tienen fila cuentan cero — que es lo correcto: sin capturar es 0 %. Los
+ * comentarios quedan fuera del `IN` porque no reparten avance.
+ *
+ * **Las fotografías nunca suman todavía**: no se guardan en ningún sitio, así
+ * que su sexto vale cero aquí aunque el evaluador las haya adjuntado. Se
+ * arregla solo el día que se persistan.
+ */
+export const getTratamientoProgress = async (
+  db: SQLiteDatabase,
+): Promise<Map<string, number>> => {
+  const placeholders = PROGRESS_SECTIONS.map(() => "?").join(",");
+  const rows = await db.getAllAsync<{ tratamientoId: string; total: number }>(
+    `SELECT tratamientoId, SUM(progress) AS total
+       FROM respuestas
+      WHERE seccion IN (${placeholders})
+      GROUP BY tratamientoId`,
+    [...PROGRESS_SECTIONS],
+  );
+
+  return new Map(
+    rows.map((row) => [
+      row.tratamientoId,
+      row.total / (PROGRESS_SECTIONS.length * 100),
+    ]),
+  );
 };
 
 /**

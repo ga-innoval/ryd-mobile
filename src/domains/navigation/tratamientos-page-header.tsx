@@ -67,7 +67,7 @@ const STATUS_VIEW: Partial<
 > = {
   pending: { text: "Guardando…" },
   saving: { text: "Guardando…" },
-  saved: { text: "Guardado", dotCn: "bg-green-500" },
+  saved: { text: "Guardado", dotCn: "bg-leaf" },
   error: { text: "No se pudo guardar", dotCn: "bg-destructive" },
 };
 

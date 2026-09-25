@@ -3,8 +3,8 @@ import { View } from "react-native";
 import { useController, useWatch } from "react-hook-form";
 import { CollapsibleHeader } from "@/components/collapsible-section";
 import { Separator } from "@/components/ui/separator";
+import { Text } from "@/components/ui/text";
 import { OptionPicker } from "@/components/ui/option-picker";
-import { calcEvalProgress } from "../lib/calc-eval-progress";
 import type {
   EvaluationFormValues,
   QuestionsSectionId,
@@ -92,14 +92,16 @@ type EvalQuestionsHeaderProps = Omit<
 };
 
 /**
- * La cabecera de una sección de preguntas, con su avance.
+ * La cabecera de una sección de preguntas, con lo que lleva contestado.
  *
- * El avance sale de un `useWatch` acotado a la sección y no de la pantalla:
- * contestar re-renderiza esta cabecera, no el formulario. Es un hijo directo
- * del scroll igual que antes, así que `stickyHeaderIndices` sigue contando bien.
+ * En texto y no como barra: es lo mismo que enseñan Criba, Rendimiento y
+ * Comentarios en ese hueco, y el número dice cuántas faltan, que es lo que el
+ * evaluador quiere saber. El avance en barra ya está arriba, para la evaluación
+ * entera.
  *
- * TODO(respuestas): cuando se carguen de SQLite cambia el origen de los valores
- * —los `defaultValues` del formulario—, no este cálculo.
+ * Sale de un `useWatch` acotado a la sección y no de la pantalla: contestar
+ * re-renderiza esta cabecera, no el formulario. Es un hijo directo del scroll
+ * igual que antes, así que `stickyHeaderIndices` sigue contando bien.
  */
 export function EvalQuestionsHeader({
   sectionId,
@@ -110,10 +112,16 @@ export function EvalQuestionsHeader({
     name: sectionId,
   });
 
+  const answered = questions.filter(
+    (question) => (answers ?? {})[question.id] !== undefined,
+  ).length;
+
   return (
     <CollapsibleHeader
       {...headerProps}
-      progress={calcEvalProgress(questions, answers ?? {})}
+      summary={
+        <Text variant="muted">{`${answered} de ${questions.length} preguntas`}</Text>
+      }
     />
   );
 }

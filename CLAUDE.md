@@ -30,7 +30,7 @@ sincronización manual.
 - **Testing**: Jest + `@testing-library/react-native`, factories en
   `src/test-utils/factories/`
 
-## Estado actual del schema (v4) — leer antes de tocar la DB
+## Estado actual del schema (v5) — leer antes de tocar la DB
 
 `src/lib/db/migrations.ts` crea **tres tablas**:
 
@@ -39,7 +39,7 @@ sincronización manual.
   `FOREIGN KEY (plantId) REFERENCES plants(id) ON DELETE CASCADE` e índice en
   `plantId`
 - `respuestas` (`tratamientoId, seccion, payload, syncStatus, updatedAtLocal,
-syncedAt, hasError`), con PK compuesta `(tratamientoId, seccion)`, CASCADE
+syncedAt, hasError, progress`), con PK compuesta `(tratamientoId, seccion)`, CASCADE
   contra `tratamientos`, índice en `syncStatus` e índice parcial sobre las filas
   con `hasError = 1`. Su repositorio es
   `lib/db/respuestas.repository.ts` y el porqué de la forma está en **Guardado y
@@ -49,7 +49,7 @@ syncedAt, hasError`), con PK compuesta `(tratamientoId, seccion)`, CASCADE
 acaban los archivos— ni la VIEW `plantaciones_with_progress`.
 `src/app/(app)/index.tsx` sigue inyectando `progress: 0` a mano (los
 tratamientos ya salen del repositorio). No escribas SELECT contra nada que no
-esté en la migración v4.
+esté en la migración v5.
 
 ## Modelo de dominio
 
@@ -343,7 +343,36 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
 
 ## Reglas de negocio
 
-- **`progress`** = 50% bloque tratamientos + 50% bloque post-cosecha.
+- **Avance de un tratamiento** (`lib/evaluation-progress.ts`, con tests): el
+  promedio de **seis** secciones, un sexto cada una — fotografías, exterior,
+  interior, brix, criba y rendimiento. **Comentarios no reparte**: sus tres
+  notas son libres y ninguna obligatoria, así que contarlas haría que el 100 %
+  exigiera escribir texto que el negocio no pide. Lo que no es obvio:
+  - **En Brix y Rendimiento el denominador es siempre el primer corte**, no los
+    que haya. Solo se agrega uno cuando el anterior está terminado, así que el
+    mínimo capturable es uno y los demás son trabajo extra que no mueve la
+    barra. Con el denominador creciendo, **agregar un corte haría retroceder el
+    avance**, que es lo único que una barra no puede hacer. Tiene test.
+  - **Va guardado por sección**, en la columna `progress` de `respuestas`, por lo
+    mismo que `hasError`: el listado lo pregunta de todas las plantaciones a la
+    vez y calcularlo al leer obligaba a abrir cada payload. El del tratamiento
+    sale en SQL, sumando sus filas y dividiendo entre las seis secciones; las que
+    no tienen fila cuentan cero, que es lo correcto.
+  - **Dónde se ve**: en la pantalla de captura, una barra fina a ancho completo
+    al pie del bloque de la cabecera, y en el chip de cada tratamiento del
+    listado. La barra **no se esconde al scrollear** aunque los datos de la
+    plantación y los chips sí: comparte el `hidden` de `useHideOnScroll` pero se
+    desplaza su alto menos el propio, así que sube hasta quedarse pegada bajo el
+    header en vez de irse con el bloque. Lleva su propio fondo verde porque una
+    vez arriba, lo que pasa por detrás es el formulario. En las cabeceras de sección **no hay barra**: enseñan el conteo en
+    texto («8 de 16 preguntas», «2 de 3 categorías»), igual que Criba y
+    Rendimiento, porque lo que el evaluador quiere saber ahí es cuántas faltan.
+  - **Las fotografías no suman en la tarjeta**, solo en la cabecera de la
+    pantalla de captura: no se guardan en ningún sitio, así que su sexto vale
+    cero en SQLite. Un tratamiento entero capturado enseña 83 % en el listado
+    hasta que las fotos se persistan. Es el hueco que más pide resolver
+    `expo-file-system`.
+- **`progress` de plantación** = 50% bloque tratamientos + 50% bloque post-cosecha.
   Cada bloque se prorratea internamente por sus propias unidades:
   3 tratamientos con 1 completo → `(1/3) × 50% = 16.6%`. Una plantación con
   su único tratamiento completo y toda la post-cosecha pendiente va en 50%.
