@@ -10,11 +10,17 @@ import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import {
   CRIBA_CALIBRES,
+  CRIBA_MAX_CALIBRE_WEIGHT,
+  CRIBA_SAMPLE_WEIGHTS,
+  firstCribaWarning,
+  isCribaError,
   formatGrams,
   formatShare,
   sanitizeCribaInput,
   summarizeCriba,
+  type CribaWarning,
 } from "../lib/criba";
+import { formatGrouped } from "../lib/decimal-text";
 import type { EvaluationFormValues } from "../lib/evaluation-schema";
 
 /**
@@ -35,6 +41,29 @@ const CRIBA_FIELDS = [
 ] as const;
 
 const FIELDS_PER_CALIBRE = CRIBA_FIELDS.length;
+
+/**
+ * Cómo se marca el campo según lo que pase con él. Rojo para el dato imposible
+ * y ámbar para lo que solo se sale de lo habitual, que es la misma distinción
+ * que hace `isCribaError` y la que usan las variantes del `Alert`.
+ */
+const FIELD_TONE_CN = {
+  warning: "border-amber-600 bg-amber-50 text-amber-800",
+  error: "border-red-600 bg-red-50 text-red-800",
+} as const;
+
+type FieldTone = keyof typeof FIELD_TONE_CN;
+
+/** Qué dice cada aviso. Cuál toca lo decide `firstCribaWarning`, que es donde
+ *  vive el orden y lo que tiene test. */
+const WARNING_TEXT: Record<CribaWarning, string> = {
+  totalOutOfRange: `Hay un peso total fuera del rango habitual: ${formatGrouped(CRIBA_MAX_CALIBRE_WEIGHT, 0)} g o más en un solo calibre. ¿Faltó el punto decimal?`,
+  sampleOutOfRange: `El peso de la muestra está fuera de lo habitual: la criba se hace con ${CRIBA_SAMPLE_WEIGHTS.map((weight) => `${weight / 1000} kg`).join(" o con ")}.`,
+  overTotal:
+    "El peso promedio no puede ser mayor que el peso total del calibre.",
+  belowPrevious:
+    "El peso promedio por baya tiene que aumentar con el calibre; hay uno más bajo que el del calibre anterior.",
+};
 
 const styles = StyleSheet.create({
   // Cifras de ancho fijo, para que los pesos queden en columna. En `style` y no
@@ -117,12 +146,12 @@ export function EvalCriba() {
     name: "criba.calibres",
   });
   const summary = summarizeCriba(calibres, typing?.index ?? null);
-  // Qué reglas están rotas, no cuántos calibres: el aviso de abajo es uno solo
-  // y enseña una línea por regla.
-  const overTotal = summary.calibres.some((calibre) => calibre.overTotal);
-  const belowPrevious = summary.calibres.some(
-    (calibre) => calibre.belowPrevious,
-  );
+  // Uno solo, el más grave de los que estén rotos. En cuanto se arregla,
+  // aparece el siguiente si sigue ahí (ver `firstCribaWarning`).
+  const warning = firstCribaWarning(summary);
+  // Lo imposible se pinta en rojo; lo raro, en ámbar.
+  const tone: FieldTone =
+    warning !== null && isCribaError(warning) ? "error" : "warning";
 
   // Un hueco por campo, en el orden de captura: el peso total de un calibre, su
   // promedio, y de ahí al calibre siguiente. Es lo que encadena «Siguiente».
@@ -175,12 +204,16 @@ export function EvalCriba() {
                   placeholder={
                     key === "average" && calibre.noFruit ? "No aplica" : ""
                   }
-                  // Los dos avisos son del promedio: es el peso que no cuadra,
-                  // ni con el total de su calibre ni con el calibre anterior.
+                  // En ámbar solo los campos del aviso que se está enseñando: un
+                  // campo marcado cuyo problema no explica nadie deja al
+                  // evaluador buscando. Los demás aparecerán cuando les toque.
                   warn={
-                    key === "average" &&
-                    (calibre.overTotal || calibre.belowPrevious)
+                    key === "average"
+                      ? (warning === "overTotal" && calibre.overTotal) ||
+                        (warning === "belowPrevious" && calibre.belowPrevious)
+                      : warning === "totalOutOfRange" && calibre.totalOutOfRange
                   }
+                  tone={tone}
                   isFocused={focused === fieldIndex}
                   isLast={fieldIndex === lastFieldIndex}
                   onEdit={() => setTyping({ index })}
@@ -224,24 +257,16 @@ export function EvalCriba() {
         ))}
       </View>
 
-      {(overTotal || belowPrevious) && (
+      {warning && (
         // Uno solo para toda la tarjeta, y no uno colgando de cada fila: qué
         // calibre no cuadra ya lo dice su campo en ámbar, así que el aviso solo
-        // tiene que explicar qué pasa. Si fallan las dos reglas, salen las dos
-        // líneas bajo el mismo icono. La variante `warning` es la misma que usa
+        // tiene que explicar qué pasa. La variante `warning` es la misma que usa
         // el aviso de rango de Brix.
-        <Alert variant="warning" icon={TriangleAlertIcon}>
-          {overTotal && (
-            <AlertDescription>
-              El peso promedio no puede ser mayor que el peso total del calibre.
-            </AlertDescription>
-          )}
-          {belowPrevious && (
-            <AlertDescription>
-              El peso promedio por baya tiene que aumentar con el calibre; hay
-              uno más bajo que el del calibre anterior.
-            </AlertDescription>
-          )}
+        <Alert
+          variant={tone === "error" ? "destructive" : "warning"}
+          icon={TriangleAlertIcon}
+        >
+          <AlertDescription>{WARNING_TEXT[warning]}</AlertDescription>
         </Alert>
       )}
 
@@ -285,6 +310,8 @@ type CribaWeightFieldProps = {
   accessibilityLabel: string;
   placeholder: string;
   warn: boolean;
+  /** Con qué color se marca cuando `warn` está puesto. */
+  tone: FieldTone;
   isFocused: boolean;
   isLast: boolean;
   /** Avisa de que cambió el peso, sin decir cuál ni a qué. */
@@ -306,6 +333,7 @@ function CribaWeightField({
   accessibilityLabel,
   placeholder,
   warn,
+  tone,
   isFocused,
   isLast,
   onEdit,
@@ -344,7 +372,7 @@ function CribaWeightField({
         className={cn(
           "pr-8 text-right text-lg font-medium leading-6",
           isFocused && "border-primary",
-          warn && "border-amber-600 bg-amber-50 text-amber-800",
+          warn && FIELD_TONE_CN[tone],
         )}
         style={styles.tabular}
       />

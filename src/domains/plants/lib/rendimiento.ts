@@ -34,8 +34,11 @@ export type RendimientoCorteSummary = {
   average: number | null;
   /** 0 kg y 0 racimos: el corte no dio fruta, así que no hay promedio. */
   noFruit: boolean;
-  /** Hay kilogramos y ningún racimo: falta el conteo, no es un promedio. */
-  warn: boolean;
+  /**
+   * Imposible: hay kilogramos cosechados y el conteo dice cero racimos. La
+   * fruta salió de algún sitio. Es uno de los errores de `evaluation-errors.ts`.
+   */
+  zeroRacimos: boolean;
   /** Con sus tres datos: es lo que habilita agregar el corte siguiente. */
   complete: boolean;
 };
@@ -85,15 +88,17 @@ export function sanitizeRacimos(text: string): string {
  *   registrado; uno con 0 kg sí, porque se pesó.
  * - **0 kg y 0 racimos es un corte sin fruta**, y entonces no hay promedio que
  *   calcular: dividir daría un cero que parecería un dato.
- * - **Kilogramos sin racimos es un aviso, no un promedio.** Falta el conteo, y
- *   la división por cero no es la respuesta.
+ * - **Kilogramos con el conteo en cero es error, no aviso**: la fruta salió de
+ *   algún sitio. Que el conteo esté todavía **sin capturar** no marca nada —es
+ *   un dato que falta, y de eso ya habla el avance de la sección—. En los dos
+ *   casos no hay promedio: la división por cero no es la respuesta.
  * - **Solo se agrega un corte cuando el anterior está terminado**, con sus tres
  *   datos, para que la numeración siga siendo consecutiva y no queden renglones
  *   a medias. Y solo se descarta el último, nunca el único: siempre queda un
  *   corte donde capturar.
- * - `typingIndex` es el corte que se está tecleando: no avisa hasta que se deja
- *   de teclear, como en Criba. Al escribir los kilogramos con los racimos
- *   todavía en cero, el aviso saldría a la primera tecla.
+ * - `typingIndex` es el corte que se está tecleando: ese no marca error hasta
+ *   que se deja de teclear, como en Criba. Al escribir los kilogramos con los
+ *   racimos ya en cero, saltaría a la primera tecla.
  */
 export function summarizeRendimiento(
   cortes: RendimientoCorte[],
@@ -108,7 +113,7 @@ export function summarizeRendimiento(
       kilogramos,
       racimos,
       noFruit: kilogramos === 0 && racimos === 0,
-      warn:
+      zeroRacimos:
         index !== typingIndex &&
         kilogramos !== null &&
         kilogramos > 0 &&

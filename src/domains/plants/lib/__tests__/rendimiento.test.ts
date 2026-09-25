@@ -65,25 +65,34 @@ describe("summarizeRendimiento", () => {
 
     expect(cortes[0].noFruit).toBe(true);
     expect(cortes[0].average).toBeNull();
-    expect(cortes[0].warn).toBe(false);
+    expect(cortes[0].zeroRacimos).toBe(false);
   });
 
-  it("avisa de los kilogramos sin racimos", () => {
+  // Imposible: la fruta salió de algún sitio.
+  it("marca error en los kilogramos con el conteo en cero", () => {
     const { cortes } = summarizeRendimiento([
       corte("2026-08-12", "412.5", "0"),
     ]);
 
-    expect(cortes[0].warn).toBe(true);
+    expect(cortes[0].zeroRacimos).toBe(true);
     expect(cortes[0].average).toBeNull();
   });
 
-  it("no avisa del corte que se está tecleando", () => {
+  // Falta el conteo, no está mal: de los datos que faltan habla el avance de la
+  // sección, no una alerta.
+  it("no marca el corte con el conteo todavía sin capturar", () => {
+    const { cortes } = summarizeRendimiento([corte("2026-08-12", "412.5", "")]);
+
+    expect(cortes[0].zeroRacimos).toBe(false);
+  });
+
+  it("no marca el corte que se está tecleando", () => {
     const { cortes } = summarizeRendimiento(
       [corte("2026-08-12", "412.5", "0")],
       0,
     );
 
-    expect(cortes[0].warn).toBe(false);
+    expect(cortes[0].zeroRacimos).toBe(false);
   });
 
   it("deja agregar otro corte cuando el último está terminado", () => {

@@ -27,6 +27,9 @@ import {
 import { useAppRouter } from "@/lib/use-app-router";
 import { useHideOnScroll } from "@/lib/use-hide-on-scroll";
 import { useTratamiento } from "@/domains/plants/hooks/use-tratamiento";
+import { useRespuestas } from "@/domains/plants/hooks/use-respuestas";
+import { buildEvaluationFromRespuestas } from "@/domains/plants/lib/build-evaluation-from-respuestas";
+import { EvaluationAutosave } from "@/domains/plants/components/evaluation-autosave";
 import { TratamientosPageHeader } from "@/domains/navigation/tratamientos-page-header";
 import {
   TratamientoChip,
@@ -288,6 +291,7 @@ const STICKY_HEADER_INDICES = SECTIONS.map((_, index) => 1 + index * 2);
 export default function TratamientoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading } = useTratamiento(id);
+  const { data: respuestas } = useRespuestas(id);
   const router = useAppRouter();
 
   // La evaluación entera. Es el búfer de edición: cuando exista la tabla
@@ -316,13 +320,25 @@ export default function TratamientoScreen() {
   // estaba, cualquier remonte borraba lo ya contestado. Las fotos no se tocan
   // aquí — de eso se encarga `claimFor`, que sí sabe de quién son.
   const previousId = useRef(id);
+  // Lo guardado ya se volcó para este tratamiento. Es lo que impide que un
+  // refetch posterior pise lo que el evaluador está escribiendo: el volcado
+  // ocurre una sola vez por tratamiento, no cada vez que la consulta responde.
+  const loadedFor = useRef<string | null>(null);
 
   useEffect(() => {
-    if (previousId.current === id) return;
+    if (previousId.current !== id) {
+      previousId.current = id;
+      loadedFor.current = null;
+      // Se vacía ya, sin esperar a SQLite: si no, durante la consulta seguirían
+      // a la vista las respuestas del tratamiento anterior.
+      reset(buildEvaluationDefaults());
+    }
 
-    previousId.current = id;
-    reset(buildEvaluationDefaults());
-  }, [id, reset]);
+    if (respuestas && loadedFor.current !== id) {
+      loadedFor.current = id;
+      reset(buildEvaluationFromRespuestas(respuestas));
+    }
+  }, [id, respuestas, reset]);
 
   // En cada montaje y en cada cambio de id, pero el vaciado lo decide el
   // store: solo si lo guardado era de otro tratamiento.
@@ -468,11 +484,18 @@ export default function TratamientoScreen() {
         )}
 
         {data && (
-          <EvaluationSections
-            tratamientoId={id}
-            reservedHeight={reservedHeight}
-            onScroll={scrollHandler}
-          />
+          <>
+            {/* No pinta nada: guarda y le cuenta a la cabecera cómo va. Va
+              dentro del `FormProvider` porque mira el formulario entero, y con
+              `key` para que al saltar a un hermano empiece de cero — lo que
+              lleva guardado es de este tratamiento, no del siguiente. */}
+            <EvaluationAutosave key={id} tratamientoId={id} />
+            <EvaluationSections
+              tratamientoId={id}
+              reservedHeight={reservedHeight}
+              onScroll={scrollHandler}
+            />
+          </>
         )}
       </View>
     </FormProvider>

@@ -13,11 +13,14 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: "",
-        destructive: "",
-        // El aviso que no bloquea nada: el rango de Brix, el peso promedio por
-        // baya de Criba. Ámbar y no rojo porque el dato sigue contando; el rojo
-        // queda para lo que sí impide seguir.
-        warning: "border-amber-300 bg-amber-50",
+        // El dato imposible: el promedio por baya mayor que el peso de su
+        // calibre, los kilogramos sin racimos. No impide guardar —eso no se
+        // toca—, pero sí que la evaluación se dé por terminada.
+        destructive: "border-red-300 bg-red-300/20",
+        // El aviso que no bloquea nada: el rango de Brix, el peso de la muestra
+        // que no cuadra. Ámbar y no rojo porque el dato sigue contando; el rojo
+        // queda para lo que no puede ser cierto.
+        warning: "border-amber-600 bg-amber-50",
       },
     },
     defaultVariants: {
@@ -30,7 +33,7 @@ const alertIconVariants = cva("size-4", {
   variants: {
     variant: {
       default: "",
-      destructive: "text-destructive",
+      destructive: "text-red-700",
       warning: "text-amber-700",
     },
   },
@@ -44,7 +47,7 @@ const alertTextVariants = cva("text-sm text-foreground", {
   variants: {
     variant: {
       default: "",
-      destructive: "text-destructive",
+      destructive: "text-red-800",
       warning: "text-amber-800",
     },
   },
@@ -59,7 +62,7 @@ const alertDescriptionVariants = cva(
     variants: {
       variant: {
         default: "",
-        destructive: "text-destructive/90",
+        destructive: "text-red-800",
         warning: "text-amber-800",
       },
     },

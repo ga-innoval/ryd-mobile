@@ -72,6 +72,14 @@ export type EvaluationValues = z.output<typeof evaluationSchema>;
 export type EvaluationSectionId = keyof EvaluationFormValues;
 
 /**
+ * Las secciones, derivadas del esquema y no escritas a mano: una sección nueva
+ * entra sola en el guardado y en la comparación de cambios.
+ */
+export const EVALUATION_SECTION_IDS = Object.keys(
+  evaluationSchema.shape,
+) as EvaluationSectionId[];
+
+/**
  * Las secciones que son un catálogo de preguntas. Brix va por cortes, Criba por
  * calibres, Rendimiento por cosechas y Comentarios por notas de texto libre,
  * así que quedan fuera y el tipo obliga a tratarlas aparte.

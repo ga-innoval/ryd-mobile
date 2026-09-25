@@ -47,9 +47,8 @@ syncedAt`), con PK compuesta `(tratamientoId, seccion)`, CASCADE contra
 **NO existen todavía**: la tabla `respuesta_fotos` —espera la decisión de dónde
 acaban los archivos— ni la VIEW `plantaciones_with_progress`.
 `src/app/(app)/index.tsx` sigue inyectando `progress: 0` a mano (los
-tratamientos ya salen del repositorio), y **nada escribe en `respuestas`
-todavía**: la pantalla de evaluación sigue guardando solo en el formulario. No
-escribas SELECT contra nada que no esté en la migración v3.
+tratamientos ya salen del repositorio). No escribas SELECT contra nada que no
+esté en la migración v3.
 
 ## Modelo de dominio
 
@@ -112,13 +111,53 @@ Ver **Guardado y sincronización de respuestas** más abajo.
 - Batch push/pull debe devolver resultado granular por registro, no
   todo-o-nada.
 
+## Errores de captura frente a avisos
+
+> Implementado: `lib/evaluation-errors.ts` (con tests), el rojo en Criba y
+> Rendimiento, y el estado `invalid` de la cabecera. **Falta** el chip de la
+> tarjeta de plantación y que el error impida de verdad dar el tratamiento por
+> terminado.
+
+**Un error es un dato que no puede ser cierto; un aviso, uno que se sale de lo
+habitual.** Esa es toda la diferencia, y decide el color: rojo contra ámbar.
+
+Hoy son **dos errores**, los únicos imposibles se mire como se mire:
+
+- **Criba**, el promedio por baya mayor que el peso total de su calibre.
+- **Rendimiento**, kilogramos cosechados con el conteo de racimos en cero. Que
+  el conteo esté sin capturar no marca nada: es un dato que falta, no uno
+  imposible.
+
+Los otros cuatro —el rango de Brix, el calibre de un kilo, la muestra que no
+pesa 1.5 ni 2.5 kg, el promedio que rompe la progresión— **siguen siendo
+avisos**, y no por timidez: tres de ellos dependen de un número que el negocio
+todavía no ha confirmado (cuánta diferencia se le admite a la muestra, a partir
+de qué peso un calibre es imposible y no solo raro, y el rango real de Brix). Con
+los números de hoy, como error bloquearían capturas legítimas — una muestra que
+de verdad pesó 1.7 kg, un calibre con el 40 % de una muestra de 2.5 kg.
+
+**Un error no impide guardar.** SQLite es la libreta del evaluador y ahí cabe
+todo: bloquear la escritura no protegería el reporte, destruiría trabajo, y
+además estos estados aparecen a media captura —por eso existe la pausa de
+tecleo—. Lo que el error impide es dar el tratamiento por terminado y mandarlo.
+Guardar y dar por bueno son dos cosas distintas.
+
+Dónde se ve, por orden de distancia: el campo y la alerta de la sección, el
+estado `invalid` de la cabecera ("Error de captura"), y —pendiente— el chip de
+la tarjeta. **La cabecera dice que hay un error pero no cuál**: con las secciones
+plegadas hay que buscarlo scrolleando. Es una decisión tomada, no un olvido.
+
+En la cabecera hay dos rojos y no significan lo mismo: `error` es que la
+escritura falló y el trabajo está en peligro, `invalid` es que lo capturado está
+guardado pero tiene un dato imposible. Por eso `error` gana.
+
 ## Guardado y sincronización de respuestas
 
-> **Qué hay de esto:** la tabla local y su repositorio existen y tienen tests
-> (migración v3, `lib/db/respuestas.repository.ts`). **Nadie los llama todavía**:
-> falta conectar el guardado a la pantalla, el push, y todo el lado servidor. El
-> contrato completo —payload de cada sección, endpoints, códigos de error y
-> modelos propuestos para Django— está en
+> **Qué hay de esto:** el guardado local funciona de punta a punta —migración
+> v3, `lib/db/respuestas.repository.ts`, el volcado al formulario y la barra de
+> guardado—. **Falta todo el push y todo el lado servidor**, y las fotografías
+> siguen sin persistir. El contrato completo —payload de cada sección,
+> endpoints, códigos de error y modelos propuestos para Django— está en
 > [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md). Aquí solo van las
 > decisiones y su porqué, para no volver a discutirlas.
 
@@ -154,6 +193,53 @@ CREATE TABLE IF NOT EXISTS respuestas (
   FOREIGN KEY (tratamientoId) REFERENCES tratamientos(id) ON DELETE CASCADE
 );
 ```
+
+**El guardado es automático por sección, y el botón "Guardar" hace lo mismo ya.**
+La pantalla escribe sola cuando el evaluador lleva dos segundos sin tocar nada
+(`EvaluationAutosave`), porque en campo la app puede morir sin aviso y nadie se
+acuerda de un botón; el botón existe igualmente porque ver "Guardado" después de
+pulsarlo es lo que deja tranquilo a quien capturó media hora, y por eso pulsarlo
+sin nada pendiente también enciende el "Guardado" en vez de no hacer nada. Solo
+viajan a SQLite las secciones que cambiaron —`lib/evaluation-snapshot.ts` las
+compara—, para que guardar comentarios no devuelva a la cola del push una criba
+ya sincronizada. Esa comparación ordena las claves y descarta las `undefined`:
+react-hook-form reconstruye objetos por su cuenta y un reordenamiento contaría
+como cambio. **Las fotografías no entran en ese guardado.**
+
+**El estado vive en la cabecera, y llega ahí por un store**
+(`store/evaluation-save-store.ts`). El motivo no es preferencia: la cabecera es
+el `header` del navigator, se pinta **fuera** del árbol de la pantalla y no ve el
+`FormProvider`, así que no puede preguntar por sí misma si hay algo sin guardar
+—mismo caso que `photos-store`—. Quien calcula y escribe es `EvaluationAutosave`,
+que no pinta nada: mira el formulario entero con `useWatch`, de modo que el
+re-render de cada tecla se queda en él y no repinta las seis secciones. Los dos
+botones van al store como **funciones y no como una señal que un efecto atienda**:
+pulsar es un evento, y pasándolo por un efecto el guardado a mano tendría que
+cambiar estado en mitad de un render —que es justo lo que prohíbe
+`react-hooks/set-state-in-effect`—. Los estados salen del artifact «Estado de
+guardado en la cabecera», con un ajuste probado en tablet: **«hay cambios» y
+«escribiendo» se enseñan igual**, los dos como "Guardando…" con la rueda
+girando. Escribir en SQLite dura milisegundos, así que un indicador atado solo a
+la escritura no llegaba a dibujarse; juntos, la rueda gira desde el primer cambio
+y se queda hasta que termina. Eso deja fuera el «Cambios por guardar» del
+diseño, que avisaba de un problema que se arregla solo. Quedan tres: nada al
+abrir, "Guardando…", "Guardado" en verde, y rojo si falla. La distinción interna
+sigue viva porque decide qué se bloquea: solo la escritura de verdad apaga
+volver, descartar y guardar.
+
+De ahí sale `MANUAL_FEEDBACK_MS`: **al pulsar «Guardar» la rueda se queda un
+momento aunque la escritura acabe antes**. Sin eso el botón parecía roto, porque
+lo normal es pulsarlo cuando ya está todo guardado y reconfirmar un estado no se
+ve en pantalla. No es una espera artificial —el guardado ocurre igual de
+rápido—, es que la respuesta se vea. El autoguardado no lo necesita: ahí la
+rueda ya lleva girando los dos segundos.
+
+**El volcado al abrir es de una sola vez por tratamiento**
+(`buildEvaluationFromRespuestas` + el `loadedFor` de la pantalla): la query de
+respuestas no se invalida al guardar y el volcado no se repite, o un refetch
+pisaría lo que se está escribiendo. Una sección cuyo payload no encaje con el
+esquema se muestra en blanco y **su fila no se toca**, así que el dato sigue en
+SQLite.
 
 **En SQLite se guarda lo capturado (`z.input`), no lo validado (`z.output`)** —
 los dos tipos ya están separados en `evaluation-schema.ts`. Reabrir la pantalla
@@ -256,13 +342,37 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
   - **El peso de la muestra es la suma de lo capturado**, no un dato aparte, y
     la distribución de cada calibre es su parte de esa suma. Con la muestra en
     cero no hay nada que repartir: la distribución queda vacía, no en 0 %.
-  - **Dos avisos que no bloquean**, igual que el rango de Brix —el esquema es lo
-    que impedirá guardar y ninguno de los dos entra en él—: el promedio mayor
-    que el peso total del calibre, que es imposible, y el promedio más bajo que
-    el del calibre capturado anterior, que es incoherente porque la criba separa
-    por tamaño y la baya de un calibre pesa más que la de uno más pequeño. La
-    cadena del segundo salta los calibres sin promedio: uno sin capturar, o con
-    0 g, no rompe la secuencia ni sirve de referencia.
+  - **Cuatro reglas que no bloquean el guardado**, igual que el rango de Brix.
+    Una de ellas es **error** y las otras tres avisos (ver «Errores de captura
+    frente a avisos»). Dos son de coherencia entre pesos: el promedio mayor que
+    el peso total del calibre, que es imposible y es el error, y el promedio más
+    bajo que el del calibre capturado anterior,
+    que es incoherente porque la criba separa por tamaño y la baya de un calibre
+    pesa más que la de uno más pequeño. La cadena del segundo salta los calibres
+    sin promedio: uno sin capturar, o con 0 g, no rompe la secuencia ni sirve de
+    referencia. Los otros dos son de magnitud: 1 kg o más en un solo calibre
+    (`CRIBA_MAX_CALIBRE_WEIGHT`), que no cabría ni en la muestra grande, y una
+    muestra que no pese exactamente uno de los dos `CRIBA_SAMPLE_WEIGHTS` —1.5
+    kg o 2.5 kg, los mismos que explica la nota del pie—.
+  - **El de la muestra espera a que ya no pueda arreglarse solo.** La suma crece
+    mientras se llenan los calibres y por el camino casi nunca vale ninguno de
+    los dos, así que solo avisa si se pasó del mayor o si están los nueve
+    pesados. Y calla mientras se teclea **cualquier** calibre, no solo el que
+    suma de más: el peso a medio escribir ya va dentro de la suma, así que
+    camino de «250» el «2500» intermedio dispararía el aviso.
+  - **La comparación con 1.5 / 2.5 kg lleva tolerancia de 0.05 g, y no es
+    holgura de báscula: es coma flotante.** Sumar nueve decimales da
+    1500.0000000000002 constantemente —probado sobre 200 000 repartos al azar,
+    el 44 % no daba 1500 exacto—, así que con `===` la app regañaría en capturas
+    correctas.
+  - **Se enseña un aviso a la vez**, el más grave, y el siguiente aparece cuando
+    se arregla (`firstCribaWarning`, con test del orden). Se arrastran: un
+    calibre con un kilo de más desbarata también la suma, así que enseñar las
+    dos cosas es contar dos veces el mismo error. El orden va de causa a efecto:
+    peso total imposible → muestra que no cuadra → promedio mayor que su calibre
+    → promedio que rompe la progresión. En ámbar se ponen solo los campos del
+    aviso que se está enseñando; un campo marcado cuyo problema no explica nadie
+    deja al evaluador buscando.
   - **El peso de muestra de referencia es una nota fija**: 1.5 kg en plantación
     experimental (primera etapa) y 2.5 kg en semiexperimental (segunda). La
     etapa no se puede obtener desde la app —no está en `plants` ni la manda el
@@ -280,8 +390,12 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
     ni cuenta como registrado; uno pesado en 0 kg sí, porque se pesó.
   - **0 kg y 0 racimos es un corte sin fruta**: el promedio por racimo dice «No
     aplica» en vez de dividir, que daría un cero con pinta de dato.
-  - **Kilogramos sin racimos se avisa, no se promedia**: lo que falta es el
-    conteo, y la división por cero no es la respuesta.
+  - **Kilogramos con el conteo en cero es error, no aviso** (`zeroRacimos`): la
+    fruta salió de algún sitio. Que el conteo esté **sin capturar** no saca
+    nada: es un dato que falta, y de eso habla el avance de la sección. Poner
+    una alerta por cada hueco sería una alerta permanente — se intentó y se
+    quitó. En ninguno de los dos casos hay promedio: la división por cero no es
+    la respuesta.
   - **Solo se agrega el corte siguiente cuando el anterior tiene sus tres
     datos**, para que la numeración siga siendo consecutiva. El botón se queda
     deshabilitado con una nota de qué falta —igual que el de Brix— en vez de
