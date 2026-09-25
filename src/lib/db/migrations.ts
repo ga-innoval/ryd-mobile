@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 3;
+const DATABASE_VERSION = 4;
 
 export async function runMigrations(db: SQLiteDatabase) {
   await db.execAsync("PRAGMA foreign_keys = ON");
@@ -76,10 +76,31 @@ export async function runMigrations(db: SQLiteDatabase) {
     currentVersion = 3;
   }
 
+  if (currentVersion === 3) {
+    // Si esa captura trae un dato imposible, calculado al escribirla (ver
+    // `seccionHasError`). Es un dato derivado del `payload`, y lo que lo hace
+    // seguro es que lo pone el propio `saveRespuesta`: no hay forma de escribir
+    // una fila con la marca desfasada.
+    //
+    // Está aquí y no calculado al leer porque el listado lo pregunta de todas
+    // las plantaciones a la vez, y abrir cada payload para responder crecía con
+    // los datos: 8 000 filas eran 40 ms de bloqueo del hilo de JS.
+    //
+    // El índice es parcial —solo las filas marcadas— porque un índice sobre una
+    // columna de dos valores no sirve de nada: lo que se consulta siempre es el
+    // 1, y así ocupa lo que ocupen los errores, que deberían ser pocos.
+    await db.execAsync(`
+      ALTER TABLE respuestas ADD COLUMN hasError INTEGER NOT NULL DEFAULT 0;
+      CREATE INDEX IF NOT EXISTS idx_respuestas_hasError
+        ON respuestas(tratamientoId) WHERE hasError = 1;
+    `);
+    currentVersion = 4;
+  }
+
   // Próxima migración. ej:
-  // if (currentVersion === 3) {
+  // if (currentVersion === 4) {
   //   await db.execAsync(`CREATE TABLE IF NOT EXISTS newTable (...)`);
-  //   currentVersion = 4;
+  //   currentVersion = 5;
   // }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

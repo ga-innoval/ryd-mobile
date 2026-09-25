@@ -41,6 +41,8 @@ type TratamientoChipProps = {
   onPress: () => void;
   variant?: ChipVariant;
   isActive?: boolean;
+  /** Su captura tiene un dato imposible: el borde lo dice sin abrirlo. */
+  hasError?: boolean;
 };
 
 export function TratamientoChip({
@@ -48,6 +50,7 @@ export function TratamientoChip({
   onPress,
   variant = "card",
   isActive = false,
+  hasError = false,
 }: TratamientoChipProps) {
   const styles = VARIANTS[variant];
 
@@ -55,9 +58,12 @@ export function TratamientoChip({
     <PressableScale
       onPress={onPress}
       className={cn(
-        "rounded-xl items-center justify-center border-2 flex-row overflow-hidden",
+        "rounded-xl items-center justify-center border-2 overflow-hidden flex-col",
         styles.container,
         isActive && styles.activeContainer,
+        // Después del activo para ganarle el borde: si el tratamiento abierto es
+        // el que falla, lo que hay que ver es el error.
+        hasError && "bg-destructive-background border-destructive/20",
       )}
     >
       <Text
@@ -66,10 +72,12 @@ export function TratamientoChip({
           "font-medium",
           styles.text,
           isActive && styles.activeText,
+          hasError && "text-destructive",
         )}
       >
         {tratamiento.name}
       </Text>
+      <Text variant={"muted"}>0%</Text>
     </PressableScale>
   );
 }

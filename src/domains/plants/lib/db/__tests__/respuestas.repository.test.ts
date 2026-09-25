@@ -15,9 +15,11 @@ import {
 import {
   getPendingRespuestas,
   getRespuestasByTratamiento,
+  getTratamientoIdsWithErrors,
   markRespuestaSynced,
   saveRespuesta,
 } from "../respuestas.repository";
+import { buildEvaluationDefaults } from "../../evaluation-schema";
 
 const buildRecord = (overrides: Partial<PlantRecord> = {}): PlantRecord => {
   const { tratamientos: _t, progress: _p, ...record } = buildPlant(overrides);
@@ -255,5 +257,51 @@ describe("respuestas.repository", () => {
     await deleteTratamiento(db, "t1");
 
     expect(await getRespuestasByTratamiento(db, "t1")).toHaveLength(0);
+  });
+
+  // La marca `hasError` es un dato derivado del payload, así que lo que hay que
+  // sostener es que no puede quedarse desfasada: la pone el propio guardado.
+  describe("hasError", () => {
+    const rendimientoCon = (kilogramos: string, racimos: string) => {
+      const { rendimiento } = buildEvaluationDefaults();
+      rendimiento.cortes[0] = { fecha: "2026-09-25", kilogramos, racimos };
+      return rendimiento;
+    };
+
+    const guardar = (tratamientoId: string, racimos: string) =>
+      saveRespuesta(db, {
+        tratamientoId,
+        seccion: "rendimiento",
+        payload: rendimientoCon("120.5", racimos),
+        updatedAtLocal: "2026-09-25T10:00:00.000Z",
+      });
+
+    it("marca el tratamiento cuya captura no puede ser cierta", async () => {
+      await guardar("t1", "0");
+
+      expect(await getTratamientoIdsWithErrors(db)).toEqual(new Set(["t1"]));
+    });
+
+    it("no marca la captura que cuadra", async () => {
+      await guardar("t1", "240");
+
+      expect(await getTratamientoIdsWithErrors(db)).toEqual(new Set());
+    });
+
+    // Lo que hace seguro guardar un derivado: corregir el dato lo desmarca sin
+    // que nadie tenga que acordarse.
+    it("se corrige sola al volver a guardar la sección", async () => {
+      await guardar("t1", "0");
+      await guardar("t1", "240");
+
+      expect(await getTratamientoIdsWithErrors(db)).toEqual(new Set());
+    });
+
+    it("no mezcla los tratamientos", async () => {
+      await guardar("t1", "0");
+      await guardar("t2", "240");
+
+      expect(await getTratamientoIdsWithErrors(db)).toEqual(new Set(["t1"]));
+    });
   });
 });

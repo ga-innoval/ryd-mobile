@@ -122,6 +122,15 @@ const CardHeader = ({ item, match }: { item: Plant; match?: FieldMatch }) => {
                 : `${item.progress * 100}% completado`}
             </Text>
           </Badge>
+          {/* Después del de estatus y sin sustituirlo: una plantación iniciada
+              también puede traer un dato inválido. */}
+          {item.tratamientosWithError.length > 0 && (
+            <Badge className="bg-destructive-background border-destructive/30 gap-1">
+              <Text className="text-destructive font-medium">
+                Error de captura
+              </Text>
+            </Badge>
+          )}
           {item.syncStatus === SyncStatus.pending && (
             <Badge className="bg-orange-300/20 border-orange-300 gap-1">
               <View className="rounded-full bg-orange-400 h-1.5 w-1.5" />
@@ -178,6 +187,7 @@ export const PlantCard = memo(function PlantCard({
               <TratamientoChip
                 key={trat.id}
                 tratamiento={trat}
+                hasError={item.tratamientosWithError.includes(trat.id)}
                 onPress={() =>
                   router.push({
                     pathname: "/tratamientos/[id]",

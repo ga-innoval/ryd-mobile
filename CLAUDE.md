@@ -30,7 +30,7 @@ sincronización manual.
 - **Testing**: Jest + `@testing-library/react-native`, factories en
   `src/test-utils/factories/`
 
-## Estado actual del schema (v3) — leer antes de tocar la DB
+## Estado actual del schema (v4) — leer antes de tocar la DB
 
 `src/lib/db/migrations.ts` crea **tres tablas**:
 
@@ -39,8 +39,9 @@ sincronización manual.
   `FOREIGN KEY (plantId) REFERENCES plants(id) ON DELETE CASCADE` e índice en
   `plantId`
 - `respuestas` (`tratamientoId, seccion, payload, syncStatus, updatedAtLocal,
-syncedAt`), con PK compuesta `(tratamientoId, seccion)`, CASCADE contra
-  `tratamientos` e índice en `syncStatus`. Su repositorio es
+syncedAt, hasError`), con PK compuesta `(tratamientoId, seccion)`, CASCADE
+  contra `tratamientos`, índice en `syncStatus` e índice parcial sobre las filas
+  con `hasError = 1`. Su repositorio es
   `lib/db/respuestas.repository.ts` y el porqué de la forma está en **Guardado y
   sincronización de respuestas**
 
@@ -48,7 +49,7 @@ syncedAt`), con PK compuesta `(tratamientoId, seccion)`, CASCADE contra
 acaban los archivos— ni la VIEW `plantaciones_with_progress`.
 `src/app/(app)/index.tsx` sigue inyectando `progress: 0` a mano (los
 tratamientos ya salen del repositorio). No escribas SELECT contra nada que no
-esté en la migración v3.
+esté en la migración v4.
 
 ## Modelo de dominio
 
@@ -142,10 +143,39 @@ además estos estados aparecen a media captura —por eso existe la pausa de
 tecleo—. Lo que el error impide es dar el tratamiento por terminado y mandarlo.
 Guardar y dar por bueno son dos cosas distintas.
 
-Dónde se ve: el campo y la alerta de la sección, y el **botón flotante**
+Dónde se ve: el campo y la alerta de la sección, el **botón flotante**
 `EvaluationErrorButton` —«Ir al error de captura»—, que aparece cuando la sección
-que lo tiene se queda fuera de la pantalla y lleva hasta ella. Falta el chip de
-la tarjeta.
+que lo tiene se queda fuera de la pantalla y lleva hasta ella, y el **chip de la
+tarjeta de plantación**, después del de estatus y sin sustituirlo: una plantación
+iniciada también puede traer un dato inválido.
+
+Y dentro de la tarjeta, **el chip del tratamiento que falla lleva el borde
+rojo**: el de la plantación dice que hay algo, y el borde dice cuál de los
+cuatro. Por eso `usePlants` devuelve `tratamientosWithError` —los ids— y no un
+booleano: la lista vacía ya significa «sin errores».
+
+**La marca va guardada en la columna `hasError` de `respuestas`, no calculada al
+leer.** La pone `saveRespuesta` al escribir la sección y el listado solo la
+consulta: `SELECT DISTINCT tratamientoId ... WHERE hasError = 1`, sin abrir un
+solo payload. Que baste con la sección, sin reconstruir la evaluación del
+tratamiento, es porque **cada regla de error cabe dentro de su propia sección**
+(`ERROR_SECTIONS`).
+
+Se probó antes calculándolo al leer y se cambió por esto: abrir los payloads de
+todas las plantaciones crecía con los datos —medido sobre payloads llenos, 400
+filas 3 ms, 1 600 filas 9 ms y 8 000 filas 40 ms en V8, y Hermes es varias veces
+más lento—, y eso es bloqueo del hilo de JS justo al entrar al listado.
+
+Es un dato derivado, con el riesgo que eso trae, y **lo que lo hace seguro es que
+lo calcula el propio `saveRespuesta`**: no hay forma de escribir una fila cuyo
+`hasError` no corresponda con su `payload`. Si algún día hace falta otra marca
+derivada, ese es el sitio. El índice es parcial —solo las filas marcadas—, porque
+uno normal sobre una columna de dos valores no sirve de nada.
+
+**Ojo con las capturas anteriores a la migración v4**: nacen con `hasError = 0`
+aunque su payload traiga el error, y no se marcan hasta que esa sección se vuelva
+a guardar. No se hizo backfill porque no hay datos en producción; si algún día
+hiciera falta, es recorrer las filas de `ERROR_SECTIONS` una vez.
 
 **En la cabecera no va.** Se probó y se quitó: allí el error competía con el
 estado de guardado y acababa tapando el "Guardando…" justo cuando había algo sin
