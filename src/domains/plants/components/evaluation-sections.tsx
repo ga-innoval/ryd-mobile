@@ -54,8 +54,23 @@ export function EvaluationSections({
   // común donde compartirlo. Ausente es abierta.
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
-  const toggleSection = useCallback((sectionId: string) => {
-    setOpenSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
+  /**
+   * Recibe el valor ya resuelto, nunca lo deduce.
+   *
+   * Antes invertía lo que hubiera en el mapa (`!prev[sectionId]`), y ahí había
+   * una segunda opinión sobre qué significa **ausente**: para el render es
+   * abierta, para aquello era cerrada. Con el mapa vacío, el primer toque hacía
+   * `!undefined` —o sea `true`, «abierta»— sobre una sección que ya lo estaba,
+   * así que no pasaba nada y había que tocar dos veces. A partir del segundo ya
+   * alternaba bien, que es lo que lo disimulaba.
+   *
+   * Nació el día que las secciones pasaron a abrirse por defecto: con el
+   * default anterior las dos opiniones coincidían por casualidad. Por eso no se
+   * arregla poniéndolas de acuerdo —volverían a separarse al siguiente
+   * cambio—, sino quitando una: quien pinta ya sabe el valor y lo pasa.
+   */
+  const setSectionOpen = useCallback((sectionId: string, open: boolean) => {
+    setOpenSections((prev) => ({ ...prev, [sectionId]: open }));
   }, []);
 
   // `useScrollOffset` escucha por su propio canal de eventos, así que
@@ -118,9 +133,9 @@ export function EvaluationSections({
         }
       }
 
-      toggleSection(sectionId);
+      setSectionOpen(sectionId, !isOpen);
     },
-    [scrollOffset, scrollRef, toggleSection],
+    [scrollOffset, scrollRef, setSectionOpen],
   );
 
   /**
