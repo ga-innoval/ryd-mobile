@@ -2,6 +2,7 @@ import { useSQLiteContext, type SQLiteDatabase } from "expo-sqlite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
 import {
+  deleteRespuestasByTratamiento,
   getRespuestasByTratamiento,
   saveRespuesta,
 } from "../lib/db/respuestas.repository";
@@ -105,6 +106,31 @@ export async function saveRespuestaSecciones(
  *
  * TODO(progreso): el mismo punto sirve cuando la tarjeta muestre el avance.
  */
+export function useClearRespuestas(tratamientoId: string) {
+  const db = useSQLiteContext();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => deleteRespuestasByTratamiento(db, tratamientoId),
+    // Como el guardado: el listado tiene que enterarse de que el avance cayó a
+    // cero y de que el error de captura, si lo había, ya no está. Su propia
+    // query no se invalida por lo mismo de siempre —el formulario es la copia
+    // viva—, y quien limpia ya lo deja en blanco a mano.
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: PLANTS_QUERY_KEY,
+        exact: true,
+      });
+    },
+    onError: (error) => {
+      toast.error({
+        title: "No se pudo limpiar",
+        description: error.message,
+      });
+    },
+  });
+}
+
 export function useSaveRespuestas(tratamientoId: string) {
   const db = useSQLiteContext();
   const queryClient = useQueryClient();

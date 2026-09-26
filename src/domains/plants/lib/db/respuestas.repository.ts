@@ -74,6 +74,32 @@ export const getRespuestasByTratamiento = async (
 };
 
 /**
+ * Borra todo lo capturado de un tratamiento.
+ *
+ * Borra las filas en vez de dejarlas con el payload vacío, y esa es la
+ * diferencia que el modelo ya distingue: *sin fila* es una sección que nadie
+ * tocó, *fila vacía* es una capturada y vaciada. Limpiar significa lo primero —
+ * el tratamiento vuelve a avance cero, chip «Sin iniciar» y fuera del filtro de
+ * iniciadas—, que es lo que espera quien pulsa el botón.
+ *
+ * **No toca las fotografías**: cuelgan de `tratamientos`, no de aquí, así que
+ * ninguna CASCADE las alcanza. Quien limpia las borra aparte, porque además hay
+ * archivos en disco de por medio.
+ *
+ * Pendiente para el día del push: limpiar algo **ya sincronizado** no deja
+ * rastro local que contarle al servidor. Es la misma lápida que ya está anotada
+ * para las fotografías, no un hueco nuevo.
+ */
+export const deleteRespuestasByTratamiento = async (
+  db: SQLiteDatabase,
+  tratamientoId: string,
+): Promise<void> => {
+  await db.runAsync("DELETE FROM respuestas WHERE tratamientoId = ?", [
+    tratamientoId,
+  ]);
+};
+
+/**
  * Guarda una sección. La vuelve a dejar pendiente y le quita el `syncedAt`:
  * cualquier cambio posterior a la última subida es trabajo que el servidor
  * todavía no tiene.

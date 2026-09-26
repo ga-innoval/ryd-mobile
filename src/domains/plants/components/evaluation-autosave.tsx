@@ -6,17 +6,23 @@ import { toast } from "@/lib/toast";
 import { useDebouncedValue } from "../hooks/use-debounced-value";
 import {
   saveRespuestaSecciones,
+  useClearRespuestas,
   useRespuestas,
   useSaveRespuestas,
 } from "../hooks/use-respuestas";
 import { PLANTS_QUERY_KEY } from "../hooks/use-plants";
 import { buildEvaluationFromRespuestas } from "../lib/build-evaluation-from-respuestas";
 import { evaluationProgress } from "../lib/evaluation-progress";
-import { EMPTY_FOTOS, useFotos } from "../hooks/use-respuesta-fotos";
+import {
+  EMPTY_FOTOS,
+  useFotos,
+  useRemoveFotos,
+} from "../hooks/use-respuesta-fotos";
 import { groupFotosByCategoria } from "../lib/group-fotos-by-categoria";
-import type {
-  EvaluationFormValues,
-  EvaluationSectionId,
+import {
+  buildEvaluationDefaults,
+  type EvaluationFormValues,
+  type EvaluationSectionId,
 } from "../lib/evaluation-schema";
 import {
   changedSecciones,
@@ -83,6 +89,8 @@ export function EvaluationAutosave({
   const queryClient = useQueryClient();
   const { data: respuestas } = useRespuestas(tratamientoId);
   const { mutate, isPending, isError } = useSaveRespuestas(tratamientoId);
+  const { mutate: clearRespuestas } = useClearRespuestas(tratamientoId);
+  const { mutate: removeFotos } = useRemoveFotos(tratamientoId);
 
   // Lo que hay en SQLite, y no lo que había en el formulario al montar: así da
   // igual si esto aparece antes o después de que la pantalla vuelque los
@@ -183,19 +191,39 @@ export function EvaluationAutosave({
     write(changed, current);
   }, [saved, getValues, write]);
 
-  /** Vuelve a lo último guardado, que con el autoguardado son como mucho los
-   *  dos últimos segundos de escritura. */
-  const handleDiscard = useCallback(() => {
-    if (!respuestas) return;
+  /**
+   * Deja el tratamiento como si nadie lo hubiera tocado: borra sus filas de
+   * `respuestas`, borra sus fotografías —filas y archivos— y vacía el
+   * formulario. Lo confirma un diálogo en la cabecera; aquí ya no se pregunta.
+   *
+   * **Mover `written` no es cosmética, es lo que impide que el limpiado se
+   * deshaga solo.** `saved` sale de `written ?? stored`, y `stored` viene de una
+   * consulta que no se refresca al escribir, así que seguiría trayendo lo de
+   * antes: el autoguardado compararía el formulario vacío contra ello, vería las
+   * seis secciones cambiadas y dos segundos después **volvería a crear las filas
+   * en blanco** que acabamos de borrar. Con la foto vacía puesta a mano no queda
+   * nada pendiente y no se escribe nada.
+   *
+   * Va en el mismo manejador que el `reset` a propósito: React agrupa los dos,
+   * así que no hay ni un render en que el formulario esté vacío y `saved` no.
+   */
+  const handleClear = useCallback(() => {
+    const vacia = buildEvaluationDefaults();
 
-    reset(buildEvaluationFromRespuestas(respuestas));
-  }, [respuestas, reset]);
+    if (fotos && fotos.length > 0) {
+      removeFotos(fotos.map((foto) => foto.clientId));
+    }
+
+    clearRespuestas();
+    reset(vacia);
+    setWritten(snapshotEvaluation(vacia));
+  }, [fotos, removeFotos, clearRespuestas, reset]);
 
   // Sin `saved` no hay contra qué comparar y los dos botones no harían nada:
   // mejor apagados —que es lo que significa `null`— que mudos.
   useEffect(() => {
-    setActions(saved ? { save: handleSave, discard: handleDiscard } : null);
-  }, [setActions, saved, handleSave, handleDiscard]);
+    setActions(saved ? { save: handleSave, clear: handleClear } : null);
+  }, [setActions, saved, handleSave, handleClear]);
 
   // El fallo de escritura va antes que lo pendiente a propósito: tras un fallo
   // los cambios siguen sin guardar, y decir "Cambios por guardar" escondería que
