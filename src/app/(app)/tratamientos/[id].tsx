@@ -1,11 +1,6 @@
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ScrollView,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { ScrollView, View, type StyleProp, type ViewStyle } from "react-native";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Animated, {

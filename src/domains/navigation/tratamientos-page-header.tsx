@@ -1,5 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/ui/text";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { HeaderBase } from "./header-base";
 import { View } from "react-native";
 import Animated, {
@@ -14,10 +24,10 @@ import { IconButton } from "@/components/ui/icon-button";
 import { Icon } from "@/components/ui/icon";
 import {
   ArrowLeft,
+  BrushCleaningIcon,
   LeafIcon,
   LoaderCircleIcon,
   SaveIcon,
-  XIcon,
 } from "lucide-react-native";
 import { useAppRouter } from "@/lib/use-app-router";
 import {
@@ -25,6 +35,71 @@ import {
   type SaveStatus,
 } from "@/domains/plants/store/evaluation-save-store";
 import { cn } from "@/lib/utils";
+
+/**
+ * El botón de limpiar, con su confirmación.
+ *
+ * Confirma con diálogo y no con el doble toque que usan Brix y Rendimiento para
+ * descartar un corte: aquello deshace una cosa y esto borra la evaluación
+ * entera, fotografías incluidas, sin papelera. La diferencia de peso tiene que
+ * notarse, y un diálogo obliga a leer qué se va a perder.
+ *
+ * El `open` es controlado para poder cerrarlo desde el propio confirmar: con
+ * `AlertDialogAction` a secas, el diálogo se cierra por su cuenta pero el
+ * `onPress` y el cierre compiten, y en tablet se veía el diálogo un instante
+ * después del borrado.
+ */
+function ClearEvaluationButton({
+  onConfirm,
+  disabled,
+}: {
+  onConfirm?: () => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <IconButton
+        onPress={() => setOpen(true)}
+        disabled={disabled}
+        role="button"
+        aria-label="Limpiar evaluación"
+      >
+        <Icon as={BrushCleaningIcon} size={16} className="text-white" />
+      </IconButton>
+
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Limpiar la evaluación?</AlertDialogTitle>
+            {/* Dice qué se va, no «esta acción no se puede deshacer»: en campo
+                lo que importa es si se pierden las fotografías, que son lo
+                único que no se puede volver a capturar. */}
+            <AlertDialogDescription>
+              Se borrarán todas las respuestas de este tratamiento y sus
+              fotografías. No se podrán recuperar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <Text>Cancelar</Text>
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onPress={() => {
+                setOpen(false);
+                onConfirm?.();
+              }}
+            >
+              <Text>Limpiar</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
 
 interface TratamientosPageHeader {
   tratamientoName?: string;
@@ -43,7 +118,7 @@ function HeaderDataSkeleton() {
   return (
     <Animated.View style={pulseStyle}>
       <View className="flex-row items-center gap-2">
-        <View className="h-4 w-24 rounded bg-primary-foreground/20" />
+        <View className="h-4 w-28 rounded bg-primary-foreground/20" />
         <Text className="text-primary-foreground/40">/</Text>
         <View className="h-4 w-16 rounded bg-primary-foreground/20" />
       </View>
@@ -108,7 +183,7 @@ function SavingSpinner() {
 /**
  * Si se está guardando o si ya quedó.
  *
- * Sin caja propia, pegado a los botones de descartar y guardar: con fondo
+ * Sin caja propia, pegado a los botones de limpiar y guardar: con fondo
  * parecería otro botón. Y con la evaluación recién abierta no dice nada — no
  * hay noticia que dar y un "Guardado" de entrada sería mentira.
  */
@@ -145,7 +220,7 @@ export function TratamientosPageHeader({
   // desde el primer frame, y hasta entonces no hay nada que guardar.
   const actions = useEvaluationSaveStore((state) => state.actions);
 
-  // Mientras escribe no se sale, no se descarta y no se vuelve a guardar: la
+  // Mientras escribe no se sale, no se limpia y no se vuelve a guardar: la
   // cabecera entera espera a que la escritura termine.
   const busy = status === "saving";
   const disabled = busy || !actions;
@@ -187,14 +262,10 @@ export function TratamientosPageHeader({
         <SaveStatusIndicator status={status} />
 
         <View className="flex-row gap-2">
-          <IconButton
-            onPress={actions?.discard}
+          <ClearEvaluationButton
+            onConfirm={actions?.clear}
             disabled={disabled}
-            role="button"
-            aria-label="Descartar cambios"
-          >
-            <Icon as={XIcon} size={16} className="text-white" />
-          </IconButton>
+          />
           <IconButton
             onPress={actions?.save}
             disabled={disabled}

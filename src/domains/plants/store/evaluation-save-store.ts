@@ -21,7 +21,12 @@ export type SaveStatus =
 /** Lo que hacen los dos botones de la cabecera. */
 export type EvaluationSaveActions = {
   save: () => void;
-  discard: () => void;
+  /**
+   * Deja el tratamiento a cero: borra sus respuestas, sus fotografías y vacía el
+   * formulario. No es «descartar cambios» —eso volvía a lo último guardado—,
+   * así que la cabecera lo confirma con un diálogo antes de llamarlo.
+   */
+  clear: () => void;
 };
 
 type EvaluationSaveStore = {

@@ -12,8 +12,12 @@ import {
   deleteTratamiento,
   upsertTratamiento,
 } from "../tratamientos.repository";
-import { insertFoto } from "../respuesta-fotos.repository";
 import {
+  getFotosByTratamiento,
+  insertFoto,
+} from "../respuesta-fotos.repository";
+import {
+  deleteRespuestasByTratamiento,
   getPendingRespuestas,
   getRespuestasByTratamiento,
   getTratamientoIdsWithErrors,
@@ -259,6 +263,68 @@ describe("respuestas.repository", () => {
     await deleteTratamiento(db, "t1");
 
     expect(await getRespuestasByTratamiento(db, "t1")).toHaveLength(0);
+  });
+
+  describe("deleteRespuestasByTratamiento", () => {
+    const guardarDosSecciones = async (tratamientoId: string) => {
+      await saveRespuesta(db, {
+        tratamientoId,
+        seccion: "comentarios",
+        payload: comentarios,
+        updatedAtLocal: "2026-09-26T09:00:00.000Z",
+      });
+      await saveRespuesta(db, {
+        tratamientoId,
+        seccion: "criba",
+        payload: { calibres: createCribaCalibres() },
+        updatedAtLocal: "2026-09-26T09:00:00.000Z",
+      });
+    };
+
+    it("borra todas las secciones del tratamiento", async () => {
+      await guardarDosSecciones("t1");
+      expect(await getRespuestasByTratamiento(db, "t1")).toHaveLength(2);
+
+      await deleteRespuestasByTratamiento(db, "t1");
+
+      expect(await getRespuestasByTratamiento(db, "t1")).toHaveLength(0);
+    });
+
+    it("no toca las de otro tratamiento", async () => {
+      await guardarDosSecciones("t1");
+      await guardarDosSecciones("t2");
+
+      await deleteRespuestasByTratamiento(db, "t1");
+
+      expect(await getRespuestasByTratamiento(db, "t2")).toHaveLength(2);
+    });
+
+    /**
+     * Las fotografías cuelgan de `tratamientos`, no de `respuestas`, así que
+     * ninguna CASCADE las alcanza desde aquí. Quien limpia tiene que borrarlas
+     * aparte —y además hay archivos en disco—, y este test es lo que impide que
+     * ese borrado se dé por hecho.
+     */
+    it("no se lleva las fotografías por delante", async () => {
+      await guardarDosSecciones("t1");
+      await insertFoto(db, {
+        clientId: "f1",
+        tratamientoId: "t1",
+        categoria: "racimo",
+        fileName: "f1.jpg",
+        capturedAt: "2026-09-26T09:00:00.000Z",
+      });
+
+      await deleteRespuestasByTratamiento(db, "t1");
+
+      expect(await getFotosByTratamiento(db, "t1")).toHaveLength(1);
+    });
+
+    it("borrar lo de un tratamiento sin nada capturado no falla", async () => {
+      await deleteRespuestasByTratamiento(db, "t1");
+
+      expect(await getRespuestasByTratamiento(db, "t1")).toHaveLength(0);
+    });
   });
 
   // La marca `hasError` es un dato derivado del payload, así que lo que hay que
