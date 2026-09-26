@@ -69,7 +69,6 @@ import {
   ComentariosHeaderSummary,
   EvalComentarios,
 } from "@/domains/plants/components/eval-comentarios";
-import { usePhotosStore } from "@/domains/plants/store/photos-store";
 import {
   buildEvaluationDefaults,
   evaluationSchema,
@@ -226,7 +225,7 @@ type Section = {
 /** Lo que cada sección sin preguntas enseña en el hueco del resumen de su
  *  cabecera. Las de preguntas no pasan por aquí: la suya es
  *  `EvalQuestionsHeader`, con su barra de avance. */
-function sectionSummary(section: Section): ReactNode {
+function sectionSummary(section: Section, tratamientoId: string): ReactNode {
   switch (section.kind) {
     case "brix":
       return <BrixHeaderSummary />;
@@ -237,7 +236,7 @@ function sectionSummary(section: Section): ReactNode {
     case "comentarios":
       return <ComentariosHeaderSummary />;
     case "photos":
-      return <PhotosHeaderSummary />;
+      return <PhotosHeaderSummary tratamientoId={tratamientoId} />;
     case "questions":
       return undefined;
   }
@@ -267,7 +266,7 @@ function sectionBody(section: Section, tratamientoId: string): ReactNode {
     case "comentarios":
       return <EvalComentarios />;
     case "photos":
-      return <EvalPhotosForm />;
+      return <EvalPhotosForm tratamientoId={tratamientoId} />;
   }
 }
 
@@ -355,17 +354,13 @@ export default function TratamientoScreen() {
   });
   const { reset } = form;
 
-  // Lo único que la pantalla sabe de las fotografías: quién es su dueño. Lo
-  // demás —leerlas, capturarlas y abrir la cuadrícula— vive en
-  // `EvalPhotosForm`, que es la sección que las muestra.
-  const claimFor = usePhotosStore((state) => state.claimFor);
-
   // `setParams` cambia de hermano sin desmontar la pantalla, así que sin esto
   // las respuestas del tratamiento anterior seguirían aquí.
   //
   // Compara contra el id anterior en vez de limpiar en cada efecto: tal cual
-  // estaba, cualquier remonte borraba lo ya contestado. Las fotos no se tocan
-  // aquí — de eso se encarga `claimFor`, que sí sabe de quién son.
+  // estaba, cualquier remonte borraba lo ya contestado. Las fotografías no
+  // necesitan nada de esto: se consultan por tratamiento, así que cambiar de
+  // hermano ya trae las suyas.
   const previousId = useRef(id);
   // Lo guardado ya se volcó para este tratamiento. Es lo que impide que un
   // refetch posterior pise lo que el evaluador está escribiendo: el volcado
@@ -386,12 +381,6 @@ export default function TratamientoScreen() {
       reset(buildEvaluationFromRespuestas(respuestas));
     }
   }, [id, respuestas, reset]);
-
-  // En cada montaje y en cada cambio de id, pero el vaciado lo decide el
-  // store: solo si lo guardado era de otro tratamiento.
-  useEffect(() => {
-    claimFor(id);
-  }, [id, claimFor]);
 
   // El bloque va superpuesto, así que su hueco se reserva con un espaciador y
   // hay que medirlo. Si no se renderiza, no hay hueco que reservar.
@@ -763,7 +752,7 @@ function EvaluationSections({
               <CollapsibleHeader
                 key={`${section.id}-header`}
                 {...headerProps}
-                summary={sectionSummary(section)}
+                summary={sectionSummary(section, tratamientoId)}
               />
             ),
             <CollapsibleBody

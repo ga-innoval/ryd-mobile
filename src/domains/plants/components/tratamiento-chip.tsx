@@ -32,7 +32,7 @@ const VARIANTS: Record<ChipVariant, VariantStyles> = {
   header: {
     container: "w-28 h-10 px-2 border-primary-foreground/50 border",
     text: "text-primary-foreground text-sm",
-    activeContainer: "bg-foreground border-foreground/20",
+    activeContainer: "bg-primary-foreground/20 border-primary-foreground/20",
     activeText: "text-white",
   },
 };

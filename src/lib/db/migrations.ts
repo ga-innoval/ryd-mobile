@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 5;
+const DATABASE_VERSION = 6;
 
 export async function runMigrations(db: SQLiteDatabase) {
   await db.execAsync("PRAGMA foreign_keys = ON");
@@ -110,10 +110,49 @@ export async function runMigrations(db: SQLiteDatabase) {
     currentVersion = 5;
   }
 
+  if (currentVersion === 5) {
+    // Una fila por fotografía de evidencia. El archivo vive en disco
+    // (`lib/photo-files.ts`); aquí solo está su ficha.
+    //
+    // Cuelga de `tratamientos` y no de `respuestas`: `fotografias` no es una
+    // sección del formulario —no existe en `EvaluationSectionId`—, así que
+    // darle fila allí ensuciaría la cola del push y el volcado al formulario
+    // con una sección que el esquema no conoce.
+    //
+    // `clientId` es la PK y no un autoincremental: un archivo no tiene llave
+    // natural, y ese UUID es lo que hace idempotente un reintento de subida y
+    // lo que direcciona el borrado del contrato. Siendo PK, el `unique` que
+    // exige el modelo del servidor sale gratis.
+    //
+    // **`fileName` y nunca la ruta completa.** El contenedor de la app cambia
+    // de UUID entre instalaciones en iOS, así que una ruta absoluta guardada
+    // hoy apunta a la nada mañana aunque el archivo siga ahí. La ruta se
+    // reconstruye al leer.
+    //
+    // Sin `CHECK` sobre `categoria` —congelaría el catálogo en el esquema— y
+    // sin columna `progress`: aquí el avance es un `COUNT` barato y no hay
+    // payload que abrir, que es lo que la justificaba en `respuestas`.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS respuesta_fotos (
+        clientId TEXT PRIMARY KEY NOT NULL,
+        tratamientoId TEXT NOT NULL,
+        categoria TEXT NOT NULL,
+        fileName TEXT NOT NULL,
+        capturedAt TEXT NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'pending',
+        syncedAt TEXT,
+        FOREIGN KEY (tratamientoId) REFERENCES tratamientos(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_respuesta_fotos_tratamiento
+        ON respuesta_fotos(tratamientoId, categoria);
+    `);
+    currentVersion = 6;
+  }
+
   // Próxima migración. ej:
-  // if (currentVersion === 5) {
+  // if (currentVersion === 6) {
   //   await db.execAsync(`CREATE TABLE IF NOT EXISTS newTable (...)`);
-  //   currentVersion = 6;
+  //   currentVersion = 7;
   // }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

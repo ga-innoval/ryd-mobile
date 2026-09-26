@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Pressable, View } from "react-native";
 import { useAppRouter } from "@/lib/use-app-router";
 import { Image } from "expo-image";
@@ -13,7 +13,13 @@ import {
   summarizePhotoCategories,
 } from "../lib/photo-categories";
 import { usePhotoCapture } from "../hooks/use-photo-capture";
-import { EMPTY_PHOTOS, usePhotosStore } from "../store/photos-store";
+import {
+  EMPTY_FOTOS,
+  useAddFotos,
+  useFotos,
+  type Foto,
+} from "../hooks/use-respuesta-fotos";
+import { groupFotosByCategoria } from "../lib/group-fotos-by-categoria";
 import type { PhotoSource } from "../types";
 
 /**
@@ -75,9 +81,15 @@ function photosLabel(count: number): string {
  * Sin barra de avance a propósito: ninguna categoría es obligatoria, y una
  * barra diría que hay que llenar las tres.
  */
-export function PhotosHeaderSummary() {
-  const photos = usePhotosStore((state) => state.photos);
-  const { total, withPhotos } = summarizePhotoCategories(photos);
+export function PhotosHeaderSummary({
+  tratamientoId,
+}: {
+  tratamientoId: string;
+}) {
+  const { data: fotos } = useFotos(tratamientoId);
+  const { total, withPhotos } = summarizePhotoCategories(
+    groupFotosByCategoria(fotos ?? EMPTY_FOTOS),
+  );
 
   return (
     <View className="flex-row items-baseline justify-between gap-4">
@@ -110,22 +122,31 @@ export function PhotosHeaderSummary() {
  * de ellas. Lo único suyo que le queda es `claimFor`, que las vacía al cambiar
  * de tratamiento.
  */
-export function EvalPhotosForm() {
+export function EvalPhotosForm({ tratamientoId }: { tratamientoId: string }) {
   const router = useAppRouter();
-  const photos = usePhotosStore((state) => state.photos);
-  const addPhotos = usePhotosStore((state) => state.addPhotos);
+  const { data: fotos } = useFotos(tratamientoId);
+  const porCategoria = useMemo(
+    () => groupFotosByCategoria(fotos ?? EMPTY_FOTOS),
+    [fotos],
+  );
+  const { mutate: addFotos } = useAddFotos(tratamientoId);
   const capturePhoto = usePhotoCapture();
 
   // Llegan varias de golpe cuando se eligen de la galería, y ninguna al
   // cancelar o quedarse sin permiso — que es el caso normal, no un error.
+  //
+  // Guardar es copiar el archivo y escribir su fila, y ocurre aquí mismo: la
+  // foto queda a salvo en cuanto se toma, sin esperar al guardado del
+  // formulario. Lo que devuelve el picker vive en la caché del sistema, que
+  // puede purgarse.
   const handleCapture = useCallback(
-    async (categoryId: string, source: PhotoSource) => {
+    async (categoria: string, source: PhotoSource) => {
       const uris = await capturePhoto(source);
       if (uris.length === 0) return;
 
-      addPhotos(categoryId, uris);
+      addFotos({ categoria, uris });
     },
-    [capturePhoto, addPhotos],
+    [capturePhoto, addFotos],
   );
 
   return (
@@ -139,12 +160,15 @@ export function EvalPhotosForm() {
           {index > 0 && <Separator className="my-3" />}
           <EvalPhotos
             label={category.label}
-            photos={photos[category.id] ?? EMPTY_PHOTOS}
+            photos={porCategoria[category.id] ?? EMPTY_FOTOS}
             onCapture={(source) => handleCapture(category.id, source)}
             onOpenPhotos={() =>
+              // La cuadrícula consulta por su cuenta, así que necesita saber de
+              // qué tratamiento son: antes le bastaba la categoría porque el
+              // store era implícitamente el del tratamiento abierto.
               router.push({
                 pathname: "/photos",
-                params: { categoryId: category.id },
+                params: { categoryId: category.id, tratamientoId },
               })
             }
           />
@@ -157,7 +181,7 @@ export function EvalPhotosForm() {
 type EvalPhotosProps = {
   /** La toma de la que son estas fotografías: «Racimo», «Corte vertical»… */
   label: string;
-  photos: string[];
+  photos: readonly Foto[];
   /** Puede no añadir nada: cancelar el picker es el caso normal. */
   onCapture: (source: PhotoSource) => void;
   /** Abrir la cuadrícula con todo lo capturado. */

@@ -9,7 +9,9 @@ import {
   PROGRESS_SECTIONS,
   seccionProgress,
   formatProgress,
+  fotografiasProgress,
 } from "../evaluation-progress";
+import { getFotoCategoriaCounts } from "./respuesta-fotos.repository";
 
 // La fila tal como vive en SQLite: el payload es texto y los enums son strings
 // sueltos, porque SQLite no sabe de tipos nuestros.
@@ -134,27 +136,37 @@ export const getTratamientoIdsWithErrors = async (
  * tienen fila cuentan cero — que es lo correcto: sin capturar es 0 %. Los
  * comentarios quedan fuera del `IN` porque no reparten avance.
  *
- * **Las fotografías nunca suman todavía**: no se guardan en ningún sitio, así
- * que su sexto vale cero aquí aunque el evaluador las haya adjuntado. Se
- * arregla solo el día que se persistan.
+ * Las fotografías viven en su propia tabla y se suman aparte, contando tomas con
+ * al menos una. Por eso se recorre la **unión** de los dos juegos de ids y no
+ * las filas del SUM: un tratamiento con fotografías y sin ninguna sección
+ * capturada no aparece en `respuestas` y se quedaría en cero.
  */
 export const getTratamientoProgress = async (
   db: SQLiteDatabase,
 ): Promise<Map<string, number>> => {
   const placeholders = PROGRESS_SECTIONS.map(() => "?").join(",");
-  const rows = await db.getAllAsync<{ tratamientoId: string; total: number }>(
-    `SELECT tratamientoId, SUM(progress) AS total
-       FROM respuestas
-      WHERE seccion IN (${placeholders})
-      GROUP BY tratamientoId`,
-    [...PROGRESS_SECTIONS],
-  );
+  const [rows, fotos] = await Promise.all([
+    db.getAllAsync<{ tratamientoId: string; total: number }>(
+      `SELECT tratamientoId, SUM(progress) AS total
+         FROM respuestas
+        WHERE seccion IN (${placeholders})
+        GROUP BY tratamientoId`,
+      [...PROGRESS_SECTIONS],
+    ),
+    getFotoCategoriaCounts(db),
+  ]);
+
+  const secciones = new Map(rows.map((row) => [row.tratamientoId, row.total]));
+  const ids = new Set([...secciones.keys(), ...fotos.keys()]);
 
   return new Map(
-    rows.map((row) => [
-      row.tratamientoId,
-      row.total / (PROGRESS_SECTIONS.length * 100),
-    ]),
+    [...ids].map((tratamientoId) => {
+      const total =
+        (secciones.get(tratamientoId) ?? 0) +
+        formatProgress(fotografiasProgress(fotos.get(tratamientoId) ?? 0));
+
+      return [tratamientoId, total / (PROGRESS_SECTIONS.length * 100)];
+    }),
   );
 };
 

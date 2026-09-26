@@ -262,6 +262,12 @@ una foto que el evaluador quitó de la tablet seguiría en el reporte.
 Las categorías son el catálogo de `src/domains/plants/lib/photo-categories.ts`,
 y su `id` es parte del contrato: cambiarlo no es un cambio de texto.
 
+**El servidor tiene que aceptar HEIC.** Una fotografía elegida de la galería en
+iOS llega en ese formato y el cliente la manda tal cual, con su extensión. El
+`ImageField` de Django lo rechaza salvo que el proyecto instale `pillow-heif`.
+Si se prefiere no tocar el servidor, hay que decirlo y el cliente la convierte
+antes de subirla.
+
 ## Lo que el servidor guarda
 
 El ancla ya existe; alrededor, una tabla hija por cada cosa que se repite.

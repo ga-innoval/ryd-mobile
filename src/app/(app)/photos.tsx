@@ -39,9 +39,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  EMPTY_PHOTOS,
-  usePhotosStore,
-} from "@/domains/plants/store/photos-store";
+  EMPTY_FOTOS,
+  useFotos,
+  useRemoveFotos,
+  type Foto,
+} from "@/domains/plants/hooks/use-respuesta-fotos";
+import { groupFotosByCategoria } from "@/domains/plants/lib/group-fotos-by-categoria";
 import { findPhotoCategory } from "@/domains/plants/lib/photo-categories";
 import { Separator } from "@/components/ui/separator";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -348,20 +351,28 @@ function PhotoCell({
  * Cuadrícula con todas las fotografías de una sección de la encuesta, en
  * presentación modal. Al tocar una se abre el visor por esa misma.
  *
- * Las URIs no viajan por params sino por el store: pueden ser cientos, y no
- * cabe darlas por pocas cuando ni siquiera está puesto el tope.
+ * Las fotografías no viajan por params sino que se consultan: pueden ser
+ * cientos, y no cabe darlas por pocas cuando ni siquiera está puesto el tope.
+ * Por eso hace falta también el tratamiento, no solo la categoría.
  */
 export default function PhotosScreen() {
-  const { categoryId } = useLocalSearchParams<{ categoryId: string }>();
+  const { categoryId, tratamientoId } = useLocalSearchParams<{
+    categoryId: string;
+    tratamientoId: string;
+  }>();
   const router = useAppRouter();
   const { width } = useWindowDimensions();
 
   // El `id` llega como texto suelto en los params, así que puede no ser de
   // ninguna categoría; la cabecera se queda entonces con su nombre genérico.
   const category = findPhotoCategory(categoryId);
-  const photos = usePhotosStore(
-    (state) => state.photos[categoryId] ?? EMPTY_PHOTOS,
+  const { data: todas, isPending } = useFotos(tratamientoId);
+  const photos = useMemo(
+    () =>
+      groupFotosByCategoria(todas ?? EMPTY_FOTOS)[categoryId] ?? EMPTY_FOTOS,
+    [todas, categoryId],
   );
+  const uris = useMemo(() => photos.map((foto) => foto.uri), [photos]);
 
   // `undefined` es "cerrado": el índice por el que abre el visor y su
   // visibilidad son el mismo dato, así que no pueden discrepar.
@@ -370,12 +381,15 @@ export default function PhotosScreen() {
 
   // La selección **es** el menú abierto, no un estado aparte que pudiera
   // discrepar de él: lo pone y lo quita el propio `onOpenChange`.
-  const [selectedIndex, setSelectedIndex] = useState<number>();
+  const [openMenuFor, setOpenMenuFor] = useState<string>();
 
-  const removePhotos = usePhotosStore((state) => state.removePhotos);
+  const { mutate: removeFotos } = useRemoveFotos(tratamientoId);
 
   const [isSelecting, setIsSelecting] = useState(false);
-  const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
+  // Por `clientId` y no por posición: lo marcado sobrevive a que la lista se
+  // refresque por detrás, y un id que ya no esté es un borrado sin efecto en
+  // vez de llevarse a su vecino.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
   // Entrar y salir limpian lo elegido: al volver a entrar se empieza de cero,
   // que es lo que espera quien pulsa "Cancelar".
@@ -384,24 +398,30 @@ export default function PhotosScreen() {
     setSelected(new Set());
   }, []);
 
-  const toggleSelected = useCallback((index: number) => {
+  const toggleSelected = useCallback((clientId: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
 
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
+      if (next.has(clientId)) next.delete(clientId);
+      else next.add(clientId);
 
       return next;
     });
   }, []);
 
-  // Todas de una vez: borrar de una en una desplazaría los índices siguientes
-  // y se llevaría por delante fotos que nadie eligió.
+  // Lo marcado que sigue estando, para que la barra no cuente fotografías que
+  // ya no existen si la lista se refrescó por detrás.
+  const selectedIds = useMemo(
+    () => photos.filter((foto) => selected.has(foto.clientId)),
+    [photos, selected],
+  );
+
+  // Todas de una vez: una sola escritura y una sola invalidación en vez de N.
   const deleteSelected = useCallback(() => {
-    removePhotos(categoryId, [...selected]);
+    removeFotos(selectedIds.map((foto) => foto.clientId));
     setIsSelecting(false);
     setSelected(new Set());
-  }, [removePhotos, categoryId, selected]);
+  }, [removeFotos, selectedIds]);
 
   const columns = Math.max(2, Math.floor(width / MIN_CELL));
   // Tamaño explícito y no `flex-1`: con `flex-1`, una última fila incompleta
@@ -409,37 +429,35 @@ export default function PhotosScreen() {
   const cellSize = (width - PADDING * 2 - GAP * (columns - 1)) / columns;
 
   const renderItem = useCallback(
-    ({ item, index }: { item: string; index: number }) => (
+    ({ item, index }: { item: Foto; index: number }) => (
       <PhotoCell
-        uri={item}
+        uri={item.uri}
         index={index}
         size={cellSize}
         isSelecting={isSelecting}
         // Fuera del modo selección, lo "seleccionado" es la celda cuyo menú
         // está abierto; dentro, lo que se ha ido marcando.
-        isSelected={isSelecting ? selected.has(index) : selectedIndex === index}
+        isSelected={
+          isSelecting
+            ? selected.has(item.clientId)
+            : openMenuFor === item.clientId
+        }
         onPress={(origin) => {
           if (isSelecting) {
-            toggleSelected(index);
+            toggleSelected(item.clientId);
             return;
           }
 
           setGalleryOrigin(origin);
           setGalleryIndex(index);
         }}
-        onOpenChange={(open) => setSelectedIndex(open ? index : undefined)}
-        onDelete={() => removePhotos(categoryId, [index])}
+        onOpenChange={(open) =>
+          setOpenMenuFor(open ? item.clientId : undefined)
+        }
+        onDelete={() => removeFotos([item.clientId])}
       />
     ),
-    [
-      cellSize,
-      isSelecting,
-      selected,
-      selectedIndex,
-      toggleSelected,
-      categoryId,
-      removePhotos,
-    ],
+    [cellSize, isSelecting, selected, openMenuFor, toggleSelected, removeFotos],
   );
 
   const emptyComponent = useMemo(
@@ -469,21 +487,23 @@ export default function PhotosScreen() {
         // y pide remontar con la clave, que es lo que hace esto al girar.
         key={columns}
         numColumns={columns}
-        // El índice entra en la clave porque la misma foto puede elegirse dos
-        // veces de la galería y repetir URI.
-        keyExtractor={(uri, index) => `${uri}-${index}`}
+        // El `clientId` basta: cada captura tiene su fila y su archivo, así que
+        // elegir dos veces la misma foto de la galería ya no repite clave.
+        keyExtractor={(foto) => foto.clientId}
         renderItem={renderItem}
         columnWrapperStyle={{ gap: GAP }}
         contentContainerStyle={{ gap: GAP, padding: PADDING }}
-        ListEmptyComponent={emptyComponent}
+        // Nada mientras carga: la lectura ya no es síncrona y sin esto se vería
+        // «Sin fotografías» un frame antes de la cuadrícula.
+        ListEmptyComponent={isPending ? null : emptyComponent}
       />
 
       {isSelecting && (
-        <SelectionBar count={selected.size} onDelete={deleteSelected} />
+        <SelectionBar count={selectedIds.length} onDelete={deleteSelected} />
       )}
 
       <PhotoGallery
-        photos={photos}
+        photos={uris}
         visible={galleryIndex !== undefined}
         initialIndex={galleryIndex}
         origin={galleryOrigin}

@@ -12,10 +12,12 @@ import {
   deleteTratamiento,
   upsertTratamiento,
 } from "../tratamientos.repository";
+import { insertFoto } from "../respuesta-fotos.repository";
 import {
   getPendingRespuestas,
   getRespuestasByTratamiento,
   getTratamientoIdsWithErrors,
+  getTratamientoProgress,
   markRespuestaSynced,
   saveRespuesta,
 } from "../respuestas.repository";
@@ -302,6 +304,67 @@ describe("respuestas.repository", () => {
       await guardar("t2", "240");
 
       expect(await getTratamientoIdsWithErrors(db)).toEqual(new Set(["t1"]));
+    });
+  });
+
+  /**
+   * El avance del tratamiento sale de dos tablas: la suma de las secciones
+   * capturadas y el sexto de fotografías, que vive en `respuesta_fotos`.
+   */
+  describe("getTratamientoProgress", () => {
+    const seisSecciones = 6;
+
+    it("no conoce al tratamiento sin nada capturado", async () => {
+      expect(await getTratamientoProgress(db)).toEqual(new Map());
+    });
+
+    it("reparte un sexto por sección llena", async () => {
+      const { criba } = buildEvaluationDefaults();
+      await saveRespuesta(db, {
+        tratamientoId: "t1",
+        seccion: "criba",
+        payload: {
+          calibres: criba.calibres.map(() => ({ total: "100", average: "5" })),
+        },
+        updatedAtLocal: "2026-09-25T10:00:00.000Z",
+      });
+
+      expect((await getTratamientoProgress(db)).get("t1")).toBeCloseTo(
+        1 / seisSecciones,
+      );
+    });
+
+    it("suma las fotografías como un sexto más", async () => {
+      await insertFoto(db, {
+        clientId: "f1",
+        tratamientoId: "t1",
+        categoria: "racimo",
+        fileName: "f1.jpg",
+        capturedAt: "2026-09-25T10:00:00.000Z",
+      });
+
+      // Una de las tres tomas: un tercio del sexto que reparten las fotos.
+      expect((await getTratamientoProgress(db)).get("t1")).toBeCloseTo(
+        1 / 3 / seisSecciones,
+        2,
+      );
+    });
+
+    // El caso que se rompe solo: sin fila en `respuestas`, el tratamiento no
+    // aparece en el SUM y se quedaría fuera del mapa.
+    it("conoce al tratamiento que solo tiene fotografías", async () => {
+      await insertFoto(db, {
+        clientId: "f1",
+        tratamientoId: "t2",
+        categoria: "racimo",
+        fileName: "f1.jpg",
+        capturedAt: "2026-09-25T10:00:00.000Z",
+      });
+
+      const progress = await getTratamientoProgress(db);
+
+      expect(progress.has("t2")).toBe(true);
+      expect(progress.get("t2")).toBeGreaterThan(0);
     });
   });
 });
