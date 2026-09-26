@@ -37,7 +37,7 @@ export type PhotosOverview = {
  * clave que ya no es de ninguna categoría no se cuela en la cuenta.
  */
 export function summarizePhotoCategories(
-  photos: Record<string, string[]>,
+  photos: Record<string, readonly unknown[]>,
 ): PhotosOverview {
   const counts = PHOTO_CATEGORIES.map(
     (category) => photos[category.id]?.length ?? 0,

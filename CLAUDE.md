@@ -30,9 +30,9 @@ sincronización manual.
 - **Testing**: Jest + `@testing-library/react-native`, factories en
   `src/test-utils/factories/`
 
-## Estado actual del schema (v5) — leer antes de tocar la DB
+## Estado actual del schema (v6) — leer antes de tocar la DB
 
-`src/lib/db/migrations.ts` crea **tres tablas**:
+`src/lib/db/migrations.ts` crea **cuatro tablas**:
 
 - `plants` (`id, name, campo, cuadro, programa, portainjerto, anio, syncStatus`)
 - `tratamientos` (`id, plantId, name, description, temporada, isActive`), con
@@ -45,11 +45,16 @@ syncedAt, hasError, progress`), con PK compuesta `(tratamientoId, seccion)`, CAS
   `lib/db/respuestas.repository.ts` y el porqué de la forma está en **Guardado y
   sincronización de respuestas**
 
-**NO existen todavía**: la tabla `respuesta_fotos` —espera la decisión de dónde
-acaban los archivos— ni la VIEW `plantaciones_with_progress`.
+- `respuesta_fotos` (`clientId, tratamientoId, categoria, fileName, capturedAt,
+syncStatus, syncedAt`), una fila por fotografía, CASCADE contra `tratamientos`
+  e índice en `(tratamientoId, categoria)`. Su repositorio es
+  `lib/db/respuesta-fotos.repository.ts` y los archivos viven aparte, en
+  `lib/photo-files.ts`
+
+**NO existe todavía**: la VIEW `plantaciones_with_progress`.
 `src/app/(app)/index.tsx` sigue inyectando `progress: 0` a mano (los
 tratamientos ya salen del repositorio). No escribas SELECT contra nada que no
-esté en la migración v5.
+esté en la migración v6.
 
 ## Modelo de dominio
 
@@ -183,6 +188,56 @@ escribir, que es cuando más falta hace verlo. La cabecera responde «¿está a
 salvo mi trabajo?» y el botón «¿hay algo que revisar y dónde?»; mezclarlas dejaba
 las dos peor.
 
+## Fotografías
+
+**Cada fotografía es una fila en `respuesta_fotos` y un archivo en disco, y se
+guarda en cuanto se captura**, sin esperar al guardado del formulario: lo que
+devuelve `expo-image-picker` vive en la caché del sistema, que puede purgarse.
+
+El reparto por capas no es estilo, es lo que mantiene los tests en pie: **el
+repositorio no puede importar `expo-file-system`** o dejarían de arrancar contra
+`createInMemoryDb`.
+
+| Dónde                                  | Qué                                     |
+| -------------------------------------- | --------------------------------------- |
+| `lib/db/respuesta-fotos.repository.ts` | filas, cero disco                       |
+| `lib/photo-files.ts`                   | el único que importa `expo-file-system` |
+| `lib/photo-file-name.ts`               | derivar el nombre, puro y con test      |
+| `hooks/use-respuesta-fotos.ts`         | el pegamento y las mutations            |
+
+Lo que no es obvio:
+
+- **API nueva de Expo 57**: `File`, `Directory` y `Paths`. La vieja
+  (`FileSystem.copyAsync`) **lanza en runtime** desde el entry principal; vive en
+  `expo-file-system/legacy`. `create`, `delete` y `exists` son síncronos,
+  `copy` no.
+- **En SQLite se guarda el nombre del archivo, nunca la ruta.** El contenedor de
+  la app cambia de UUID entre instalaciones en iOS, así que una ruta absoluta
+  guardada hoy apunta a la nada mañana aunque el archivo siga ahí. La reconstruye
+  `photoUri`.
+- **El nombre sale del `clientId`**, que es la PK: es lo que impide que la fila y
+  el archivo se desacoplen, y de paso evita las colisiones de nombres del picker.
+- **Al añadir, archivo primero y fila después; al borrar, al revés.** El
+  invariante que queda es _toda fila tiene archivo, algún archivo puede no tener
+  fila_, y es justo el que la barrida asume. En el orden contrario quedaría una
+  celda rota para siempre y un push intentando subir lo que no está.
+- **La CASCADE no toca el disco.** Podar un tratamiento borra sus filas y deja
+  los archivos, así que `sweepOrphanPhotos` los recoge por diferencia al final de
+  la descarga —fuera de su transacción, y con su propio `catch`: no recuperar
+  espacio no puede tumbar una descarga correcta—. La operación inversa, borrar
+  filas cuyo archivo falta, **no se hace**: es destructiva ante un fallo temporal
+  de lectura.
+- **La cuadrícula identifica por `clientId`, no por posición.** Antes borraba por
+  índice, lo cual obligaba a hacerlo en lote para que no se desplazaran; ahora lo
+  marcado sobrevive a que la lista se refresque por detrás.
+- `File.createUploadTask(url, { uploadType: UploadType.MULTIPART, onProgress })`
+  cubre el contrato el día del push, sin `axios` ni `FormData` a mano.
+
+Pendiente y anotado: **borrar una foto ya sincronizada necesitará lápida** —el
+contrato borra por `client_id` y borrar la fila pierde el id que había que
+mandar—, no hay tope ni política de retención, y una foto de galería en iOS puede
+llegar en HEIC, que el `ImageField` de Django solo acepta con `pillow-heif`.
+
 ## Guardado y sincronización de respuestas
 
 > **Qué hay de esto:** el guardado local funciona de punta a punta —migración
@@ -291,12 +346,9 @@ pinta `"14"` o `"14.0"`. El parseo a números es un paso del push, en un mapper 
 
 **Las fotografías no van en `respuestas`** aunque sean una sección en pantalla:
 son archivos. Van en `respuesta_fotos`, una fila por archivo, con UUID de
-cliente —ahí sí, porque un archivo no tiene llave natural— y su subida es
-multipart, una petición por foto. Dos cosas pendientes antes de eso: las URIs
-que devuelve `expo-image-picker` apuntan a **caché** y el sistema puede
-purgarlas, así que hay que copiarlas a almacenamiento de la app, y eso es
-`expo-file-system`, **que no está instalado** (dependencia nueva: preguntar
-antes).
+cliente —ahí sí, porque un archivo no tiene llave natural— y su subida será
+multipart, una petición por foto. Cómo se guardan está en **Fotografías** más
+abajo.
 
 **El progreso se calcula en TypeScript al guardar**, donde los valores ya están
 en memoria y tipados, y se escribe como columna en esa misma fila; la VIEW de
@@ -373,11 +425,11 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
     vez arriba, lo que pasa por detrás es el formulario. En las cabeceras de sección **no hay barra**: enseñan el conteo en
     texto («8 de 16 preguntas», «2 de 3 categorías»), igual que Criba y
     Rendimiento, porque lo que el evaluador quiere saber ahí es cuántas faltan.
-  - **Las fotografías no suman en la tarjeta**, solo en la cabecera de la
-    pantalla de captura: no se guardan en ningún sitio, así que su sexto vale
-    cero en SQLite. Un tratamiento entero capturado enseña 83 % en el listado
-    hasta que las fotos se persistan. Es el hueco que más pide resolver
-    `expo-file-system`.
+  - **Las fotografías suman como las demás**, en los dos sitios: la cabecera las
+    consulta agrupadas en memoria y el listado las cuenta en SQL
+    (`getFotoCategoriaCounts`). La regla vive una sola vez, partida en
+    `fotografiasProgress` —la aritmética— y el conteo, que cada uno hace como
+    puede.
 - **`progress` de plantación** = 50% bloque tratamientos + 50% bloque post-cosecha.
   Cada bloque se prorratea internamente por sus propias unidades:
   3 tratamientos con 1 completo → `(1/3) × 50% = 16.6%`. Una plantación con

@@ -54,8 +54,8 @@ type EvaluationSaveStore = {
  *
  * Existe porque la cabecera se pinta **fuera** del árbol de la pantalla —es el
  * `header` del navigator—, así que no ve el `FormProvider` y no puede preguntar
- * por sí misma si hay algo sin guardar. Mismo motivo que `photos-store`, que
- * también lo leen dos sitios que no comparten árbol.
+ * por sí misma si hay algo sin guardar. Es el mismo caso que el avance, que viaja
+ * por aquí por lo mismo.
  *
  * Quien calcula el estado y hace el trabajo es `EvaluationAutosave`, que sí
  * vive dentro del formulario. Esto solo lleva y trae.

@@ -12,8 +12,10 @@ export type PhotoSummary = {
  * Es lo único que hay que decidir de la tira: los dos botones son fijos y están
  * siempre, así que no pasan por aquí.
  */
-export function buildPhotoSummary(photos: string[]): PhotoSummary | undefined {
+export function buildPhotoSummary(
+  photos: readonly { uri: string }[],
+): PhotoSummary | undefined {
   if (photos.length === 0) return undefined;
 
-  return { uri: photos[photos.length - 1], total: photos.length };
+  return { uri: photos[photos.length - 1].uri, total: photos.length };
 }

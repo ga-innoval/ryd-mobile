@@ -104,8 +104,6 @@ export function seccionProgress(seccion: string, payload: unknown): number {
       return share(done, RENDIMIENTO_FIELDS_PER_CORTE);
     }
 
-    // Una toma cuenta con que tenga una fotografía: cuántas hagan falta de cada
-    // una no lo dice el negocio.
     case "fotografias": {
       const photos = (payload ?? {}) as Record<string, unknown>;
       const withPhotos = PHOTO_CATEGORIES.filter(
@@ -114,12 +112,26 @@ export function seccionProgress(seccion: string, payload: unknown): number {
           (photos[category.id] as unknown[]).length > 0,
       ).length;
 
-      return share(withPhotos, PHOTO_CATEGORIES.length);
+      return fotografiasProgress(withPhotos);
     }
 
     default:
       return 0;
   }
+}
+
+/**
+ * El sexto de fotografías a partir de cuántas tomas del catálogo llevan al menos
+ * una. Una toma cuenta con que tenga una: cuántas hacen falta de cada una no lo
+ * dice el negocio.
+ *
+ * Recibe el conteo y no las fotografías porque lo preguntan dos sitios que no
+ * tienen el dato en la misma forma: la pantalla, que las tiene agrupadas en
+ * memoria, y el listado, que solo sabe contarlas en SQL. Partirlo así es lo que
+ * evita escribir la misma regla por tercera vez.
+ */
+export function fotografiasProgress(categoriasConFoto: number): number {
+  return share(categoriasConFoto, PHOTO_CATEGORIES.length);
 }
 
 /**
@@ -131,7 +143,7 @@ export function seccionProgress(seccion: string, payload: unknown): number {
  */
 export function evaluationProgress(
   values: EvaluationFormValues,
-  photos: Record<string, string[]>,
+  photos: Record<string, readonly unknown[]>,
 ): number {
   const total = PROGRESS_SECTIONS.reduce(
     (sum, seccion) =>

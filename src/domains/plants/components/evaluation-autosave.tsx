@@ -11,7 +11,8 @@ import {
 import { PLANTS_QUERY_KEY } from "../hooks/use-plants";
 import { buildEvaluationFromRespuestas } from "../lib/build-evaluation-from-respuestas";
 import { evaluationProgress } from "../lib/evaluation-progress";
-import { usePhotosStore } from "../store/photos-store";
+import { EMPTY_FOTOS, useFotos } from "../hooks/use-respuesta-fotos";
+import { groupFotosByCategoria } from "../lib/group-fotos-by-categoria";
 import type {
   EvaluationFormValues,
   EvaluationSectionId,
@@ -132,11 +133,15 @@ export function EvaluationAutosave({
     write(changedSecciones(debounced, saved), debounced);
   }, [debounced, saved, write]);
 
-  // Las fotografías no están en el formulario, así que el avance las toma de su
-  // propio store. Es el único sitio donde el sexto de fotografías cuenta de
-  // verdad: en la tarjeta vale cero hasta que se persistan.
-  const photos = usePhotosStore((state) => state.photos);
-  const progress = evaluationProgress(values, photos);
+  // Las fotografías no están en el formulario: viven en su tabla, así que el
+  // avance las consulta aparte. El `useMemo` no es opcional — este componente
+  // se re-renderiza en cada tecla y sin él se reagruparía en cada una.
+  const { data: fotos } = useFotos(tratamientoId);
+  const porCategoria = useMemo(
+    () => groupFotosByCategoria(fotos ?? EMPTY_FOTOS),
+    [fotos],
+  );
+  const progress = evaluationProgress(values, porCategoria);
   const setProgress = useEvaluationSaveStore((state) => state.setProgress);
 
   useEffect(() => {
