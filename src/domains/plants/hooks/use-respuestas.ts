@@ -15,14 +15,45 @@ import { PLANTS_QUERY_KEY } from "./use-plants";
 // descarga alcanza también a lo capturado.
 export const RESPUESTAS_QUERY_KEY = [...PLANTS_QUERY_KEY, "respuestas"];
 
-/** Lo guardado de un tratamiento, para volcarlo al formulario al abrirlo. */
+/**
+ * Lo guardado de un tratamiento, para volcarlo al formulario al abrirlo.
+ *
+ * **Su caché no sobrevive a la pantalla (`gcTime: 0`), y eso es el invariante.**
+ * Esta consulta no se invalida nunca —ver `useSaveRespuestas`—, así que al
+ * reabrir el tratamiento `useQuery` entregaba lo cacheado en el primer render,
+ * el volcado corría justo después y `loadedFor` lo dejaba clavado ahí: se veía
+ * el formulario como estaba **antes** de lo último guardado, y no se corregía
+ * hasta la visita siguiente. Con `staleTime` de un minuto ni siquiera se releía.
+ *
+ * Sin caché que heredar, `data` llega `undefined` al montar, el volcado no
+ * engancha nada y espera al dato real — que es justo lo que ya hacía bien la
+ * primera vez que se abría un tratamiento.
+ *
+ * No contradice al `loadedFor` de la pantalla, lo completa: el volcado sigue
+ * siendo de una sola vez para que un refetch no pise lo que se está tecleando.
+ * `staleTime: 0` no bastaba —el primer render seguiría entregando lo cacheado—,
+ * y rellenar la caché a mano al guardar obligaba a construir las filas en dos
+ * sitios. Releer es un `SELECT` local por tratamiento.
+ */
 export function useRespuestas(tratamientoId: string) {
   const db = useSQLiteContext();
 
-  return useQuery({
+  return useQuery(respuestasQueryOptions(db, tratamientoId));
+}
+
+/**
+ * Las opciones del hook, aparte para que el test monte un observador con las
+ * mismas: copiarlas en el test dejaría que quitar el `gcTime` pasara en verde.
+ */
+export function respuestasQueryOptions(
+  db: SQLiteDatabase,
+  tratamientoId: string,
+) {
+  return {
     queryKey: [...RESPUESTAS_QUERY_KEY, tratamientoId],
     queryFn: () => getRespuestasByTratamiento(db, tratamientoId),
-  });
+    gcTime: 0,
+  };
 }
 
 type SaveRespuestasInput = {
