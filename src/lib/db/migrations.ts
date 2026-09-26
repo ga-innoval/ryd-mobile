@@ -5,6 +5,20 @@ const DATABASE_VERSION = 6;
 export async function runMigrations(db: SQLiteDatabase) {
   await db.execAsync("PRAGMA foreign_keys = ON");
 
+  // Va aquí arriba por lo mismo que `foreign_keys`, y no abajo junto a
+  // `journal_mode`: **`synchronous` es por conexión y no persiste**. Puesto
+  // después del early-return, las instalaciones que ya están en la última
+  // versión abrirían la base sin él y no serviría de nada. `journal_mode = WAL`
+  // sí persiste —vive en el archivo—, por eso ese sí puede quedarse abajo.
+  //
+  // `FULL` y no `NORMAL`: con WAL, `NORMAL` solo sincroniza al hacer
+  // checkpoint, así que un commit sobrevive a que muera la app pero puede
+  // perderse si se va la corriente. Esto es una libreta de campo en una tablet
+  // que se queda sin batería, y lo que hay en juego es una captura que no se
+  // puede repetir: una evaluación no se vuelve a hacer. El coste es un `fsync`
+  // por commit, y aquí se escribe como mucho cada dos segundos.
+  await db.execAsync("PRAGMA synchronous = FULL");
+
   const row = await db.getFirstAsync<{ user_version: number }>(
     "PRAGMA user_version",
   );

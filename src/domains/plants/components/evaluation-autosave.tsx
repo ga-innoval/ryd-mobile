@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSQLiteContext } from "expo-sqlite";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFormContext, useWatch } from "react-hook-form";
+import { toast } from "@/lib/toast";
 import { useDebouncedValue } from "../hooks/use-debounced-value";
 import {
   saveRespuestaSecciones,
@@ -241,15 +242,29 @@ export function EvaluationAutosave({
       // la invalidación del listado hay que repetirla aquí a mano — y es justo
       // el caso que más importa, porque salir de la pantalla es volver a la
       // tarjeta que tiene que enterarse del error.
+      //
+      // El `catch` no es de adorno: sin él esto es una promesa sin manejar, así
+      // que un fallo de escritura se quedaba en un warning de consola y el dato
+      // se perdía en silencio —justo en el camino que corre cuando el evaluador
+      // ya no está mirando esta pantalla—. El camino normal avisa con el
+      // `onError` de la mutation; este tiene que avisar por su cuenta. El toast
+      // es global, así que sale aunque la pantalla ya se haya ido.
       void saveRespuestaSecciones(db, tratamientoId, {
         values: current,
         secciones: changed,
-      }).then(() =>
-        queryClient.invalidateQueries({
-          queryKey: PLANTS_QUERY_KEY,
-          exact: true,
-        }),
-      );
+      })
+        .then(() =>
+          queryClient.invalidateQueries({
+            queryKey: PLANTS_QUERY_KEY,
+            exact: true,
+          }),
+        )
+        .catch((error: Error) =>
+          toast.error({
+            title: "No se pudo guardar",
+            description: error.message,
+          }),
+        );
     };
   });
 
