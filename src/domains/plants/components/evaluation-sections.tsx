@@ -1,11 +1,10 @@
-import {
-  useCallback,
-  useRef,
-  useState,
-  type ComponentProps,
-} from "react";
+import { useCallback, useRef, useState, type ComponentProps } from "react";
 import { Keyboard, View, type LayoutChangeEvent } from "react-native";
-import { useAnimatedRef, useScrollOffset } from "react-native-reanimated";
+import Animated, {
+  useAnimatedRef,
+  useScrollOffset,
+} from "react-native-reanimated";
+import { usePulseAnimation } from "@/lib/use-pulse-animation";
 import {
   KeyboardAwareScrollView,
   type KeyboardAwareScrollViewRef,
@@ -23,6 +22,99 @@ import {
   sectionSummary,
 } from "./evaluation-section-catalog";
 import { EVALUATION_SECTION_IDS } from "../lib/evaluation-schema";
+
+/**
+ * El hueco mientras la evaluación se monta.
+ *
+ * No tapa una espera de red: abrir un tratamiento cuesta unos 400 ms, de los
+ * que **SQLite son 45–70 y el resto es pintar** las siete secciones —unos 160
+ * elementos, porque nacen abiertas—. Durante ese render el hilo de JS está
+ * bloqueado y no puede pintar nada nuevo, así que lo que se ve es lo último
+ * que se comprometió: por eso esto se queda en pantalla los 400 ms enteros y
+ * no parpadea.
+ *
+ * Imita solo las **cabeceras cerradas**, no los cuerpos. Es lo que de verdad
+ * aparece después —las cabeceras están siempre; lo que varía es lo de dentro—,
+ * y siete plantillas fieles a siete cuerpos distintos serían una copia que se
+ * desincroniza al primer cambio de layout.
+ *
+ * Vive aquí y no en la pantalla para que quien toque la forma de
+ * `CollapsibleHeader` lo tenga a la vista. Y cuenta con `SECTIONS.length`: una
+ * sección nueva entra sola.
+ */
+export function EvaluationSectionsSkeleton({
+  reservedHeight,
+}: {
+  reservedHeight: number;
+}) {
+  const pulseStyle = usePulseAnimation({ minOpacity: 0.3 });
+
+  return (
+    <View className="flex-1 px-4">
+      {/* El mismo espaciador que el scroll de verdad, o el primer hueco
+          quedaría bajo el bloque superpuesto de la cabecera. */}
+      <View style={{ height: reservedHeight }} />
+
+      {/* Un solo `Animated.View` para todas: un pulso por fila serían siete
+          animaciones corriendo para decir lo mismo. */}
+      <Animated.View style={pulseStyle}>
+        {SECTIONS.map((section, index) => (
+          <View key={section.id} className="bg-background pt-4">
+            <View className="border-2 border-border bg-card rounded-xl">
+              <View className="bg-secondary rounded-[10px]">
+                <View className="flex-row items-center justify-between gap-2 px-4 py-3">
+                  <View className="gap-1">
+                    <View className="flex-row gap-2 items-center">
+                      <View className="size-4 rounded bg-primary/20" />
+                      {/* Anchos distintos por fila: siete barras idénticas se
+                          leen como un patrón, no como texto cargando. */}
+                      <View
+                        className="h-6 rounded bg-foreground/15"
+                        style={{
+                          width: TITLE_WIDTHS[index % TITLE_WIDTHS.length],
+                        }}
+                      />
+                    </View>
+                    <View
+                      className="h-6 rounded bg-foreground/10"
+                      style={{
+                        width:
+                          DESCRIPTION_WIDTHS[index % DESCRIPTION_WIDTHS.length],
+                      }}
+                    />
+                  </View>
+
+                  <View className="size-5 rounded-full bg-foreground/10" />
+                </View>
+
+                {/* La tercera fila del resumen —«0 de 16 preguntas»—, que la
+                    llevan las siete secciones. Sin ella el esqueleto medía 64
+                    px contra los 112 de la cabecera real y el salto se veía. */}
+                <View className="px-4 pb-3">
+                  <View
+                    className="h-5 rounded bg-foreground/10"
+                    style={{
+                      width: SUMMARY_WIDTHS[index % SUMMARY_WIDTHS.length],
+                    }}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+        ))}
+      </Animated.View>
+    </View>
+  );
+}
+
+/**
+ * Anchos por fila, en el orden de `SECTIONS`. Aproximan el texto real —«Brix»
+ * es corto, «Comentarios y observaciones» largo— para que el esqueleto no se
+ * lea como un patrón. Si el catálogo crece, el `%` los reparte igual.
+ */
+const TITLE_WIDTHS = [96, 144, 136, 48, 64, 108, 208];
+const DESCRIPTION_WIDTHS = [268, 256, 300, 212, 244, 264, 276];
+const SUMMARY_WIDTHS = [132, 108, 108, 96, 120, 116, 88];
 
 type EvaluationSectionsProps = {
   tratamientoId: string;
@@ -165,6 +257,7 @@ export function EvaluationSections({
 
   // Lo que se ve del scroll, para decidir si la sección con error está fuera.
   const [viewportHeight, setViewportHeight] = useState(0);
+
 
   return (
     // El scroll y el atajo al error, superpuestos: `flex-1` para que el hueco

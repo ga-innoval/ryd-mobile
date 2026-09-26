@@ -13,7 +13,10 @@ import { useTratamiento } from "@/domains/plants/hooks/use-tratamiento";
 import { useRespuestas } from "@/domains/plants/hooks/use-respuestas";
 import { buildEvaluationFromRespuestas } from "@/domains/plants/lib/build-evaluation-from-respuestas";
 import { EvaluationAutosave } from "@/domains/plants/components/evaluation-autosave";
-import { EvaluationSections } from "@/domains/plants/components/evaluation-sections";
+import {
+  EvaluationSections,
+  EvaluationSectionsSkeleton,
+} from "@/domains/plants/components/evaluation-sections";
 import { TratamientosPageHeader } from "@/domains/navigation/tratamientos-page-header";
 import {
   TratamientoChip,
@@ -321,6 +324,15 @@ export default function TratamientoScreen() {
             title="Tratamiento no disponible"
             body="Puede que se haya eliminado en la última descarga."
           />
+        )}
+
+        {/* Las secciones tardan ~400 ms en montarse, casi todo en pintarlas,
+          así que sin esto el formulario es un hueco en blanco durante ese
+          rato. Va atado a `isLoading` y no a `!data`: con el tratamiento
+          podado lo que toca es el `EmptyState` de arriba, no un esqueleto
+          esperando algo que no va a llegar. */}
+        {isLoading && (
+          <EvaluationSectionsSkeleton reservedHeight={reservedHeight} />
         )}
 
         {data && (
