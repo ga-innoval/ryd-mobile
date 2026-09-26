@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { DownloadStatus, PlantWithMatch, Plant } from "@/domains/plants/types";
@@ -20,14 +20,32 @@ import { ListHeader } from "@/domains/plants/components/list-header";
 const EMPTY_PLANTS: Plant[] = [];
 
 export default function Index() {
-  const { data, isLoading, isFetching, refetch } = usePlants();
+  const { data, isLoading, refetch } = usePlants();
   const plants = data ?? EMPTY_PLANTS;
 
-  const isRefreshing = isFetching && !isLoading;
+  /**
+   * Solo el tirón del usuario enciende la rueda, nunca una recarga de fondo.
+   *
+   * Antes salía de `isFetching`, que significa "hay una consulta en vuelo" y no
+   * "el usuario tiró de la lista". Con eso, guardar una sección invalidaba
+   * `["plants"]` y le mandaba al `RefreshControl` un `true` y un `false` en
+   * **un milisegundo** —medido—, sin que nadie hubiera tocado la pantalla. El
+   * control es nativo y lo conduce el dedo: recibía el `true`, empezaba a montar
+   * su animación y el `false` llegaba antes de que terminara, así que el spinner
+   * se quedaba dibujado, quieto y para siempre. Intermitente, porque es una
+   * carrera contra el ida y vuelta a nativo.
+   */
+  const [pullRefreshing, setPullRefreshing] = useState(false);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     haptics.tap();
-    refetch();
+    setPullRefreshing(true);
+
+    try {
+      await refetch();
+    } finally {
+      setPullRefreshing(false);
+    }
   };
 
   const { triggerDownload, status, lastDownloadAt } = useDownloadPlants();
@@ -124,7 +142,7 @@ export default function Index() {
         data={filteredData}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
-        refreshing={isRefreshing}
+        refreshing={pullRefreshing}
         onRefresh={handleRefresh}
         ListHeaderComponent={listHeaderComponent}
         ListEmptyComponent={emptyStateComponent}
