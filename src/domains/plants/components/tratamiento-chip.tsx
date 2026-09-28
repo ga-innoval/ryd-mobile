@@ -90,7 +90,7 @@ export function TratamientoChip({
         // `flexShrink: 0` de React Native se saldría del chip.
         <Progress
           value={progress * 100}
-          className="mt-1.5 h-1.5 w-auto self-stretch bg-primary/15"
+          className="mt-1.5 h-1 w-auto self-stretch bg-primary/15"
           indicatorClassName="bg-foreground"
         />
       )}
