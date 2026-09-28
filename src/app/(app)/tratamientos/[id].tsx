@@ -1,6 +1,13 @@
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Animated, {
@@ -70,26 +77,38 @@ function PlantFields({ plant }: { plant: PlantRecord }) {
   );
 }
 
-/** Alto de la barra de avance, en px. Hace falta como número y no como clase:
- *  es lo que se le resta al desplazamiento para que se quede pegada al header
- *  en vez de irse con el bloque. */
-const PROGRESS_BAR_HEIGHT = 8;
+const styles = StyleSheet.create({
+  // El porcentaje cambia mientras se captura, y sin cifras de ancho fijo la
+  // barra se movería al pasar de "8 %" a "11 %". `tabular-nums` es clase de
+  // Tailwind pero **no hace nada en nativo** —react-native-css-interop no
+  // traduce `font-variant-numeric`— y falla en silencio, así que va por `style`.
+  tabular: { fontVariant: ["tabular-nums"] },
+});
 
 /**
- * El avance de la evaluación, pegado al pie del bloque de la cabecera.
+ * El avance de la evaluación, al pie del bloque de la cabecera.
  *
  * Se queda a la vista cuando el bloque se esconde: sube con él pero solo lo
  * justo para quedar bajo el header, que es lo que hace el `translateY` recortado
  * que recibe. Lleva su propio fondo verde porque al quedarse arriba, lo que pasa
  * por detrás es el formulario.
  *
+ * **Su alto se mide, no se escribe.** Es lo que se le resta al desplazamiento
+ * para que al pegarse caiga justo bajo el header, y lo que el bloque reserva
+ * como padding para que esta fila no le tape los chips. Antes era una constante
+ * de 8 px, que dejó de valer en cuanto el diseño le añadió la etiqueta y el
+ * porcentaje; medirlo es lo que impide que el número vuelva a quedarse atrás
+ * sin avisar.
+ *
  * Lee el avance del store y no del formulario para no re-renderizar la pantalla
  * entera: la cabecera se pinta fuera de ella y este es el mismo camino.
  */
 function EvaluationProgressBar({
   style,
+  onLayout,
 }: {
   style: StyleProp<AnimatedStyle<ViewStyle>>;
+  onLayout: (event: LayoutChangeEvent) => void;
 }) {
   const progress = useEvaluationSaveStore((state) => state.progress);
 
@@ -98,12 +117,27 @@ function EvaluationProgressBar({
       pointerEvents="none"
       style={[style, { position: "absolute", left: 0, right: 0, bottom: 0 }]}
     >
-      <View className="bg-primary">
+      <View
+        className="bg-primary flex-row items-center gap-3 px-4 py-3"
+        onLayout={onLayout}
+      >
+        {/* <Text className="text-[13px] font-bold tracking-wider text-primary-foreground/70">
+          PROGRESO
+        </Text> */}
         <Progress
           value={progress * 100}
-          className="h-2 w-auto rounded-none bg-primary-foreground/25 border-b-2 border-border"
-          indicatorClassName="bg-foreground rounded-none"
+          className="h-2 flex-1 rounded-full bg-primary-foreground/25"
+          // El verde de siempre, no el del diseño: el artboard pinta la barra y
+          // el punto de "Guardado" del mismo `green-300`, y en la app ese punto
+          // es `leaf`. Seguir el artboard aquí habría metido un tercer verde.
+          indicatorClassName="bg-foreground rounded-full"
         />
+        <Text
+          style={styles.tabular}
+          className="min-w-11 text-right text-[15px] font-bold text-primary-foreground"
+        >
+          {Math.round(progress * 100)} %
+        </Text>
       </View>
     </Animated.View>
   );
@@ -182,6 +216,11 @@ export default function TratamientoScreen() {
   const [headerExtrasHeight, setHeaderExtrasHeight] = useState(0);
   const reservedHeight = showHeaderExtras ? headerExtrasHeight : 0;
 
+  // La barra va superpuesta al pie del bloque para poder quedarse pegada
+  // mientras el resto se esconde, así que el bloque tiene que reservarle su
+  // hueco: sin esto le taparía los chips de tratamiento.
+  const [progressBarHeight, setProgressBarHeight] = useState(0);
+
   // Los campos de la plantación se muestran siempre; los hermanos solo si hay
   // más de uno, o la barra sería un chip que apunta a sí mismo. Mientras carga
   // sí se muestran: el caso común tiene varios, y esconderlos por defecto haría
@@ -199,7 +238,7 @@ export default function TratamientoScreen() {
     transform: [
       {
         translateY:
-          -hidden.value * Math.max(0, reservedHeight - PROGRESS_BAR_HEIGHT),
+          -hidden.value * Math.max(0, reservedHeight - progressBarHeight),
       },
     ],
   }));
@@ -265,7 +304,9 @@ export default function TratamientoScreen() {
                 esconden como una pieza, así que lo que hay que medir —y lo que
                 el espaciador reserva— es el conjunto. */}
               <View
-                className="bg-primary gap-3 px-4 pb-3 pt-1"
+                className="bg-primary gap-3 px-4 pt-1"
+                // El hueco de la barra superpuesta, en vez de un `pb-*` fijo.
+                style={{ paddingBottom: progressBarHeight }}
                 onLayout={(e) =>
                   setHeaderExtrasHeight(e.nativeEvent.layout.height)
                 }
@@ -311,7 +352,12 @@ export default function TratamientoScreen() {
               </View>
             </Animated.View>
 
-            <EvaluationProgressBar style={progressBarStyle} />
+            <EvaluationProgressBar
+              style={progressBarStyle}
+              onLayout={(e) =>
+                setProgressBarHeight(e.nativeEvent.layout.height)
+              }
+            />
           </View>
         )}
 
@@ -345,6 +391,7 @@ export default function TratamientoScreen() {
             <EvaluationSections
               tratamientoId={id}
               reservedHeight={reservedHeight}
+              pinnedHeight={progressBarHeight}
               onScroll={scrollHandler}
             />
           </>

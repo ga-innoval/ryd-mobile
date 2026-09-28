@@ -120,6 +120,17 @@ type EvaluationSectionsProps = {
   tratamientoId: string;
   /** El hueco que hay que reservar para el bloque superpuesto de la cabecera. */
   reservedHeight: number;
+  /**
+   * El alto de la barra de avance, que se queda fijada arriba cuando el resto
+   * del bloque se esconde.
+   *
+   * El scroll entero empieza ahí abajo, y no es un margen decorativo: las
+   * cabeceras sticky se pegan al **borde superior del scroll**, así que sin
+   * esto se pegaban debajo de la barra y quedaban tapadas por ella. Con 8 px
+   * apenas se notaba; en cuanto la barra creció con el porcentaje se comía la
+   * cabecera de la sección entera.
+   */
+  pinnedHeight: number;
   /** El que esconde ese bloque al scrollear; lo crea la pantalla, que es quien
    *  lo anima. */
   onScroll: ComponentProps<typeof KeyboardAwareScrollView>["onScroll"];
@@ -139,6 +150,7 @@ type EvaluationSectionsProps = {
 export function EvaluationSections({
   tratamientoId,
   reservedHeight,
+  pinnedHeight,
   onScroll,
 }: EvaluationSectionsProps) {
   // El `open` vive aquí y no en la sección: cabecera y cuerpo son hijos
@@ -265,6 +277,10 @@ export function EvaluationSections({
     // saber qué secciones se están viendo.
     <View
       className="flex-1"
+      // El scroll arranca bajo la barra fijada, no bajo el header: es lo que
+      // hace que las cabeceras sticky se peguen por debajo de ella en vez de
+      // quedarse escondidas detrás.
+      style={{ paddingTop: pinnedHeight }}
       onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
     >
       {/* Brix trae campos de texto y va al final: sin esto, el teclado taparía
@@ -294,8 +310,11 @@ export function EvaluationSections({
       >
         {/* Reserva el hueco del bloque superpuesto. Sin holgura extra: la
               primera cabecera ya trae la suya, y sumarlas dejaría la primera
-              sección al doble de distancia que las demás. */}
-        <View style={{ height: reservedHeight }} />
+              sección al doble de distancia que las demás.
+
+              Se le descuenta lo que ya aporta el `paddingTop` de arriba, o el
+              bloque quedaría reservado dos veces. */}
+        <View style={{ height: Math.max(0, reservedHeight - pinnedHeight) }} />
         {/* Un array se aplana en los hijos del scroll (un Fragment no), que
               es lo que permite generar las secciones y seguir teniendo cabecera
               y cuerpo como hijos indexables.
