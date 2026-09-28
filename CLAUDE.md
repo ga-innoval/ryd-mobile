@@ -666,6 +666,32 @@ renombró) y `temporada` en español.
   FK activa, un `INSERT OR REPLACE` haría DELETE + INSERT, dispararía la CASCADE
   y borraría los tratamientos en cada sincronización. Hay un test que lo cubre.
 
+- **En `package-lock.json` hay dos entradas puestas a mano: NO las borres.**
+  `node_modules/@emnapi/core` y `node_modules/@emnapi/runtime`, en `1.11.3`.
+  Son las `peerDependencies` de `@napi-rs/wasm-runtime` —el respaldo WASM del
+  resolver de ESLint— y npm no las escribe al resolver en macOS, porque ahí se
+  instala el binario nativo y esa rama no se evalúa. En el linux del CI sí, y
+  `npm ci` se planta con `Missing: @emnapi/core@1.11.3 from lock file`. La
+  versión importa: la 1.11.3 empareja con el `@emnapi/wasi-threads@1.2.3` que ya
+  está en la raíz; la 1.10.0 exige la 1.2.1 y obligaría a anidar.
+
+  **Regenerar el lockfile no lo arregla, lo empeora.** Se probó: borrarlo y
+  reinstalar rellena ese hueco pero abre otro —`ajv`, `json-schema-traverse`—
+  que hace fallar `npm ci` **también en macOS**, o sea que `npm install` produce
+  un árbol que `npm ci` rechaza acto seguido. De paso mueve 114 versiones.
+
+  Para comprobar si el lockfile está sano, sin esperar al CI: recorrer
+  `packages` buscando `peerDependencies` que no tengan entrada ni en la raíz ni
+  anidadas. Con el árbol de hoy tienen que salir **cero**.
+
+- **`react-native-css-interop` va pineada exacta a lo que pida `nativewind`**,
+  hoy `0.2.7`. No se puede quitar aunque `src/` no la importe nunca: el preset
+  de Jest la resuelve desde la raíz (`mockNativeComponent.js`) y sin ella caen
+  las 35 suites. Y si flota con `^`, npm anida una segunda copia bajo
+  `nativewind/node_modules/` y Jest intenta transformar su JSX sin pasar por
+  babel — "Unexpected token '<'" en todo lo que importe `icon.tsx`. Al subir
+  `nativewind`, este pin va detrás.
+
 - **`useAnimatedKeyboard` está deprecado** en reanimated 4 (lo dice el propio
   typing: "Please use react-native-keyboard-controller instead"). Usar
   `useReanimatedKeyboardAnimation`, como ya hace
