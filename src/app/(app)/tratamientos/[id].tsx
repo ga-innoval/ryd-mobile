@@ -121,16 +121,13 @@ function EvaluationProgressBar({
         className="bg-primary flex-row items-center gap-3 px-4 py-3"
         onLayout={onLayout}
       >
-        {/* <Text className="text-[13px] font-bold tracking-wider text-primary-foreground/70">
-          PROGRESO
-        </Text> */}
         <Progress
           value={progress * 100}
           className="h-2 flex-1 rounded-full bg-primary-foreground/25"
           // El verde de siempre, no el del diseño: el artboard pinta la barra y
           // el punto de "Guardado" del mismo `green-300`, y en la app ese punto
           // es `leaf`. Seguir el artboard aquí habría metido un tercer verde.
-          indicatorClassName="bg-foreground rounded-full"
+          indicatorClassName="bg-white rounded-full"
         />
         <Text
           style={styles.tabular}
