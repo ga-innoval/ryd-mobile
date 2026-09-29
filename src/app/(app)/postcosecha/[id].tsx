@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { CameraIcon, GhostIcon } from "lucide-react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useAppRouter } from "@/lib/use-app-router";
 import { useHideOnScroll } from "@/lib/use-hide-on-scroll";
 import { usePlant } from "@/domains/plants/hooks/use-plant";
@@ -21,6 +22,7 @@ import {
   PostcosechaPhotosForm,
   PostcosechaPhotosHeaderSummary,
 } from "@/domains/plants/components/postcosecha-photos";
+import { PostcosechaFrutaSection } from "@/domains/plants/components/postcosecha-fruta";
 import { EVALS_POST_COSECHA } from "@/domains/plants/lib/evals-post-cosecha";
 
 /**
@@ -150,7 +152,12 @@ export default function PostcosechaScreen() {
       )}
 
       {plant && (
-        <ScrollView
+        // `KeyboardAwareScrollView` y no un `ScrollView` normal: `scrollHandler`
+        // es un worklet de `useAnimatedScrollHandler`, y un ScrollView de React
+        // Native intenta llamarlo como función y revienta con «Object is not a
+        // function». Este por dentro es un `Reanimated.ScrollView`, así que lo
+        // deja pasar — y es el mismo que usa la pantalla de tratamiento.
+        <KeyboardAwareScrollView
           onScroll={scrollHandler}
           scrollEventThrottle={16}
           contentContainerClassName="px-4 pb-10"
@@ -159,7 +166,6 @@ export default function PostcosechaScreen() {
             primera cabecera ya trae la suya. */}
           <View style={{ height: reservedHeight }} />
 
-          {/* Aquí abajo entran las demás secciones, con la misma forma. */}
           <View className="bg-background pt-4">
             <CollapsibleHeader
               icon={CameraIcon}
@@ -184,7 +190,9 @@ export default function PostcosechaScreen() {
               evalId={current.id}
             />
           </CollapsibleBody>
-        </ScrollView>
+
+          <PostcosechaFrutaSection key={current.id} evalId={current.id} />
+        </KeyboardAwareScrollView>
       )}
     </View>
   );
