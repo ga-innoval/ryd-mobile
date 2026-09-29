@@ -205,11 +205,17 @@ export const PlantCard = memo(function PlantCard({
             variant="secondary"
           >
             {EVALS_POST_COSECHA.map(({ id, title, subtitle }) => (
-              // TODO: navegar al formulario de post-cosecha cuando exista su
-              // ruta. De momento solo da el feedback táctil.
+              // La ruta lleva la plantación, y cuál de las cuatro en `eval`:
+              // post-cosecha no tiene id propio, es catálogo fijo.
               <PressableScale
                 key={id}
                 testID={`post-cosecha-${id}`}
+                onPress={() =>
+                  router.push({
+                    pathname: "/postcosecha/[id]",
+                    params: { id: item.id, eval: id },
+                  })
+                }
                 className="w-28 rounded-xl border-2 border-border py-2 items-center"
               >
                 <Text className="font-medium">{title}</Text>

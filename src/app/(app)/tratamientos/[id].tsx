@@ -21,6 +21,10 @@ import { useRespuestas } from "@/domains/plants/hooks/use-respuestas";
 import { buildEvaluationFromRespuestas } from "@/domains/plants/lib/build-evaluation-from-respuestas";
 import { EvaluationAutosave } from "@/domains/plants/components/evaluation-autosave";
 import {
+  PlantFields,
+  PlantFieldsSkeleton,
+} from "@/domains/plants/components/plant-fields";
+import {
   EvaluationSections,
   EvaluationSectionsSkeleton,
 } from "@/domains/plants/components/evaluation-sections";
@@ -40,42 +44,6 @@ import { GhostIcon } from "lucide-react-native";
 import { Progress } from "@/components/ui/progress";
 import { Text } from "@/components/ui/text";
 import { useEvaluationSaveStore } from "@/domains/plants/store/evaluation-save-store";
-import { usePulseAnimation } from "@/lib/use-pulse-animation";
-import type { PlantRecord } from "@/domains/plants/types";
-import { cn } from "@/lib/utils";
-
-const PLANT_FIELDS = [
-  { label: "Campo", key: "campo", valueCn: "capitalize" },
-  { label: "Cuadro", key: "cuadro", valueCn: "uppercase" },
-  { label: "Programa", key: "programa", valueCn: "uppercase" },
-  { label: "Patrón", key: "portainjerto", valueCn: "capitalize" },
-  { label: "Año", key: "anio", valueCn: "" },
-] as const;
-
-/**
- * Los mismos datos que la tarjeta del listado, con su misma normalización: el
- * valor se pasa a minúsculas y es `valueCn` quien decide cómo se presenta. Sin
- * eso, un `campo` guardado como "SAN JOSE" saldría distinto aquí que en la
- * lista.
- */
-function PlantFields({ plant }: { plant: PlantRecord }) {
-  return (
-    <View className="flex-row flex-wrap gap-4">
-      {PLANT_FIELDS.map(({ label, key, valueCn }) => (
-        <View key={key} className="flex-row items-center gap-2">
-          <Text variant="muted" className="text-primary-foreground/60">
-            {label}
-          </Text>
-          <Text
-            className={cn("font-semibold text-primary-foreground", valueCn)}
-          >
-            {String(plant[key]).toLocaleLowerCase()}
-          </Text>
-        </View>
-      ))}
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   // El porcentaje cambia mientras se captura, y sin cifras de ancho fijo la
@@ -135,25 +103,6 @@ function EvaluationProgressBar({
         >
           {Math.round(progress * 100)} %
         </Text>
-      </View>
-    </Animated.View>
-  );
-}
-
-/** Un hueco por campo real, para que el bloque no cambie de alto al llegar
- *  el dato y arrastre consigo el espaciador que reserva su sitio. */
-function PlantFieldsSkeleton() {
-  const pulseStyle = usePulseAnimation({ minOpacity: 0.3 });
-
-  return (
-    <Animated.View style={pulseStyle}>
-      <View className="flex-row flex-wrap gap-4">
-        {PLANT_FIELDS.map(({ key }) => (
-          <View
-            key={key}
-            className="h-5 w-28 rounded bg-primary-foreground/20"
-          />
-        ))}
       </View>
     </Animated.View>
   );
