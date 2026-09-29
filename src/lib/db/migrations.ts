@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 6;
+const DATABASE_VERSION = 7;
 
 export async function runMigrations(db: SQLiteDatabase) {
   await db.execAsync("PRAGMA foreign_keys = ON");
@@ -163,10 +163,45 @@ export async function runMigrations(db: SQLiteDatabase) {
     currentVersion = 6;
   }
 
+  if (currentVersion === 6) {
+    // Las fotografías de post-cosecha, en su propia tabla y no como filas de
+    // `respuesta_fotos`.
+    //
+    // **El dueño es otro**: allí un tratamiento, aquí la plantación más cuál de
+    // las cuatro evaluaciones (`EVALS_POST_COSECHA`, catálogo fijo que no vive
+    // en SQLite). Meterlas en la misma tabla obligaría a hacer nulable el
+    // `tratamientoId` y con ello a perder la FK, que es lo que hace segura la
+    // poda de la descarga.
+    //
+    // `evalId` es texto suelto y sin `CHECK` a propósito, como `categoria`:
+    // congelar el catálogo en el esquema obligaría a migrar para añadir una
+    // evaluación.
+    //
+    // **Ojo con la barrida de huérfanos**: los archivos de las dos tablas
+    // comparten carpeta, así que `sweepOrphanPhotos` tiene que mirar las dos o
+    // borrará estas en la siguiente descarga. Tiene test.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS postcosecha_fotos (
+        clientId TEXT PRIMARY KEY NOT NULL,
+        plantId TEXT NOT NULL,
+        evalId TEXT NOT NULL,
+        categoria TEXT NOT NULL,
+        fileName TEXT NOT NULL,
+        capturedAt TEXT NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'pending',
+        syncedAt TEXT,
+        FOREIGN KEY (plantId) REFERENCES plants(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_postcosecha_fotos_owner
+        ON postcosecha_fotos(plantId, evalId, categoria);
+    `);
+    currentVersion = 7;
+  }
+
   // Próxima migración. ej:
-  // if (currentVersion === 6) {
+  // if (currentVersion === 7) {
   //   await db.execAsync(`CREATE TABLE IF NOT EXISTS newTable (...)`);
-  //   currentVersion = 7;
+  //   currentVersion = 8;
   // }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);
