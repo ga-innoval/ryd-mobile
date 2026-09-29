@@ -17,7 +17,6 @@ import {
   EMPTY_FOTOS,
   useAddFotos,
   useFotos,
-  type Foto,
 } from "../hooks/use-respuesta-fotos";
 import { groupFotosByCategoria } from "../lib/group-fotos-by-categoria";
 import type { PhotoSource } from "../types";
@@ -181,7 +180,12 @@ export function EvalPhotosForm({ tratamientoId }: { tratamientoId: string }) {
 type EvalPhotosProps = {
   /** La toma de la que son estas fotografías: «Racimo», «Corte vertical»… */
   label: string;
-  photos: readonly Foto[];
+  /**
+   * Solo lo que esta fila necesita —la ruta y cuántas hay—, y no el `Foto` de
+   * tratamientos: post-cosecha guarda las suyas en otra tabla con otro dueño, y
+   * atar el tipo aquí obligaría a duplicar la fila para pintar lo mismo.
+   */
+  photos: readonly { uri: string }[];
   /** Puede no añadir nada: cancelar el picker es el caso normal. */
   onCapture: (source: PhotoSource) => void;
   /** Abrir la cuadrícula con todo lo capturado. */

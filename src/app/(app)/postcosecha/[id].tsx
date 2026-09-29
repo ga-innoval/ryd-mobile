@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { GhostIcon } from "lucide-react-native";
+import { CameraIcon, GhostIcon } from "lucide-react-native";
 import { useAppRouter } from "@/lib/use-app-router";
 import { useHideOnScroll } from "@/lib/use-hide-on-scroll";
 import { usePlant } from "@/domains/plants/hooks/use-plant";
@@ -13,6 +13,14 @@ import {
 } from "@/domains/plants/components/plant-fields";
 import { PostcosechaChip } from "@/domains/plants/components/postcosecha-chip";
 import { EmptyState } from "@/components/empty-state";
+import {
+  CollapsibleBody,
+  CollapsibleHeader,
+} from "@/components/collapsible-section";
+import {
+  PostcosechaPhotosForm,
+  PostcosechaPhotosHeaderSummary,
+} from "@/domains/plants/components/postcosecha-photos";
 import { EVALS_POST_COSECHA } from "@/domains/plants/lib/evals-post-cosecha";
 
 /**
@@ -48,7 +56,12 @@ export default function PostcosechaScreen() {
   const [headerExtrasHeight, setHeaderExtrasHeight] = useState(0);
   const reservedHeight = showHeaderExtras ? headerExtrasHeight : 0;
 
-  const { animatedStyle } = useHideOnScroll({ distance: reservedHeight });
+  const { scrollHandler, animatedStyle } = useHideOnScroll({
+    distance: reservedHeight,
+  });
+
+  // Abierta al entrar, como las de tratamiento.
+  const [photosOpen, setPhotosOpen] = useState(true);
 
   // Sin memo, cualquier re-render reconstruye este objeto y empuja opciones
   // nuevas al navigator. Depende solo de los dos nombres, no del objeto `plant`
@@ -136,9 +149,43 @@ export default function PostcosechaScreen() {
         />
       )}
 
-      {/* El formulario de post-cosecha entra aquí. De momento solo el
-        espaciador, para que se vea que el bloque reserva su hueco. */}
-      {plant && <View style={{ height: reservedHeight }} />}
+      {plant && (
+        <ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          contentContainerClassName="px-4 pb-10"
+        >
+          {/* Reserva el hueco del bloque superpuesto. Sin holgura extra: la
+            primera cabecera ya trae la suya. */}
+          <View style={{ height: reservedHeight }} />
+
+          {/* Aquí abajo entran las demás secciones, con la misma forma. */}
+          <View className="bg-background pt-4">
+            <CollapsibleHeader
+              icon={CameraIcon}
+              title="Fotografías"
+              description="Evidencia de los racimos."
+              summary={
+                <PostcosechaPhotosHeaderSummary
+                  plantId={id}
+                  evalId={current.id}
+                />
+              }
+              open={photosOpen}
+              onToggle={() => setPhotosOpen((open) => !open)}
+            />
+          </View>
+          <CollapsibleBody open={photosOpen}>
+            {/* `key` para que al saltar de evaluación empiece de cero: lo
+              capturado es de esta, no de la siguiente. */}
+            <PostcosechaPhotosForm
+              key={current.id}
+              plantId={id}
+              evalId={current.id}
+            />
+          </CollapsibleBody>
+        </ScrollView>
+      )}
     </View>
   );
 }

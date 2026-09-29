@@ -14,6 +14,7 @@ import {
   insertFoto,
   type RespuestaFotoRecord,
 } from "../lib/db/respuesta-fotos.repository";
+import { getAllPostcosechaFotoFileNames } from "../lib/db/postcosecha-fotos.repository";
 import {
   copyPhotoInto,
   deletePhotoFiles,
@@ -144,7 +145,18 @@ export async function removeFotos(
  * sincronizar.
  */
 export async function sweepOrphanPhotos(db: SQLiteDatabase): Promise<number> {
-  const alive = await getAllFotoFileNames(db);
+  // **Las dos tablas, no solo esta.** Los archivos de tratamiento y los de
+  // post-cosecha comparten carpeta, así que mirar solo `respuesta_fotos`
+  // convertiría en huérfanas todas las de post-cosecha y las borraría en la
+  // siguiente descarga, sin que nadie se entere hasta abrir la evaluación. Hay
+  // un test que lo fija, y si algún día aparece una tercera tabla de fotos, este
+  // es el sitio que hay que tocar.
+  const [respuestas, postcosecha] = await Promise.all([
+    getAllFotoFileNames(db),
+    getAllPostcosechaFotoFileNames(db),
+  ]);
+  const alive = new Set([...respuestas, ...postcosecha]);
+
   const orphans = listPhotoFileNames().filter((name) => !alive.has(name));
 
   deletePhotoFiles(orphans);

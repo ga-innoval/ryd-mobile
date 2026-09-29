@@ -39,13 +39,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  EMPTY_FOTOS,
-  useFotos,
-  useRemoveFotos,
-  type Foto,
-} from "@/domains/plants/hooks/use-respuesta-fotos";
-import { groupFotosByCategoria } from "@/domains/plants/lib/group-fotos-by-categoria";
-import { findPhotoCategory } from "@/domains/plants/lib/photo-categories";
+  usePhotoGridSource,
+  type GridPhoto,
+} from "@/domains/plants/hooks/use-photo-grid-source";
 import { Separator } from "@/components/ui/separator";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { haptics } from "@/lib/haptics";
@@ -356,22 +352,25 @@ function PhotoCell({
  * Por eso hace falta también el tratamiento, no solo la categoría.
  */
 export default function PhotosScreen() {
-  const { categoryId, tratamientoId } = useLocalSearchParams<{
+  // Los parámetros dicen de quién son: un tratamiento, o una plantación más su
+  // evaluación de post-cosecha. La pantalla es la misma para las dos.
+  const { categoryId, tratamientoId, plantId, evalId } = useLocalSearchParams<{
     categoryId: string;
-    tratamientoId: string;
+    tratamientoId?: string;
+    plantId?: string;
+    evalId?: string;
   }>();
   const router = useAppRouter();
   const { width } = useWindowDimensions();
 
   // El `id` llega como texto suelto en los params, así que puede no ser de
   // ninguna categoría; la cabecera se queda entonces con su nombre genérico.
-  const category = findPhotoCategory(categoryId);
-  const { data: todas, isPending } = useFotos(tratamientoId);
-  const photos = useMemo(
-    () =>
-      groupFotosByCategoria(todas ?? EMPTY_FOTOS)[categoryId] ?? EMPTY_FOTOS,
-    [todas, categoryId],
-  );
+  const {
+    category,
+    photos,
+    isPending,
+    removeFotos,
+  } = usePhotoGridSource({ categoryId, tratamientoId, plantId, evalId });
   const uris = useMemo(() => photos.map((foto) => foto.uri), [photos]);
 
   // `undefined` es "cerrado": el índice por el que abre el visor y su
@@ -382,8 +381,6 @@ export default function PhotosScreen() {
   // La selección **es** el menú abierto, no un estado aparte que pudiera
   // discrepar de él: lo pone y lo quita el propio `onOpenChange`.
   const [openMenuFor, setOpenMenuFor] = useState<string>();
-
-  const { mutate: removeFotos } = useRemoveFotos(tratamientoId);
 
   const [isSelecting, setIsSelecting] = useState(false);
   // Por `clientId` y no por posición: lo marcado sobrevive a que la lista se
@@ -429,7 +426,7 @@ export default function PhotosScreen() {
   const cellSize = (width - PADDING * 2 - GAP * (columns - 1)) / columns;
 
   const renderItem = useCallback(
-    ({ item, index }: { item: Foto; index: number }) => (
+    ({ item, index }: { item: GridPhoto; index: number }) => (
       <PhotoCell
         uri={item.uri}
         index={index}
