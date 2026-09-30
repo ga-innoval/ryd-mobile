@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View } from "react-native";
+import { useController, useWatch } from "react-hook-form";
 import {
   ArrowRightIcon,
   GrapeIcon,
@@ -19,8 +20,8 @@ import { StarRating } from "@/components/ui/star-rating";
 import { Text } from "@/components/ui/text";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatISODate } from "@/lib/dates";
+import type { PostcosechaFormValues } from "../lib/postcosecha-schema";
 import {
-  buildFrutaDefaults,
   evaluacionAntesDelEmpaque,
   fechaEsperada,
   frutaAnswered,
@@ -42,11 +43,9 @@ const ESCALA_MIN = "[MÍNIMO]";
 const ESCALA_MAX = "[MÁXIMO]";
 
 /** Lo que la cabecera de la sección enseña en su hueco de resumen. */
-export function PostcosechaFrutaHeaderSummary({
-  values,
-}: {
-  values: FrutaValues;
-}) {
+export function PostcosechaFrutaHeaderSummary() {
+  const values = useWatch<PostcosechaFormValues, "fruta">({ name: "fruta" });
+
   return (
     <Text variant="muted">
       {`${frutaAnswered(values)} de ${FRUTA_TOTAL_PREGUNTAS} preguntas`}
@@ -58,24 +57,26 @@ export function PostcosechaFrutaHeaderSummary({
  * La sección «Evaluación fruta» de post-cosecha: once preguntas y cuatro formas
  * de capturar —fecha, píldoras, estrellas y porcentaje—.
  *
- * **Todavía no persiste.** El estado vive aquí, en memoria, y se pierde al
- * salir. Post-cosecha no tiene tabla de respuestas ni autoguardado, y montarlos
- * era un paso aparte; las fotografías sí persisten porque se guardan solas al
- * capturarse. Cuando llegue la persistencia, este `useState` pasa a ser el
- * `defaultValues` de un `react-hook-form` y lo demás se queda igual.
+ * Lee y escribe del formulario de la pantalla, que es quien lo vuelca desde
+ * SQLite y quien lo guarda.
  */
 export function PostcosechaFrutaForm({
   evalId,
-  values,
-  onChange,
 }: {
   /** Cuál de las cuatro: de ahí salen los días que se suman al empaque. */
   evalId: string;
-  values: FrutaValues;
-  onChange: (values: FrutaValues) => void;
 }) {
+  // Un solo controlador para las once y no uno por campo: aquí no se teclea
+  // nada —son fechas, píldoras, estrellas y barras—, así que repintar la
+  // sección al cambiar una no le cuesta nada a nadie. En comentarios sí van por
+  // campo, porque allí cada tecla repintaría las tres cajas.
+  const { field } = useController<PostcosechaFormValues, "fruta">({
+    name: "fruta",
+  });
+  const values = field.value;
+
   const set = <K extends keyof FrutaValues>(key: K, value: FrutaValues[K]) =>
-    onChange({ ...values, [key]: value });
+    field.onChange({ ...values, [key]: value });
 
   const dias = periodoDias(evalId);
   const esperada = fechaEsperada(values.fecha_empaque, dias);
@@ -228,12 +229,12 @@ export function PostcosechaFrutaForm({
  * es quien lo cambia: separarlas obligaría a subir el estado a la pantalla, que
  * no tiene nada que hacer con él.
  *
- * Quien la monta le pone `key={evalId}`: **lo capturado es de esta evaluación**,
- * no de la siguiente, y al saltar entre las cuatro tiene que empezar de cero.
- * Hoy además se pierde, porque esto todavía no persiste.
+ * **Sin `key` por evaluación**, al revés que antes: ahora quien vacía la sección
+ * al saltar entre las cuatro es el `reset` del volcado de la pantalla. Con las
+ * dos cosas a la vez habría dos mecanismos para lo mismo, y acabarían
+ * discrepando.
  */
 export function PostcosechaFrutaSection({ evalId }: { evalId: string }) {
-  const [values, setValues] = useState<FrutaValues>(buildFrutaDefaults);
   const [open, setOpen] = useState(true);
 
   return (
@@ -243,17 +244,13 @@ export function PostcosechaFrutaSection({ evalId }: { evalId: string }) {
           icon={GrapeIcon}
           title="Evaluación fruta"
           description="Estado de la fruta al abrir la caja, con las fechas de empaque y de evaluación."
-          summary={<PostcosechaFrutaHeaderSummary values={values} />}
+          summary={<PostcosechaFrutaHeaderSummary />}
           open={open}
           onToggle={() => setOpen((value) => !value)}
         />
       </View>
       <CollapsibleBody open={open}>
-        <PostcosechaFrutaForm
-          evalId={evalId}
-          values={values}
-          onChange={setValues}
-        />
+        <PostcosechaFrutaForm evalId={evalId} />
       </CollapsibleBody>
     </>
   );

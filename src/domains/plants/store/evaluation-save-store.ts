@@ -22,9 +22,13 @@ export type SaveStatus =
 export type EvaluationSaveActions = {
   save: () => void;
   /**
-   * Deja el tratamiento a cero: borra sus respuestas, sus fotografías y vacía el
-   * formulario. No es «descartar cambios» —eso volvía a lo último guardado—,
-   * así que la cabecera lo confirma con un diálogo antes de llamarlo.
+   * Deja a cero lo que hay abierto: borra sus respuestas, sus fotografías y
+   * vacía el formulario. No es «descartar cambios» —eso volvía a lo último
+   * guardado—, así que la cabecera lo confirma con un diálogo antes de llamarlo.
+   *
+   * **Qué es «lo que hay abierto» depende de quién registre la acción**: en
+   * tratamiento es el tratamiento entero; en post-cosecha, una sola de las
+   * cuatro evaluaciones. Por eso el texto del diálogo lo pone cada cabecera.
    */
   clear: () => void;
 };
@@ -50,7 +54,15 @@ type EvaluationSaveStore = {
    */
   actions: EvaluationSaveActions | null;
   setActions: (actions: EvaluationSaveActions | null) => void;
-  /** Al salir de la evaluación, para que la cabecera no herede su estado. */
+  /**
+   * Al salir de la evaluación, para que la cabecera no herede su estado.
+   *
+   * **Con dos pantallas de captura compartiendo este store, llamarlo al
+   * desmontar deja de ser aseo y pasa a ser invariante**: si una se lo salta, la
+   * otra abre heredando su «Guardado» y unas `actions` que apuntan a un cierre
+   * muerto — pulsar Guardar llamaría a la mutation de un componente que ya no
+   * existe.
+   */
   reset: () => void;
 };
 
@@ -62,8 +74,15 @@ type EvaluationSaveStore = {
  * por sí misma si hay algo sin guardar. Es el mismo caso que el avance, que viaja
  * por aquí por lo mismo.
  *
- * Quien calcula el estado y hace el trabajo es `EvaluationAutosave`, que sí
- * vive dentro del formulario. Esto solo lleva y trae.
+ * Quien calcula el estado y hace el trabajo es el autoguardado que haya montado
+ * —`EvaluationAutosave` en tratamiento, `PostcosechaAutosave` en post-cosecha—,
+ * que sí vive dentro del formulario. Esto solo lleva y trae.
+ *
+ * **Sin identidad a propósito**: no guarda de quién es lo que cuenta porque solo
+ * hay una pantalla de captura abierta a la vez, y quien la abre se presenta al
+ * montarse y se despide con `reset()`. Meterle un id obligaría a que la cabecera
+ * supiera cuál de las dos encuestas está mirando, que es justo lo que no
+ * necesita saber.
  */
 export const useEvaluationSaveStore = create<EvaluationSaveStore>()((set) => ({
   status: "idle",

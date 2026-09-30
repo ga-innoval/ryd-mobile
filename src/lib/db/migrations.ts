@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 7;
+const DATABASE_VERSION = 8;
 
 export async function runMigrations(db: SQLiteDatabase) {
   await db.execAsync("PRAGMA foreign_keys = ON");
@@ -198,10 +198,54 @@ export async function runMigrations(db: SQLiteDatabase) {
     currentVersion = 7;
   }
 
+  if (currentVersion === 7) {
+    // Lo capturado en post-cosecha: la evaluación de fruta y las notas.
+    //
+    // **Tabla aparte y no filas de `respuestas`**, por lo mismo que razonó la
+    // v7 para las fotografías: meterlas juntas obligaría a hacer nulable el
+    // `tratamientoId` y con ello a perder la FK. Y aquí hay una razón más
+    // fuerte — la llave natural es de tres partes y no cabe en
+    // `(tratamientoId, seccion)`.
+    //
+    // La PK sigue siendo natural y no un UUID: las tres partes existen en los
+    // dos lados antes del primer envío, así que un reenvío no puede duplicar.
+    // `evalId` va sin `CHECK`, como en `postcosecha_fotos`: congelar el
+    // catálogo en el esquema obligaría a migrar para añadir una evaluación.
+    //
+    // **`hasError` y `progress` nacen con la tabla** aunque todavía nadie las
+    // lea en SQL —el listado solo cuenta tratamientos—. Es a propósito: una
+    // columna derivada añadida más tarde nace desfasada para todo lo ya
+    // capturado y necesita backfill, que es justo lo que le pasó a `respuestas`
+    // con la v4. Las escribe el propio guardado, así que no pueden discrepar
+    // de su payload.
+    //
+    // Sin índices todavía: el autoíndice de la PK cubre por prefijo la única
+    // lectura caliente (`WHERE plantId = ? AND evalId = ?`). El parcial de
+    // `hasError` y el de `syncStatus` son un `CREATE INDEX` de una línea el día
+    // que exista su consulta —la tarjeta marcando errores, el push— y añadirlos
+    // entonces no necesita backfill porque las columnas ya estarán al día.
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS postcosecha_respuestas (
+        plantId TEXT NOT NULL,
+        evalId TEXT NOT NULL,
+        seccion TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'pending',
+        updatedAtLocal TEXT NOT NULL,
+        syncedAt TEXT,
+        hasError INTEGER NOT NULL DEFAULT 0,
+        progress INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (plantId, evalId, seccion),
+        FOREIGN KEY (plantId) REFERENCES plants(id) ON DELETE CASCADE
+      );
+    `);
+    currentVersion = 8;
+  }
+
   // Próxima migración. ej:
-  // if (currentVersion === 7) {
+  // if (currentVersion === 8) {
   //   await db.execAsync(`CREATE TABLE IF NOT EXISTS newTable (...)`);
-  //   currentVersion = 8;
+  //   currentVersion = 9;
   // }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

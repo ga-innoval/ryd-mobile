@@ -30,9 +30,9 @@ sincronización manual.
 - **Testing**: Jest + `@testing-library/react-native`, factories en
   `src/test-utils/factories/`
 
-## Estado actual del schema (v6) — leer antes de tocar la DB
+## Estado actual del schema (v8) — leer antes de tocar la DB
 
-`src/lib/db/migrations.ts` crea **cuatro tablas**:
+`src/lib/db/migrations.ts` crea **seis tablas**:
 
 - `plants` (`id, name, campo, cuadro, programa, portainjerto, anio, syncStatus`)
 - `tratamientos` (`id, plantId, name, description, temporada, isActive`), con
@@ -51,10 +51,22 @@ syncStatus, syncedAt`), una fila por fotografía, CASCADE contra `tratamientos`
   `lib/db/respuesta-fotos.repository.ts` y los archivos viven aparte, en
   `lib/photo-files.ts`
 
-**NO existe todavía**: la VIEW `plantaciones_with_progress`.
-`src/app/(app)/index.tsx` sigue inyectando `progress: 0` a mano (los
-tratamientos ya salen del repositorio). No escribas SELECT contra nada que no
-esté en la migración v6.
+- `postcosecha_fotos` (`clientId, plantId, evalId, categoria, fileName,
+capturedAt, syncStatus, syncedAt`), lo mismo para post-cosecha, con CASCADE
+  contra `plants` e índice en `(plantId, evalId, categoria)`. **El dueño es
+  otro**: allí un tratamiento, aquí la plantación más cuál de las cuatro
+  evaluaciones del catálogo, que no vive en SQLite
+
+- `postcosecha_respuestas` (`plantId, evalId, seccion, payload, syncStatus,
+updatedAtLocal, syncedAt, hasError, progress`), con PK compuesta
+  `(plantId, evalId, seccion)` y CASCADE contra `plants`. **Sin índices
+  todavía**: el autoíndice de la PK cubre por prefijo la única lectura caliente,
+  y el parcial de `hasError` y el de `syncStatus` entran el día que exista su
+  consulta. Su repositorio es `lib/db/postcosecha-respuestas.repository.ts` y el
+  porqué está en **Captura de post-cosecha**
+
+**NO existe todavía**: la VIEW `plantaciones_with_progress`. No escribas SELECT
+contra nada que no esté en la migración v8.
 
 ## Modelo de dominio
 
@@ -536,6 +548,54 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
     Elegirlas es `components/ui/date-field.tsx`, que envuelve las dos formas de
     `@react-native-community/datetimepicker`: diálogo del sistema en Android y
     calendario montado en un modal en iOS.
+
+## Captura de post-cosecha
+
+> **Qué hay de esto:** la pantalla guarda de punta a punta —migración v8,
+> `lib/db/postcosecha-respuestas.repository.ts`, autoguardado, guardado a mano,
+> limpiar y barra de avance—. **Falta el push**, igual que en tratamiento, y que
+> el listado cuente post-cosecha para el avance de la plantación.
+
+Es la encuesta de tratamiento hecha otra vez, y **deliberadamente aparte**. Lo
+que comparten está en `lib/` —el catálogo de comentarios, la mecánica del
+snapshot (`section-snapshot.ts`), la barra (`evaluation-progress-bar.tsx`), los
+widgets de la cabecera (`evaluation-save-controls.tsx`) y el store
+(`evaluation-save-store.ts`)—; lo que no, tiene su hermano: `postcosecha-schema`,
+`postcosecha-snapshot`, `postcosecha-progress`, `postcosecha-errors` y
+`PostcosechaAutosave`. Juntar los dos autoguardados en uno con seis parámetros
+haría más difícil de leer justo la parte delicada, que es la secuencia.
+
+Lo que no es obvio:
+
+- **La identidad es `(plantId, evalId)`, nunca solo la ruta.** Saltar entre las
+  cuatro es `setParams`, que **no desmonta la pantalla**: comparar solo el `id`
+  deja en pantalla lo de «15 días / caja» al entrar en «30 días / caja», y el
+  autoguardado lo escribe en la evaluación equivocada. De ahí el `owner` de la
+  pantalla, y el `key={owner}` del autoguardado — sin esa `key`, `written`
+  sobrevive al salto con la foto de la anterior y se escribe una dentro de otra.
+- **Las secciones del formulario ya no llevan `key` propia**: quien las vacía al
+  saltar es el `reset` del volcado. Con las dos cosas habría dos mecanismos para
+  lo mismo. El bloque de fotografías sí la conserva: su estado es suyo.
+- **El `gcTime: 0` pesa más aquí que en tratamiento.** Allí el riesgo aparece al
+  reabrir la pantalla; aquí los cuatro chips son la navegación normal, así que
+  volver a una evaluación ya escrita es constante. Su corolario: el formulario se
+  vacía **ya** al cambiar de evaluación, sin esperar a SQLite, o se vería un
+  instante lo de la anterior.
+- **El avance se reparte por unidades y no por secciones**: las once preguntas de
+  fruta y la única toma de fotografía, todas pesando lo mismo. Con el reparto de
+  tratamiento —cada sección un sexto— adjuntar una foto valdría el 50 %.
+  Comentarios no reparte, igual que allí.
+- **Una evaluación en blanco abre en 3 de 12, no en cero**: los tres porcentajes
+  no tienen estado vacío y llevan dato desde el primer frame. Es una decisión de
+  producto —enseñar `0 %` sin tenerlo guardado engañaría a quien busca justo un
+  0 %—, y lo que la hace inofensiva para el listado es que abrir una evaluación y
+  salir **no escribe ninguna fila**.
+- **Limpiar borra una evaluación, no las cuatro**, y sí se lleva sus
+  fotografías. Por eso el texto del diálogo la nombra: con los chips es fácil
+  estar en la que no es.
+- **Sin `resolver` en el formulario**: nada se envía. El papel de
+  `postcosechaSchema` es hacer de portero al volcar lo que sale de SQLite y tipar
+  el formulario, no validar al capturar.
 
 ## Naming
 
