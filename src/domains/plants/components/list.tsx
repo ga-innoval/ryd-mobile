@@ -216,8 +216,19 @@ export const PlantCard = memo(function PlantCard({
                     params: { id: item.id, eval: id },
                   })
                 }
-                className="w-28 rounded-xl border-2 border-border py-2 items-center"
+                className="w-28 h-[72px] overflow-hidden rounded-xl border-2 border-border px-2.5 py-2 items-center justify-center"
               >
+                {/* El avance llena la tarjeta en vez de llevar barra, igual
+                  que el chip de tratamiento y por lo mismo. Declarado **antes**
+                  que el texto y sin `zIndex`: en React Native pinta encima lo
+                  que se declara después, así que el orden basta. El recorte —y
+                  con él la curva del borde— lo pone el `overflow-hidden`. */}
+                <View
+                  pointerEvents="none"
+                  style={{ width: `${(item.postcosecha[id] ?? 0) * 100}%` }}
+                  className="absolute bottom-0 left-0 top-0 bg-leaf/15"
+                />
+
                 <Text className="font-medium">{title}</Text>
                 <Text variant="muted">{subtitle}</Text>
               </PressableScale>

@@ -4,7 +4,6 @@ import { Text } from "@/components/ui/text";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
 import { cn } from "@/lib/utils";
-import { Progress } from "@/components/ui/progress";
 import type { TratamientoRecord } from "../types";
 
 type ChipVariant = "card" | "header";
@@ -44,8 +43,8 @@ type TratamientoChipProps = {
   isActive?: boolean;
   /** Su captura tiene un dato imposible: el borde lo dice sin abrirlo. */
   hasError?: boolean;
-  /** Lo capturado, de 0 a 1. Solo lo enseña la variante `card`; en la cabecera
-   *  el avance ya está a la vista en las propias secciones. */
+  /** Lo capturado, de 0 a 1. Solo lo enseña la variante `card` —llenándose—; en
+   *  la cabecera el avance ya está a la vista en las propias secciones. */
   progress?: number;
 };
 
@@ -71,6 +70,28 @@ export function TratamientoChip({
         hasError && "bg-destructive-background border-destructive/20",
       )}
     >
+      {variant === "card" && (
+        // **El avance llena el chip, no lleva barra** (opción C del artboard).
+        // Con una barra al pie, un chip de 112 px reparte su alto entre el
+        // nombre y una línea de 4 px que hay que ir a buscar; llenándolo, el
+        // avance se lee sin mirar ningún sitio en concreto.
+        //
+        // Va declarado **antes** que el texto y sin `zIndex`: en React Native
+        // pinta encima lo que se declara después, así que el orden basta y no
+        // hace falta apilar nada. El recorte lo pone el `overflow-hidden` de la
+        // raíz, que es lo que le da al relleno la curva del borde.
+        <View
+          pointerEvents="none"
+          style={{ width: `${progress * 100}%` }}
+          className={cn(
+            "absolute bottom-0 left-0 top-0",
+            // Con un dato imposible el chip ya está en rojo; un relleno verde
+            // encima lo dejaría de dos colores sin querer decir nada nuevo.
+            hasError ? "bg-destructive/15" : "bg-leaf/15",
+          )}
+        />
+      )}
+
       <Text
         numberOfLines={1}
         className={cn(
@@ -82,18 +103,6 @@ export function TratamientoChip({
       >
         {tratamiento.name}
       </Text>
-      {variant === "card" && (
-        // Sin el porcentaje en texto: en un chip de 112 px el número le come el
-        // sitio al nombre, y la barra ya dice lo mismo de un vistazo.
-        //
-        // `w-auto` neutraliza el `w-full` de la raíz de `Progress`, que con el
-        // `flexShrink: 0` de React Native se saldría del chip.
-        <Progress
-          value={progress * 100}
-          className="mt-1.5 h-1 w-auto self-stretch bg-primary/15"
-          indicatorClassName="bg-foreground"
-        />
-      )}
     </PressableScale>
   );
 }

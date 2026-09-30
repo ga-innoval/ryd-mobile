@@ -24,6 +24,20 @@ import type { PostcosechaFormValues } from "./postcosecha-schema";
 export const POSTCOSECHA_TOTAL_UNIDADES =
   FRUTA_TOTAL_PREGUNTAS + POSTCOSECHA_PHOTO_CATEGORIES.length;
 
+/**
+ * Las secciones con fila propia que reparten avance — hoy solo fruta.
+ *
+ * Existe para que el `WHERE` del listado y esta regla no puedan discrepar: si
+ * mañana otra sección repartiera, entra aquí y las dos se enteran.
+ */
+export const POSTCOSECHA_PROGRESS_SECTIONS = ["fruta"] as const;
+
+/** La clave con la que se dirige una evaluación: la plantación **y** cuál de
+ *  las cuatro. Ninguna de las dos basta sola. */
+export function postcosechaKey(plantId: string, evalId: string): string {
+  return `${plantId}:${evalId}`;
+}
+
 const share = (done: number, total: number) =>
   total === 0 ? 0 : Math.min(1, done / total);
 
@@ -36,12 +50,7 @@ const share = (done: number, total: number) =>
  * reescribir filas. Quien las combine aplica el peso al leer, que es lo que hace
  * `postcosechaProgress`.
  *
- * El día que el listado lo combine en SQL tendrá que deshacer esta división
- * (`progress/100 × 11`), y eso arrastra hasta medio punto de error en el
- * conteo porque la columna es entera. Con el porcentaje redondeado que se
- * enseña casi siempre da igual; si algún día hiciera falta el número exacto, lo
- * que hay que cambiar es qué guarda la columna —el conteo en vez del
- * porcentaje—, no cómo se lee.
+ * Quien la lee del listado deshace la división: ver `postcosechaProgressFromRow`.
  *
  * Recibe el payload como `unknown` porque se le pregunta igual por lo que hay en
  * pantalla y por lo que sale de SQLite: lo que no encaje cuenta como cero, no
@@ -51,7 +60,7 @@ export function postcosechaSeccionProgress(
   seccion: string,
   payload: unknown,
 ): number {
-  if (seccion !== "fruta") return 0;
+  if (!POSTCOSECHA_PROGRESS_SECTIONS.some((id) => id === seccion)) return 0;
   if (payload === null || typeof payload !== "object") return 0;
 
   return share(frutaAnswered(payload as FrutaValues), FRUTA_TOTAL_PREGUNTAS);
@@ -78,8 +87,30 @@ export function postcosechaProgress(
 ): number {
   const tomas = Math.min(tomasConFoto, POSTCOSECHA_PHOTO_CATEGORIES.length);
 
-  return share(
-    frutaAnswered(values.fruta) + tomas,
-    POSTCOSECHA_TOTAL_UNIDADES,
-  );
+  return share(frutaAnswered(values.fruta) + tomas, POSTCOSECHA_TOTAL_UNIDADES);
+}
+
+/**
+ * El avance de una evaluación reconstruido desde SQLite: la columna `progress`
+ * de su fila `fruta` y cuántas tomas llevan fotografía.
+ *
+ * Es el camino del listado, que no puede abrir payloads —los pregunta de todas
+ * las plantaciones a la vez—, mientras que la pantalla calcula sobre los valores
+ * vivos. Los dos tienen que dar el mismo número.
+ *
+ * **Y lo dan exacto, no aproximado.** La columna guarda
+ * `round(contestadas / 11 × 100)`, y esos doce valores —0, 9, 18, 27, 36, 45,
+ * 55, 64, 73, 82, 91, 100— están lo bastante separados como para no pisarse:
+ * `round(progress × 11 / 100)` devuelve el conteo original en los doce casos.
+ * Hay un test que lo recorre entero, porque es la clase de propiedad que se
+ * rompe en silencio si alguien cambia cuántas preguntas tiene la sección.
+ */
+export function postcosechaProgressFromRow(
+  frutaProgress: number,
+  tomasConFoto: number,
+): number {
+  const contestadas = Math.round((frutaProgress * FRUTA_TOTAL_PREGUNTAS) / 100);
+  const tomas = Math.min(tomasConFoto, POSTCOSECHA_PHOTO_CATEGORIES.length);
+
+  return share(contestadas + tomas, POSTCOSECHA_TOTAL_UNIDADES);
 }

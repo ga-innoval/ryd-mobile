@@ -10,9 +10,11 @@ import {
 } from "../postcosecha-fotos.repository";
 import {
   deletePostcosechaRespuestas,
+  getPostcosechaProgress,
   getPostcosechaRespuestas,
   savePostcosechaRespuesta,
 } from "../postcosecha-respuestas.repository";
+import { postcosechaKey } from "../../postcosecha-progress";
 import { buildFrutaDefaults } from "../../postcosecha-fruta";
 import { createComentarios } from "../../comentarios";
 
@@ -165,6 +167,67 @@ describe("postcosecha-respuestas.repository", () => {
     });
   });
 
+  describe("el avance que lee el listado", () => {
+    const foto = (evalId: string, clientId: string, plantId = "p1") =>
+      insertPostcosechaFoto(db, {
+        clientId,
+        plantId,
+        evalId,
+        categoria: "racimos",
+        fileName: `${clientId}.jpg`,
+        capturedAt: "2026-09-29T10:00:00.000Z",
+      });
+
+    it("lo que nadie tocó no sale en el mapa", async () => {
+      expect(await getPostcosechaProgress(db)).toEqual(new Map());
+    });
+
+    it("cuenta la fruta capturada", async () => {
+      await guardarFruta();
+
+      // Tres de doce: la sección en blanco ya trae los tres porcentajes.
+      expect(
+        (await getPostcosechaProgress(db)).get(postcosechaKey("p1", "15caja")),
+      ).toBeCloseTo(3 / 12);
+    });
+
+    /**
+     * La trampa que ya está anotada en `getTratamientoProgress`: una evaluación
+     * con fotografía y sin nada contestado **no tiene fila**, así que recorrer
+     * solo las filas del SELECT la dejaría en cero.
+     */
+    it("conoce a la evaluación que solo tiene fotografía", async () => {
+      await foto("30caja", "f1");
+
+      expect(
+        (await getPostcosechaProgress(db)).get(postcosechaKey("p1", "30caja")),
+      ).toBeCloseTo(1 / 12);
+    });
+
+    it("no suma las cuatro evaluaciones entre ellas", async () => {
+      await guardarFruta({}, "15caja");
+      await foto("15caja", "f1");
+      await foto("30plastico", "f2");
+
+      const avance = await getPostcosechaProgress(db);
+
+      expect(avance.get(postcosechaKey("p1", "15caja"))).toBeCloseTo(4 / 12);
+      expect(avance.get(postcosechaKey("p1", "30plastico"))).toBeCloseTo(
+        1 / 12,
+      );
+    });
+
+    it("no mezcla plantaciones", async () => {
+      await foto("15caja", "f1", "p1");
+      await foto("15caja", "f2", "p2");
+
+      const avance = await getPostcosechaProgress(db);
+
+      expect(avance.get(postcosechaKey("p1", "15caja"))).toBeCloseTo(1 / 12);
+      expect(avance.get(postcosechaKey("p2", "15caja"))).toBeCloseTo(1 / 12);
+    });
+  });
+
   describe("limpiar", () => {
     it("borra la evaluación abierta y deja intactas sus hermanas", async () => {
       await guardarFruta({ acidez: "low" }, "15caja");
@@ -173,7 +236,9 @@ describe("postcosecha-respuestas.repository", () => {
       await deletePostcosechaRespuestas(db, "p1", "15caja");
 
       expect(await getPostcosechaRespuestas(db, "p1", "15caja")).toEqual([]);
-      expect(await getPostcosechaRespuestas(db, "p1", "30caja")).toHaveLength(1);
+      expect(await getPostcosechaRespuestas(db, "p1", "30caja")).toHaveLength(
+        1,
+      );
     });
 
     /**

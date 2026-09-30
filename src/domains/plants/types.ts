@@ -109,6 +109,16 @@ export interface Plant extends Omit<PlantWithTratamientos, "tratamientos"> {
    * una plantación sin errores, y por eso no hace falta un booleano aparte.
    */
   tratamientosWithError: string[];
+  /**
+   * Cuánto lleva capturada cada evaluación de post-cosecha, de 0 a 1, con el
+   * `id` del catálogo como clave. Siempre trae las cuatro —las que nadie tocó,
+   * en cero—, para que la tarjeta no tenga que distinguir «sin capturar» de «sin
+   * dato».
+   *
+   * **No entra en el `progress` de la plantación todavía**: ese sigue siendo
+   * solo el de los tratamientos (ver `plantProgress`).
+   */
+  postcosecha: Record<string, number>;
 }
 
 export type MatchableField =
