@@ -29,7 +29,7 @@ const VARIANTS: Record<ChipVariant, VariantStyles> = {
   },
   // Más pequeño y con borde claro, porque va sobre `bg-primary`.
   header: {
-    container: "w-28 h-10 px-2 border-primary-foreground/50 border",
+    container: "w-28 h-10 px-2 border",
     text: "text-primary-foreground text-sm",
     activeContainer: "bg-primary-foreground/20 border-primary-foreground/20",
     activeText: "text-white",
@@ -48,6 +48,35 @@ type TratamientoChipProps = {
   progress?: number;
 };
 
+/**
+ * De qué color va el borde, que es lo que dice el estado de la captura cuando el
+ * chip todavía está vacío —el relleno ahí no se ve—.
+ *
+ * Las preguntas van en este orden a propósito:
+ *
+ * 1. **La cabecera no opina del avance.** Allí el chip solo sitúa en cuál
+ *    estás, y el avance ya está a la vista en las propias secciones.
+ * 2. **El error manda sobre el avance.** Es lo que hay que ver aunque la
+ *    captura vaya muy adelantada, y es lo que promete la prop: decirlo sin
+ *    abrirlo.
+ * 3. **Empezada o sin empezar**, que es lo que queda.
+ */
+function borderClassName({
+  variant,
+  progress,
+  hasError,
+}: {
+  variant: ChipVariant;
+  progress: number;
+  hasError: boolean;
+}): string {
+  if (variant === "header") return "border-primary-foreground/50";
+  if (hasError) return "border-destructive/35";
+  if (progress > 0) return "border-leaf/50";
+
+  return "border-border";
+}
+
 export function TratamientoChip({
   tratamiento,
   onPress,
@@ -64,12 +93,10 @@ export function TratamientoChip({
       className={cn(
         "rounded-xl items-center justify-center border-2 overflow-hidden flex-col",
         styles.container,
+        borderClassName({ variant, progress, hasError }),
+        // Después del borde de estado y no antes: el chip abierto tiene que
+        // verse abierto por encima de lo que diga su captura.
         isActive && styles.activeContainer,
-        progress > 0
-          ? hasError
-            ? "border-destructive/35"
-            : "border-leaf/50"
-          : "border-border",
       )}
     >
       {variant === "card" && (
@@ -82,6 +109,7 @@ export function TratamientoChip({
         // pinta encima lo que se declara después, así que el orden basta y no
         // hace falta apilar nada. El recorte lo pone el `overflow-hidden` de la
         // raíz, que es lo que le da al relleno la curva del borde.
+        //
         // **El relleno va en dos capas, y no es adorno.** El `%` de un hijo
         // absoluto no se mide igual en CSS que en Yoga: allí es contra la caja
         // de padding del padre —por eso el mockup se ve lleno— y aquí contra la
