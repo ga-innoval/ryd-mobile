@@ -23,6 +23,7 @@ import {
   PostcosechaPhotosHeaderSummary,
 } from "@/domains/plants/components/postcosecha-photos";
 import { PostcosechaFrutaSection } from "@/domains/plants/components/postcosecha-fruta";
+import { PostcosechaComentariosSection } from "@/domains/plants/components/postcosecha-comentarios";
 import { EVALS_POST_COSECHA } from "@/domains/plants/lib/evals-post-cosecha";
 
 /**
@@ -191,7 +192,16 @@ export default function PostcosechaScreen() {
             />
           </CollapsibleBody>
 
-          <PostcosechaFrutaSection key={current.id} evalId={current.id} />
+          {/* El `key` es lo que vacía cada sección al saltar de evaluación, y
+            va con prefijo porque estas dos son hermanas: con la evaluación a
+            secas las dos se llamarían `15caja` y React avisa de claves
+            repetidas. El prefijo es lo que las distingue, no adorno. */}
+          <PostcosechaFrutaSection
+            key={`fruta-${current.id}`}
+            evalId={current.id}
+          />
+
+          <PostcosechaComentariosSection key={`comentarios-${current.id}`} />
         </KeyboardAwareScrollView>
       )}
     </View>
