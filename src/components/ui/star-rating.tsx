@@ -64,9 +64,9 @@ export function StarRating({
                 size={48}
                 // El relleno lo pone `fill`, no el color del trazo: una estrella
                 // solo contorneada no se lee como «medio puesta».
-                fill={filled ? "#1c2e1a" : "white"}
-                opacity={filled ? 0.95 : 1}
-                className={filled ? "text-foreground" : "text-border"}
+                fill="#1c2e1a"
+                opacity={filled ? 0.95 : 0.35}
+                className={filled ? "text-foreground" : "text-foreground/10"}
                 strokeWidth={1.4}
                 /**
                  * **El grosor, en píxeles reales.** `strokeWidth` va en unidades

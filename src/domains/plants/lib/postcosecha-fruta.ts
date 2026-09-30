@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { parseISODate, toISODate } from "@/lib/dates";
 import type { PickerOption } from "@/components/ui/option-picker";
 
@@ -31,20 +32,52 @@ export const NIVEL_FEMENINO_PLURAL: PickerOption<string>[] = [
   { label: "Altas", value: "high" },
 ];
 
-/** Los once campos de la sección, tal como los nombra la hoja de empaque. */
-export type FrutaValues = {
-  fecha_empaque: string;
-  fecha_evaluacion: string;
-  acidez?: string;
-  tallo?: number;
-  bayas_reventadas: number;
-  desgrane: number;
-  dano_azufre?: string;
-  manchas_cafes?: string;
-  calidad_consumo?: number;
-  sabor?: number;
-  deshidratacion: number;
-};
+/**
+ * Un nivel, derivado de su catálogo: solo entran los `value` que el catálogo
+ * ofrece hoy, igual que hace `buildQuestionsSchema` con las preguntas de
+ * tratamiento. Los tres juegos comparten `value`, así que el esquema es el
+ * mismo para los tres; lo que cambia es la concordancia de la etiqueta.
+ */
+const nivelSchema = (options: PickerOption<string>[]) =>
+  z.enum(options.map((option) => option.value)).optional();
+
+/** Una escala de estrellas: de 1 a 5, o sin contestar. */
+const estrellasSchema = z.number().int().min(1).max(5).optional();
+
+/**
+ * Un porcentaje del slider: de 0 a 100 y **nunca sin valor**. No lleva
+ * `.optional()` a propósito — el control no tiene estado vacío y arranca en 0,
+ * así que un porcentaje siempre tiene dato (ver `frutaAnswered`).
+ */
+const porcentajeSchema = z.number().min(0).max(100);
+
+/**
+ * Los once campos de la sección, tal como los nombra la hoja de empaque.
+ *
+ * El esquema vive aquí y no en `postcosecha-schema.ts` por lo mismo que
+ * `brixCorteSchema` vive en `brix.ts`: cada catálogo se valida a sí mismo y el
+ * esquema de la encuesta solo compone. Así no hay que importar los tres
+ * catálogos de niveles desde fuera para poder derivar sus enums.
+ */
+export const frutaSchema = z.object({
+  fecha_empaque: z.string(),
+  fecha_evaluacion: z.string(),
+  acidez: nivelSchema(NIVEL_FEMENINO),
+  tallo: estrellasSchema,
+  bayas_reventadas: porcentajeSchema,
+  desgrane: porcentajeSchema,
+  dano_azufre: nivelSchema(NIVEL_MASCULINO),
+  manchas_cafes: nivelSchema(NIVEL_FEMENINO_PLURAL),
+  calidad_consumo: estrellasSchema,
+  sabor: estrellasSchema,
+  deshidratacion: porcentajeSchema,
+});
+
+/**
+ * Lo capturado de la sección. Sale del esquema y no al revés: un campo nuevo se
+ * añade una sola vez y el tipo lo recoge solo.
+ */
+export type FrutaValues = z.infer<typeof frutaSchema>;
 
 /**
  * Cuántos de los once llevan dato.
