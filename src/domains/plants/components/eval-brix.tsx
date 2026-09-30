@@ -475,7 +475,7 @@ function PairResult({ pair }: { pair: BrixPairSummary }) {
     <View
       className={cn(
         "h-10 flex-row items-center justify-center gap-1.5 rounded-lg",
-        pair.value === null ? "bg-background" : "bg-foreground",
+        pair.value === null ? "bg-background" : "bg-foreground/90",
       )}
     >
       <Text

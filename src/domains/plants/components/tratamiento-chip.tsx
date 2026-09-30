@@ -22,7 +22,7 @@ type VariantStyles = {
 
 const VARIANTS: Record<ChipVariant, VariantStyles> = {
   card: {
-    container: "w-28 h-[72px] px-2.5 border-border",
+    container: "w-28 h-[72px] px-2.5",
     text: "max-w-24",
     activeContainer: "bg-primary border-primary",
     activeText: "text-primary-foreground",
@@ -65,9 +65,11 @@ export function TratamientoChip({
         "rounded-xl items-center justify-center border-2 overflow-hidden flex-col",
         styles.container,
         isActive && styles.activeContainer,
-        // Después del activo para ganarle el borde: si el tratamiento abierto es
-        // el que falla, lo que hay que ver es el error.
-        hasError && "bg-destructive-background border-destructive/20",
+        progress > 0
+          ? hasError
+            ? "border-destructive/35"
+            : "border-leaf/50"
+          : "border-border",
       )}
     >
       {variant === "card" && (
@@ -80,16 +82,34 @@ export function TratamientoChip({
         // pinta encima lo que se declara después, así que el orden basta y no
         // hace falta apilar nada. El recorte lo pone el `overflow-hidden` de la
         // raíz, que es lo que le da al relleno la curva del borde.
+        // **El relleno va en dos capas, y no es adorno.** El `%` de un hijo
+        // absoluto no se mide igual en CSS que en Yoga: allí es contra la caja
+        // de padding del padre —por eso el mockup se ve lleno— y aquí contra la
+        // de contenido, así que con `px-2.5` un 100 % cubría 88 de los 112 px y
+        // una captura completa se veía al 78 %.
+        //
+        // La de fuera se estira con `inset-0`, que no depende de ningún
+        // porcentaje; como no tiene padding ni borde, el `%` de la de dentro ya
+        // mide contra el ancho entero.
+        //
+        // El `rounded-[10px]` es la curva **interior**: la del chip menos su
+        // borde (12 − 2). Sin él las esquinas del relleno son rectas y se meten
+        // en la cuña que deja la curva, pintándose encima del borde y
+        // desdibujándolo — se ve en cuanto el relleno no llega al 100 %.
         <View
           pointerEvents="none"
-          style={{ width: `${progress * 100}%` }}
-          className={cn(
-            "absolute bottom-0 left-0 top-0",
-            // Con un dato imposible el chip ya está en rojo; un relleno verde
-            // encima lo dejaría de dos colores sin querer decir nada nuevo.
-            hasError ? "bg-destructive/15" : "bg-leaf/15",
-          )}
-        />
+          className="absolute inset-0 overflow-hidden rounded-[10px]"
+        >
+          <View
+            style={{ width: `${progress * 100}%` }}
+            className={cn(
+              "h-full",
+              // Con un dato imposible el chip ya está en rojo; un relleno verde
+              // encima lo dejaría de dos colores sin querer decir nada nuevo.
+              hasError ? "bg-destructive/15" : "bg-leaf/15 ",
+            )}
+          />
+        </View>
       )}
 
       <Text

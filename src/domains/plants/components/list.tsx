@@ -216,18 +216,35 @@ export const PlantCard = memo(function PlantCard({
                     params: { id: item.id, eval: id },
                   })
                 }
-                className="w-28 h-[72px] overflow-hidden rounded-xl border-2 border-border px-2.5 py-2 items-center justify-center"
+                className={cn(
+                  "w-28 h-[72px] overflow-hidden rounded-xl border-2 px-2.5 py-2 items-center justify-center",
+                  (item.postcosecha[id] ?? 0) > 0
+                    ? "border-leaf/50"
+                    : "border-border",
+                )}
               >
                 {/* El avance llena la tarjeta en vez de llevar barra, igual
                   que el chip de tratamiento y por lo mismo. Declarado **antes**
                   que el texto y sin `zIndex`: en React Native pinta encima lo
                   que se declara después, así que el orden basta. El recorte —y
-                  con él la curva del borde— lo pone el `overflow-hidden`. */}
+                  con él la curva del borde— lo pone el `overflow-hidden`.
+
+                  Y las dos capas tampoco son adorno: el porqué está en
+                  `tratamiento-chip.tsx`, que es donde se midió. */}
+                {/* `rounded-[10px]` es la curva interior —la de la tarjeta
+                  menos su borde—, o el relleno se pinta encima de él en las
+                  cuatro esquinas. */}
                 <View
                   pointerEvents="none"
-                  style={{ width: `${(item.postcosecha[id] ?? 0) * 100}%` }}
-                  className="absolute bottom-0 left-0 top-0 bg-leaf/15"
-                />
+                  className="absolute inset-0 overflow-hidden rounded-[10px]"
+                >
+                  <View
+                    style={{
+                      width: `${(item.postcosecha[id] ?? 0) * 100}%`,
+                    }}
+                    className="h-full bg-leaf/15"
+                  />
+                </View>
 
                 <Text className="font-medium">{title}</Text>
                 <Text variant="muted">{subtitle}</Text>
