@@ -16,6 +16,7 @@ export const buildPlant = (overrides = {}) => ({
   ],
   progress: 0.1,
   tratamientosWithError: [],
+  postcosecha: {},
   syncStatus: SyncStatus.pending,
   ...overrides,
 });

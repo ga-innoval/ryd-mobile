@@ -169,10 +169,14 @@ export function formatProgress(progress: number): number {
 /**
  * El avance de una plantación, de 0 a 1.
  *
- * **Por ahora solo cuentan los tratamientos**: la post-cosecha todavía no se
- * captura, y repartir ya el 50 % que le toca dejaría toda plantación tope en la
- * mitad. Cuando exista, esto pasa a ser la media de los dos bloques —cada uno
- * prorrateado por dentro— y el resto de la app no se entera.
+ * **Por ahora solo cuentan los tratamientos**, aunque la post-cosecha ya se
+ * captura y su avance ya está calculado por evaluación
+ * (`getPostcosechaProgress`, que es lo que pinta las barras de sus tarjetas).
+ * Falta el reparto 50/50, y se dejó aparte a propósito: el día que entre, la
+ * barra de toda plantación en campaña cae a la mitad y se mueven los contadores
+ * de «Sin iniciar» / «Iniciadas». Cuando entre, esto pasa a ser la media de los
+ * dos bloques —cada uno prorrateado por dentro— y el resto de la app no se
+ * entera.
  *
  * Una plantación sin tratamientos es cero y no un hueco: no hay nada capturado.
  */

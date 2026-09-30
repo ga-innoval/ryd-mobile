@@ -1,4 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
+import { POSTCOSECHA_PHOTO_CATEGORIES } from "../postcosecha-photo-categories";
+import { postcosechaKey } from "../postcosecha-progress";
 import { SyncStatus } from "../../types";
 
 /**
@@ -107,6 +109,40 @@ export const deletePostcosechaFotos = async (
   await db.runAsync(
     `DELETE FROM postcosecha_fotos WHERE clientId IN (${placeholders})`,
     [...clientIds],
+  );
+};
+
+/**
+ * Cuántas tomas del catálogo llevan al menos una fotografía, por evaluación.
+ *
+ * Es la parte del avance que aporta la fotografía, resuelta en SQL: un `COUNT`
+ * que no abre ningún archivo. Filtra por el catálogo para que una categoría
+ * retirada no siga contando, igual que hace su hermana de tratamiento.
+ *
+ * Agrupa por las **dos** partes del dueño: una plantación tiene cuatro
+ * evaluaciones y sin el `evalId` se sumarían entre ellas.
+ */
+export const getPostcosechaFotoCategoriaCounts = async (
+  db: SQLiteDatabase,
+): Promise<Map<string, number>> => {
+  const placeholders = POSTCOSECHA_PHOTO_CATEGORIES.map(() => "?").join(",");
+  const rows = await db.getAllAsync<{
+    plantId: string;
+    evalId: string;
+    categorias: number;
+  }>(
+    `SELECT plantId, evalId, COUNT(DISTINCT categoria) AS categorias
+       FROM postcosecha_fotos
+      WHERE categoria IN (${placeholders})
+      GROUP BY plantId, evalId`,
+    POSTCOSECHA_PHOTO_CATEGORIES.map((category) => category.id),
+  );
+
+  return new Map(
+    rows.map((row) => [
+      postcosechaKey(row.plantId, row.evalId),
+      row.categorias,
+    ]),
   );
 };
 

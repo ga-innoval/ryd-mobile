@@ -553,8 +553,11 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
 
 > **Qué hay de esto:** la pantalla guarda de punta a punta —migración v8,
 > `lib/db/postcosecha-respuestas.repository.ts`, autoguardado, guardado a mano,
-> limpiar y barra de avance—. **Falta el push**, igual que en tratamiento, y que
-> el listado cuente post-cosecha para el avance de la plantación.
+> limpiar y barra de avance—, y **cada tarjeta de post-cosecha del listado
+> enseña la suya** (`getPostcosechaProgress`). **Falta el push**, igual que en
+> tratamiento, y que ese avance entre en el `progress` de la plantación (el
+> 50/50 de **Reglas de negocio**), que se dejó aparte porque el día que entre
+> toda tarjeta en campaña cae a la mitad.
 
 Es la encuesta de tratamiento hecha otra vez, y **deliberadamente aparte**. Lo
 que comparten está en `lib/` —el catálogo de comentarios, la mecánica del
@@ -596,6 +599,12 @@ Lo que no es obvio:
 - **Sin `resolver` en el formulario**: nada se envía. El papel de
   `postcosechaSchema` es hacer de portero al volcar lo que sale de SQLite y tipar
   el formulario, no validar al capturar.
+- **El listado reconstruye el avance desde la columna, y sale exacto.**
+  `progress` guarda `round(contestadas / 11 × 100)`, y esos doce valores no se
+  pisan, así que `round(progress × 11 / 100)` devuelve el conteo original
+  (`postcosechaProgressFromRow`, con test que recorre los doce). Si algún día la
+  sección deja de tener once preguntas, eso puede dejar de ser cierto **sin que
+  nada avise**: ahí es donde hay que mirar.
 
 ## Naming
 

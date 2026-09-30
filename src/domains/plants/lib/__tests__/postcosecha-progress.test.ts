@@ -1,10 +1,15 @@
 import { buildPostcosechaDefaults } from "../postcosecha-schema";
-import { buildFrutaDefaults } from "../postcosecha-fruta";
 import {
   postcosechaProgress,
+  postcosechaProgressFromRow,
   postcosechaSeccionProgress,
   POSTCOSECHA_TOTAL_UNIDADES,
 } from "../postcosecha-progress";
+import { formatProgress } from "../evaluation-progress";
+import {
+  buildFrutaDefaults,
+  FRUTA_TOTAL_PREGUNTAS,
+} from "../postcosecha-fruta";
 
 /** Las once contestadas, para el extremo de arriba. */
 const frutaLlena = {
@@ -24,9 +29,9 @@ const frutaLlena = {
 describe("postcosechaSeccionProgress", () => {
   // Tres de once en blanco, no cero: los porcentajes no tienen estado vacío.
   it("mide el relleno de fruta", () => {
-    expect(postcosechaSeccionProgress("fruta", buildFrutaDefaults())).toBeCloseTo(
-      3 / 11,
-    );
+    expect(
+      postcosechaSeccionProgress("fruta", buildFrutaDefaults()),
+    ).toBeCloseTo(3 / 11);
     expect(postcosechaSeccionProgress("fruta", frutaLlena)).toBe(1);
   });
 
@@ -66,9 +71,9 @@ describe("postcosechaProgress", () => {
   it("la fotografía vale una unidad, como cada pregunta", () => {
     const vacia = buildPostcosechaDefaults();
 
-    expect(postcosechaProgress(vacia, 1) - postcosechaProgress(vacia, 0)).toBeCloseTo(
-      1 / 12,
-    );
+    expect(
+      postcosechaProgress(vacia, 1) - postcosechaProgress(vacia, 0),
+    ).toBeCloseTo(1 / 12);
   });
 
   it("llega al 100 % con las once y la toma", () => {
@@ -94,7 +99,55 @@ describe("postcosechaProgress", () => {
   // tomas que existen; la barra no puede pasar del 100 %.
   it("no se pasa del tope aunque lleguen tomas de más", () => {
     expect(
-      postcosechaProgress({ ...buildPostcosechaDefaults(), fruta: frutaLlena }, 9),
+      postcosechaProgress(
+        { ...buildPostcosechaDefaults(), fruta: frutaLlena },
+        9,
+      ),
     ).toBe(1);
+  });
+});
+
+describe("postcosechaProgressFromRow", () => {
+  /**
+   * **La propiedad de la que vive la barra de la tarjeta.** La columna guarda un
+   * entero —`round(contestadas / 11 × 100)`— y el listado tiene que recuperar
+   * el conteo a partir de él, porque no puede abrir payloads. Con once preguntas
+   * los doce valores no se pisan y la vuelta es exacta; con otro número podría
+   * dejar de serlo sin que nada avise, y por eso se recorren los doce.
+   */
+  it("recupera el conteo exacto de la columna, para las doce", () => {
+    for (
+      let contestadas = 0;
+      contestadas <= FRUTA_TOTAL_PREGUNTAS;
+      contestadas++
+    ) {
+      const columna = formatProgress(contestadas / FRUTA_TOTAL_PREGUNTAS);
+
+      expect(postcosechaProgressFromRow(columna, 0)).toBeCloseTo(
+        contestadas / POSTCOSECHA_TOTAL_UNIDADES,
+      );
+    }
+  });
+
+  // Los dos caminos —la pantalla sobre los valores vivos, el listado sobre la
+  // columna— tienen que dar el mismo número sobre el mismo dato.
+  it("coincide con lo que calcula la pantalla", () => {
+    const values = { ...buildPostcosechaDefaults(), fruta: frutaLlena };
+    const columna = formatProgress(
+      postcosechaSeccionProgress("fruta", frutaLlena),
+    );
+
+    expect(postcosechaProgressFromRow(columna, 1)).toBeCloseTo(
+      postcosechaProgress(values, 1),
+    );
+  });
+
+  it("sin fila y sin fotografías es cero", () => {
+    expect(postcosechaProgressFromRow(0, 0)).toBe(0);
+  });
+
+  // Una evaluación que solo tiene fotografía no tiene fila en `postcosecha_respuestas`.
+  it("la fotografía sola ya suma", () => {
+    expect(postcosechaProgressFromRow(0, 1)).toBeCloseTo(1 / 12);
   });
 });

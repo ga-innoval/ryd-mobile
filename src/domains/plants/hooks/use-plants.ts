@@ -6,6 +6,9 @@ import {
   getTratamientoIdsWithErrors,
   getTratamientoProgress,
 } from "../lib/db/respuestas.repository";
+import { getPostcosechaProgress } from "../lib/db/postcosecha-respuestas.repository";
+import { postcosechaKey } from "../lib/postcosecha-progress";
+import { EVALS_POST_COSECHA } from "../lib/evals-post-cosecha";
 
 export const PLANTS_QUERY_KEY = ["plants"] as const;
 
@@ -28,10 +31,11 @@ export function usePlants() {
   return useQuery({
     queryKey: PLANTS_QUERY_KEY,
     queryFn: async () => {
-      const [plants, withErrors, progress] = await Promise.all([
+      const [plants, withErrors, progress, postcosecha] = await Promise.all([
         getAllPlants(db),
         getTratamientoIdsWithErrors(db),
         getTratamientoProgress(db),
+        getPostcosechaProgress(db),
       ]);
 
       return plants.map((plant) => {
@@ -47,6 +51,14 @@ export function usePlants() {
           tratamientosWithError: tratamientos
             .filter((tratamiento) => withErrors.has(tratamiento.id))
             .map((tratamiento) => tratamiento.id),
+          // Las cuatro siempre, aunque el mapa no las traiga: el catálogo es
+          // fijo y la tarjeta pinta las cuatro barras pase lo que pase.
+          postcosecha: Object.fromEntries(
+            EVALS_POST_COSECHA.map((item) => [
+              item.id,
+              postcosecha.get(postcosechaKey(plant.id, item.id)) ?? 0,
+            ]),
+          ),
         };
       });
     },

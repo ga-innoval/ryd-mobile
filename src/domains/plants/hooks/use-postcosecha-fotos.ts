@@ -106,12 +106,25 @@ export async function removePostcosechaFotos(
   deletePhotoFiles(fileNames);
 }
 
+/**
+ * Las dos consultas que mueve una fotografía: la de esta evaluación —la
+ * cuadrícula y el resumen de la fila— y la del listado, porque la fotografía
+ * cuenta en la barra de la tarjeta de post-cosecha.
+ *
+ * La del listado va con `exact` a propósito: sin él alcanzaría también a las
+ * respuestas del formulario abierto, que se releerían de SQLite y pisarían lo
+ * que se está capturando.
+ */
 function useInvalidate(plantId: string, evalId: string) {
   const queryClient = useQueryClient();
 
   return () => {
     queryClient.invalidateQueries({
       queryKey: [...POSTCOSECHA_FOTOS_QUERY_KEY, plantId, evalId],
+    });
+    queryClient.invalidateQueries({
+      queryKey: PLANTS_QUERY_KEY,
+      exact: true,
     });
   };
 }

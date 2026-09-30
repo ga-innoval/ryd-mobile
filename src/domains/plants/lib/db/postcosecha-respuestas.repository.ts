@@ -5,7 +5,13 @@ import type {
   PostcosechaSectionId,
 } from "../postcosecha-schema";
 import { postcosechaSeccionHasError } from "../postcosecha-errors";
-import { postcosechaSeccionProgress } from "../postcosecha-progress";
+import {
+  postcosechaKey,
+  postcosechaProgressFromRow,
+  postcosechaSeccionProgress,
+  POSTCOSECHA_PROGRESS_SECTIONS,
+} from "../postcosecha-progress";
+import { getPostcosechaFotoCategoriaCounts } from "./postcosecha-fotos.repository";
 import { formatProgress } from "../evaluation-progress";
 
 /**
@@ -161,5 +167,51 @@ export const deletePostcosechaRespuestas = async (
   await db.runAsync(
     "DELETE FROM postcosecha_respuestas WHERE plantId = ? AND evalId = ?",
     [plantId, evalId],
+  );
+};
+
+/**
+ * Cuánto lleva capturada cada evaluación, de 0 a 1, para las tarjetas del
+ * listado. La clave es `plantId:evalId` (`postcosechaKey`).
+ *
+ * Lee la columna `progress` en vez de abrir payloads: el listado lo pregunta de
+ * todas las plantaciones a la vez, y eso es exactamente lo que la columna existe
+ * para evitar.
+ *
+ * Se recorre la **unión** de los dos juegos de claves y no solo las filas: una
+ * evaluación con fotografía y sin nada contestado no tiene fila en esta tabla y
+ * se quedaría en cero. Es la misma trampa que ya está anotada en
+ * `getTratamientoProgress`, y tiene su test.
+ *
+ * Lo que no aparece en ningún lado no sale en el mapa, y quien lo lea lo cuenta
+ * como cero — que es lo correcto: sin capturar es 0 %.
+ */
+export const getPostcosechaProgress = async (
+  db: SQLiteDatabase,
+): Promise<Map<string, number>> => {
+  const placeholders = POSTCOSECHA_PROGRESS_SECTIONS.map(() => "?").join(",");
+  const [rows, fotos] = await Promise.all([
+    db.getAllAsync<{ plantId: string; evalId: string; progress: number }>(
+      `SELECT plantId, evalId, progress
+         FROM postcosecha_respuestas
+        WHERE seccion IN (${placeholders})`,
+      [...POSTCOSECHA_PROGRESS_SECTIONS],
+    ),
+    getPostcosechaFotoCategoriaCounts(db),
+  ]);
+
+  const secciones = new Map(
+    rows.map((row) => [postcosechaKey(row.plantId, row.evalId), row.progress]),
+  );
+  const claves = new Set([...secciones.keys(), ...fotos.keys()]);
+
+  return new Map(
+    [...claves].map((clave) => [
+      clave,
+      postcosechaProgressFromRow(
+        secciones.get(clave) ?? 0,
+        fotos.get(clave) ?? 0,
+      ),
+    ]),
   );
 };
