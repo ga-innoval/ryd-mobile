@@ -35,6 +35,7 @@ import {
   type SaveStatus,
 } from "@/domains/plants/store/evaluation-save-store";
 import { cn } from "@/lib/utils";
+import { haptics } from "@/lib/haptics";
 
 /**
  * El botón de limpiar, con su confirmación.
@@ -57,6 +58,12 @@ function ClearEvaluationButton({
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
+
+  const handleClear = () => {
+    setOpen(false);
+    haptics.tap();
+    onConfirm?.();
+  };
 
   return (
     <>
@@ -85,13 +92,7 @@ function ClearEvaluationButton({
             <AlertDialogCancel>
               <Text>Cancelar</Text>
             </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onPress={() => {
-                setOpen(false);
-                onConfirm?.();
-              }}
-            >
+            <AlertDialogAction variant="destructive" onPress={handleClear}>
               <Text>Limpiar</Text>
             </AlertDialogAction>
           </AlertDialogFooter>
