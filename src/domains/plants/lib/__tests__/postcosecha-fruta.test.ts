@@ -69,23 +69,24 @@ describe("evaluacionAntesDelEmpaque", () => {
 });
 
 describe("frutaAnswered", () => {
-  /**
-   * En blanco cuenta **3**, no 0, y no es un descuido: las tres barras de
-   * porcentaje no tienen estado vacío —arrancan en cero por decisión de
-   * producto—, así que desde el primer frame llevan dato.
-   *
-   * Está fijado aquí para que el día que alguien vea «3 de 11» en una
-   * evaluación recién abierta encuentre el porqué en vez de tratarlo como un
-   * bug. Si se quisiera que abrieran en 0, la barra tendría que recuperar su
-   * estado vacío: excluirlas del conteo haría que un 0 % medido de verdad
-   * tampoco contara.
-   */
-  it("en blanco ya cuenta los tres porcentajes", () => {
-    expect(frutaAnswered(buildFrutaDefaults())).toBe(3);
+  it("en blanco no cuenta ninguna", () => {
+    expect(frutaAnswered(buildFrutaDefaults())).toBe(0);
   });
 
-  it("contestar una más sube el conteo", () => {
-    expect(frutaAnswered({ ...buildFrutaDefaults(), acidez: "low" })).toBe(4);
+  it("contestar una sube el conteo", () => {
+    expect(frutaAnswered({ ...buildFrutaDefaults(), acidez: "low" })).toBe(1);
+  });
+
+  /**
+   * **Un 0 % medido sí cuenta**, y es lo que separa esta pregunta de un campo
+   * que nadie tocó: la barra distingue los dos estados y basta un toque para
+   * capturar el cero. Está fijado aquí porque es justo lo que se rompe si
+   * alguien devuelve el `0` a los defaults.
+   */
+  it("un cero capturado cuenta como respuesta", () => {
+    expect(
+      frutaAnswered({ ...buildFrutaDefaults(), bayas_reventadas: 0 }),
+    ).toBe(1);
   });
 
   it("suma los once", () => {

@@ -74,12 +74,11 @@ export function postcosechaSeccionProgress(
  * cuenta lo hace como puede —la pantalla agrupando en memoria, el listado con un
  * `COUNT` en SQL—.
  *
- * **Una evaluación en blanco no abre en cero, abre en 3 de 12.** Los tres
- * porcentajes no tienen estado vacío: arrancan en 0 y desde el primer frame
- * llevan dato, así que cuentan como contestados —es la misma razón por la que
- * `frutaAnswered` abre en 3, y está fijada con test—. Lo que **no** pasa es que
- * eso ensucie el listado: abrir una evaluación y salir no escribe ninguna fila,
- * y sin fila el avance guardado sigue siendo cero.
+ * **Una evaluación en blanco abre en cero**, incluidos los tres porcentajes: su
+ * barra distingue «sin capturar» de «0 %», así que un cero medido cuenta y un
+ * campo que nadie tocó, no. Hubo un tiempo en que no lo distinguía y una
+ * evaluación recién abierta enseñaba un 25 % que nadie había capturado; hay test
+ * de los dos lados.
  */
 export function postcosechaProgress(
   values: PostcosechaFormValues,

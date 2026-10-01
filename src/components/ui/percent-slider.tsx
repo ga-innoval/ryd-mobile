@@ -33,11 +33,46 @@ const TICKS = [0, 25, 50, 75, 100];
  */
 const VALUE_WIDTH = { entero: 52, decimal: 76 };
 
+/**
+ * El hueco de la cifra, que es el mismo en los dos estados: ahí caben tanto
+ * «100.0 %» como «Sin capturar», así que la fila no se mueve al capturar.
+ */
+const VALUE_SLOT_WIDTH = 104;
+
+/**
+ * Dónde descansa la manija mientras no hay dato.
+ *
+ * A un cuarto y no en el extremo izquierdo: ahí se confundía con un 0 % medido
+ * —y encima quedaba encajonada contra el borde, incómoda de agarrar—. Al primer
+ * toque salta al dedo, así que esta posición solo se ve antes de capturar.
+ */
+const EMPTY_PROGRESS = 0;
+
+/** Lo que se le baja **al aro** de la manija mientras no haya dato. No se
+ *  esconde —como en el artboard— porque es también la pista de que se puede
+ *  arrastrar. */
+const EMPTY_THUMB_OPACITY = 0.3;
+
 /** El token `foreground` en hex: desde JS no hay forma de leer
  *  `tailwind.config`, y esta cifra la pinta Reanimated por `style`. */
 const FOREGROUND = "#1c2e1a";
 
 const styles = StyleSheet.create({
+  slot: {
+    width: VALUE_SLOT_WIDTH,
+    height: 28,
+  },
+  // Los dos estados ocupan el mismo sitio y se cruzan por opacidad, así que
+  // cambiar de uno a otro no mueve nada de la fila.
+  stateRow: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   value: {
     padding: 0,
     // Alto explícito: el de un `TextInput` no sale de `lineHeight`, y sin esto
@@ -72,8 +107,8 @@ function snap(value: number, step: number): number {
 
 type PercentSliderProps = {
   label: string;
-  /** De 0 a 100. **Siempre tiene valor**: no hay estado «sin capturar». */
-  value: number;
+  /** De 0 a 100, o `undefined` mientras nadie lo haya tocado. */
+  value?: number;
   onChange: (value: number) => void;
   /** 0.5 en los que admiten medio punto, 1 en los enteros. */
   step?: number;
@@ -85,9 +120,22 @@ type PercentSliderProps = {
  * **El número es de solo lectura.** No hay teclado: en campo, con guantes, la
  * barra es más rápida que teclear, y el paso evita los decimales imposibles.
  *
- * **No distingue «sin capturar» de «0 %»**: arranca en cero y desde ahí siempre
- * hay dato. Consecuencia a tener presente: estos campos cuentan como
- * contestados desde el principio.
+ * **Distingue «sin capturar» de «0 %»**, que no es lo mismo: un cero medido es
+ * un dato y un campo que nadie tocó, no. Sin esa distinción las tres preguntas
+ * de porcentaje contaban como contestadas desde el primer frame, y una
+ * evaluación recién abierta ya enseñaba un 25 % de avance que nadie había
+ * capturado.
+ *
+ * Mientras no hay dato, la manija baja de opacidad y la cifra cede su sitio a
+ * «Sin capturar». **La pista no cambia** —el artboard la pone punteada; aquí se
+ * queda igual—, y la manija se atenúa en vez de esconderse: es también la pista
+ * de que eso se arrastra.
+ *
+ * **El cambio de estado ocurre al empezar el gesto, no al soltar**, y por eso
+ * viaja en un shared value: con estado de React habría que esperar al `onEnd`
+ * para que React repintara, y arrastrando se vería «Sin capturar» hasta
+ * levantar el dedo. Un toque suelto también captura —el gesto admite distancia
+ * cero—, que es como se registra un 0 % de verdad.
  *
  * **El arrastre entero vive en el hilo de la interfaz.** La manija, el relleno y
  * la cifra salen de un `useSharedValue`, y a React se le avisa **al soltar**.
@@ -110,7 +158,10 @@ export function PercentSlider({
   onChange,
   step = 1,
 }: PercentSliderProps) {
-  const progress = useSharedValue(value);
+  const progress = useSharedValue(value ?? EMPTY_PROGRESS);
+
+  /** 1 en cuanto hay dato —o en cuanto el dedo toca—, 0 mientras no. */
+  const captured = useSharedValue(value === undefined ? 0 : 1);
 
   // El ancho útil de la pista, para pasar de píxeles a porcentaje. Se mide
   // porque depende del ancho de la tarjeta, que cambia con la orientación.
@@ -119,8 +170,9 @@ export function PercentSlider({
   // Lo que venga de fuera manda: sin esto, un reinicio del formulario dejaría
   // la manija donde la soltó el dedo.
   useEffect(() => {
-    progress.value = value;
-  }, [value, progress]);
+    progress.value = value ?? EMPTY_PROGRESS;
+    captured.value = value === undefined ? 0 : 1;
+  }, [value, progress, captured]);
 
   const pan = Gesture.Pan()
     // `minDistance: 0` para que un toque suelto también posicione: en campo se
@@ -128,6 +180,8 @@ export function PercentSlider({
     .minDistance(0)
     .onBegin((e) => {
       if (trackWidth <= 0) return;
+      // Tocar ya es capturar: de aquí no se vuelve a «sin capturar».
+      captured.value = 1;
       progress.value = snap((e.x / trackWidth) * 100, step);
     })
     .onUpdate((e) => {
@@ -140,6 +194,10 @@ export function PercentSlider({
 
   const fillStyle = useAnimatedStyle(() => ({
     width: `${progress.value}%`,
+    // Sin dato no hay relleno: con la manija descansando en el 25 %, pintar su
+    // cuarto de pista se leería como un 25 % medido, que es justo lo que este
+    // estado existe para no decir.
+    opacity: captured.value,
   }));
 
   /**
@@ -155,6 +213,20 @@ export function PercentSlider({
     left: (progress.value / 100) * trackWidth,
   }));
 
+  /**
+   * **Se atenúa el aro, no la manija entera.** Bajándole la opacidad al `View`
+   * que lleva el relleno, el blanco se vuelve translúcido y la pista se ve por
+   * debajo: la manija parecía un agujero. Por eso el aro va en su propia capa.
+   */
+  const thumbRingStyle = useAnimatedStyle(() => ({
+    opacity: captured.value === 1 ? 1 : EMPTY_THUMB_OPACITY,
+  }));
+
+  /** Los dos estados de la cifra, cruzándose. Sin `withTiming`: el evaluador
+   *  acaba de tocar y la respuesta tiene que ser del mismo frame. */
+  const capturedStyle = useAnimatedStyle(() => ({ opacity: captured.value }));
+  const emptyStyle = useAnimatedStyle(() => ({ opacity: 1 - captured.value }));
+
   const valueProps = useAnimatedProps(() => {
     const text = progress.value.toFixed(step < 1 ? 1 : 0);
 
@@ -165,7 +237,9 @@ export function PercentSlider({
 
   return (
     <SliderPrimitive.Root
-      value={value}
+      // El primitivo no sabe de «sin capturar»: para el lector de pantalla, una
+      // barra sin tocar está en su mínimo, y leerla no la captura.
+      value={value ?? 0}
       min={0}
       max={100}
       step={step}
@@ -176,21 +250,36 @@ export function PercentSlider({
       }
       className="gap-1.5"
     >
-      <View className="flex-row items-baseline justify-between gap-3">
+      {/* `items-center` y no `items-baseline`: el hueco de la cifra solo
+          contiene hijos absolutos, así que no tiene baseline que ofrecer y la
+          etiqueta se iría arriba. (Tampoco la tenía antes: la baseline de un
+          `TextInput` no es la de su texto, y el `%` quedaba descolgado.) */}
+      <View className="flex-row items-center justify-between gap-3">
         <Text variant="muted">{label}</Text>
-        {/* `items-center` y no `items-baseline`: la baseline de un `TextInput`
-            no es la de su texto, y el `%` quedaba descolgado. */}
-        <View className="flex-row items-center gap-1">
-          <AnimatedTextInput
-            animatedProps={valueProps}
-            defaultValue={String(value)}
-            editable={false}
-            // Es una cifra que se lee, no un campo: sin esto el lector de
-            // pantalla la anunciaría como editable.
-            accessible={false}
-            style={[styles.value, { width: VALUE_WIDTH[step < 1 ? "decimal" : "entero"] }]}
-          />
-          <Text className="text-[15px] font-semibold">%</Text>
+        {/* Los dos estados comparten hueco y se cruzan por opacidad, así que
+            capturar no mueve ni la etiqueta ni la cifra. */}
+        <View style={styles.slot}>
+          <Animated.View style={[styles.stateRow, capturedStyle]}>
+            <AnimatedTextInput
+              animatedProps={valueProps}
+              defaultValue={String(value ?? 0)}
+              editable={false}
+              // Es una cifra que se lee, no un campo: sin esto el lector de
+              // pantalla la anunciaría como editable.
+              accessible={false}
+              style={[
+                styles.value,
+                { width: VALUE_WIDTH[step < 1 ? "decimal" : "entero"] },
+              ]}
+            />
+            <Text className="text-[15px] font-semibold">%</Text>
+          </Animated.View>
+
+          <Animated.View style={[styles.stateRow, emptyStyle]}>
+            <Text className="text-[15px] text-muted-foreground">
+              Sin capturar
+            </Text>
+          </Animated.View>
         </View>
       </View>
 
@@ -216,8 +305,13 @@ export function PercentSlider({
 
           <Animated.View
             style={[thumbStyle, { width: THUMB, height: THUMB }]}
-            className="absolute rounded-full border-[3px] border-foreground bg-white shadow-sm shadow-black/25"
-          />
+            className="absolute rounded-full bg-white shadow-sm shadow-black/25"
+          >
+            <Animated.View
+              style={thumbRingStyle}
+              className="absolute inset-0 rounded-full border-[3px] border-foreground"
+            />
+          </Animated.View>
         </View>
       </GestureDetector>
 
