@@ -141,15 +141,15 @@ describe("postcosecha-respuestas.repository", () => {
       expect(await derivados(db)).toMatchObject({ hasError: 0 });
     });
 
-    /**
-     * 3 de 11 con la sección en blanco, no 0: los tres porcentajes no tienen
-     * estado vacío y llevan dato desde el primer frame. Es el mismo 3 que fija
-     * el test de `frutaAnswered`.
-     */
+    // 1 de 11 → 9 %, y no el peso que esa sección tiene dentro de la
+    // evaluación: la columna guarda su propio relleno y quien la lee aplica el
+    // peso. Una sección en blanco guarda 0.
     it("escribe el relleno de la sección, no su peso en la evaluación", async () => {
-      await guardarFruta();
+      await guardarFruta({ acidez: "medium" });
+      expect(await derivados(db)).toMatchObject({ progress: 9 });
 
-      expect(await derivados(db)).toMatchObject({ progress: 27 });
+      await guardarFruta();
+      expect(await derivados(db)).toMatchObject({ progress: 0 });
     });
 
     it("las notas no reparten avance", async () => {
@@ -183,12 +183,11 @@ describe("postcosecha-respuestas.repository", () => {
     });
 
     it("cuenta la fruta capturada", async () => {
-      await guardarFruta();
+      await guardarFruta({ acidez: "medium" });
 
-      // Tres de doce: la sección en blanco ya trae los tres porcentajes.
       expect(
         (await getPostcosechaProgress(db)).get(postcosechaKey("p1", "15caja")),
-      ).toBeCloseTo(3 / 12);
+      ).toBeCloseTo(1 / 12);
     });
 
     /**
@@ -205,13 +204,13 @@ describe("postcosecha-respuestas.repository", () => {
     });
 
     it("no suma las cuatro evaluaciones entre ellas", async () => {
-      await guardarFruta({}, "15caja");
+      await guardarFruta({ acidez: "medium" }, "15caja");
       await foto("15caja", "f1");
       await foto("30plastico", "f2");
 
       const avance = await getPostcosechaProgress(db);
 
-      expect(avance.get(postcosechaKey("p1", "15caja"))).toBeCloseTo(4 / 12);
+      expect(avance.get(postcosechaKey("p1", "15caja"))).toBeCloseTo(2 / 12);
       expect(avance.get(postcosechaKey("p1", "30plastico"))).toBeCloseTo(
         1 / 12,
       );

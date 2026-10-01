@@ -45,11 +45,14 @@ const nivelSchema = (options: PickerOption<string>[]) =>
 const estrellasSchema = z.number().int().min(1).max(5).optional();
 
 /**
- * Un porcentaje del slider: de 0 a 100 y **nunca sin valor**. No lleva
- * `.optional()` a propósito — el control no tiene estado vacío y arranca en 0,
- * así que un porcentaje siempre tiene dato (ver `frutaAnswered`).
+ * Un porcentaje del slider: de 0 a 100, o sin capturar.
+ *
+ * El `.optional()` es lo que separa **«0 %» de «nadie lo tocó»**, que no es lo
+ * mismo: un cero medido es un dato. Sin él, las tres preguntas de porcentaje
+ * contaban como contestadas desde el primer frame y una evaluación en blanco ya
+ * enseñaba avance.
  */
-const porcentajeSchema = z.number().min(0).max(100);
+const porcentajeSchema = z.number().min(0).max(100).optional();
 
 /**
  * Los once campos de la sección, tal como los nombra la hoja de empaque.
@@ -82,11 +85,10 @@ export type FrutaValues = z.infer<typeof frutaSchema>;
 /**
  * Cuántos de los once llevan dato.
  *
- * **Los tres porcentajes cuentan siempre**: su barra no tiene estado vacío y
- * arranca en cero, así que no hay forma de distinguir «no medido» de «medido en
- * 0 %». El conteo abre por tanto en 3, no en 0. Si algún día se quiere que
- * empiecen sin contar, la barra necesitaría recuperar su estado vacío — no basta
- * con excluirlos aquí, porque entonces un 0 % medido de verdad tampoco contaría.
+ * **Los tres porcentajes solo cuentan una vez tocados.** Su barra distingue «sin
+ * capturar» de «0 %» —la manija nace atenuada y basta un toque para capturar—,
+ * así que un cero medido cuenta y un campo que nadie miró, no. El conteo abre en
+ * 0, como las demás.
  */
 export function frutaAnswered(values: FrutaValues): number {
   return Object.values(values).filter(
@@ -103,13 +105,13 @@ export function buildFrutaDefaults(): FrutaValues {
     fecha_evaluacion: "",
     acidez: undefined,
     tallo: undefined,
-    bayas_reventadas: 0,
-    desgrane: 0,
+    bayas_reventadas: undefined,
+    desgrane: undefined,
     dano_azufre: undefined,
     manchas_cafes: undefined,
     calidad_consumo: undefined,
     sabor: undefined,
-    deshidratacion: 0,
+    deshidratacion: undefined,
   };
 }
 

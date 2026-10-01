@@ -27,12 +27,15 @@ const frutaLlena = {
 };
 
 describe("postcosechaSeccionProgress", () => {
-  // Tres de once en blanco, no cero: los porcentajes no tienen estado vacío.
   it("mide el relleno de fruta", () => {
-    expect(
-      postcosechaSeccionProgress("fruta", buildFrutaDefaults()),
-    ).toBeCloseTo(3 / 11);
+    expect(postcosechaSeccionProgress("fruta", buildFrutaDefaults())).toBe(0);
     expect(postcosechaSeccionProgress("fruta", frutaLlena)).toBe(1);
+    expect(
+      postcosechaSeccionProgress("fruta", {
+        ...buildFrutaDefaults(),
+        acidez: "low",
+      }),
+    ).toBeCloseTo(1 / 11);
   });
 
   it("las notas no reparten", () => {
@@ -56,16 +59,12 @@ describe("postcosechaProgress", () => {
   });
 
   /**
-   * **En blanco abre en 3 de 12, no en cero.** Está fijado aquí para que quien
-   * vea un 25 % en una evaluación recién abierta encuentre el porqué en vez de
-   * tratarlo como un fallo: los tres porcentajes arrancan en 0 y desde el primer
-   * frame llevan dato. Lo que no pasa es que eso ensucie el listado — sin tocar
-   * nada no se escribe ninguna fila, y sin fila el avance guardado es cero.
+   * **En blanco abre en cero**, y es lo que este test defiende: mientras los
+   * tres porcentajes no tuvieron estado vacío, una evaluación recién abierta ya
+   * enseñaba un 25 % de avance que nadie había capturado.
    */
-  it("en blanco ya cuenta los tres porcentajes", () => {
-    expect(postcosechaProgress(buildPostcosechaDefaults(), 0)).toBeCloseTo(
-      3 / 12,
-    );
+  it("en blanco no cuenta nada", () => {
+    expect(postcosechaProgress(buildPostcosechaDefaults(), 0)).toBe(0);
   });
 
   it("la fotografía vale una unidad, como cada pregunta", () => {
