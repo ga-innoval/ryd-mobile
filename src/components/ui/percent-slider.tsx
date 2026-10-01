@@ -20,6 +20,10 @@ const INSET = THUMB / 2;
 
 const TICKS = [0, 25, 50, 75, 100];
 
+/** Ancho de cada cifra del pie, para poder centrarla sobre su marca. Fijo y
+ *  holgado: con «100» cabiendo, las demás quedan centradas igual. */
+const TICK_WIDTH = 32;
+
 /**
  * Ancho reservado para la cifra, según si lleva decimal.
  *
@@ -88,7 +92,25 @@ const styles = StyleSheet.create({
     // `font-variant-numeric`—, así que va por `style`.
     fontVariant: ["tabular-nums"],
   },
-  tabular: { fontVariant: ["tabular-nums"] },
+  /**
+   * Cada cifra **centrada sobre el punto que nombra**, no repartida con
+   * `justify-between`.
+   *
+   * Aquello alinea el borde izquierdo del «0» y el derecho del «100», así que
+   * las cinco quedaban corridas media cifra y el «50» no caía bajo la manija —de
+   * ahí la sensación de que la manija iba desfasada, cuando la desfasada era la
+   * referencia—. El `%` se mide contra el riel, que ya tiene descontada la
+   * manija, así que coincide con el recorrido de su centro.
+   */
+  tick: {
+    position: "absolute",
+    width: TICK_WIDTH,
+    marginLeft: -TICK_WIDTH / 2,
+    textAlign: "center",
+    fontVariant: ["tabular-nums"],
+  },
+  // Los hijos absolutos no levantan la fila, así que el alto va a mano.
+  ticks: { marginHorizontal: INSET, height: 18 },
 });
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
@@ -174,6 +196,22 @@ export function PercentSlider({
     captured.value = value === undefined ? 0 : 1;
   }, [value, progress, captured]);
 
+  /**
+   * De dónde cayó el dedo al porcentaje que le toca.
+   *
+   * **El `- INSET` no es un ajuste fino, es el cambio de sistema de
+   * referencia**: `e.x` viene en coordenadas de la zona que recibe el toque, que
+   * ocupa el ancho entero, y el porcentaje se mide sobre el recorrido, que
+   * arranca medio ancho de manija más adentro. Sin restarlo, el centro de la
+   * manija acaba en `INSET + x` y se arrastra siempre 16 px a la derecha del
+   * dedo.
+   */
+  const percentAt = (x: number) => {
+    "worklet";
+
+    return snap(((x - INSET) / trackWidth) * 100, step);
+  };
+
   const pan = Gesture.Pan()
     // `minDistance: 0` para que un toque suelto también posicione: en campo se
     // busca el valor tocando, no arrastrando desde el principio.
@@ -182,11 +220,11 @@ export function PercentSlider({
       if (trackWidth <= 0) return;
       // Tocar ya es capturar: de aquí no se vuelve a «sin capturar».
       captured.value = 1;
-      progress.value = snap((e.x / trackWidth) * 100, step);
+      progress.value = percentAt(e.x);
     })
     .onUpdate((e) => {
       if (trackWidth <= 0) return;
-      progress.value = snap((e.x / trackWidth) * 100, step);
+      progress.value = percentAt(e.x);
     })
     // Una sola vez, al soltar: es cuando el dato deja de ser un gesto en curso
     // y pasa a ser una respuesta.
@@ -315,11 +353,11 @@ export function PercentSlider({
         </View>
       </GestureDetector>
 
-      <View className="flex-row items-center justify-between px-4">
+      <View style={styles.ticks}>
         {TICKS.map((tick) => (
           <Text
             key={tick}
-            style={styles.tabular}
+            style={[styles.tick, { left: `${tick}%` }]}
             className="text-[13px] text-muted-foreground"
           >
             {tick}
