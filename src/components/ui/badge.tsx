@@ -29,7 +29,7 @@ const badgeVariants = cva(
         outline: Platform.select({
           web: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         }),
-        success: "bg-accent border-transparent",
+        success: "bg-leaf/40 border-transparent",
       },
     },
     defaultVariants: {
