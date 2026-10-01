@@ -47,7 +47,7 @@ export function usePlantsMutation() {
       queryClient.invalidateQueries({ queryKey: PLANTS_QUERY_KEY });
       setLastDownloadAt(new Date(serverTime).getTime());
       haptics.success();
-      toast.error({
+      toast.success({
         title: "Descarga completa",
         description: formatDownloadSummary(count),
       });

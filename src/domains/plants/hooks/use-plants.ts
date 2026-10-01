@@ -44,21 +44,27 @@ export function usePlants() {
           progress: progress.get(tratamiento.id) ?? 0,
         }));
 
+        const avancePostcosecha = Object.fromEntries(
+          EVALS_POST_COSECHA.map((item) => [
+            item.id,
+            postcosecha.get(postcosechaKey(plant.id, item.id)) ?? 0,
+          ]),
+        );
+
         return {
           ...plant,
           tratamientos,
-          progress: plantProgress(tratamientos),
+          progress: plantProgress(
+            tratamientos,
+            Object.values(avancePostcosecha),
+          ),
           tratamientosWithError: tratamientos
             .filter((tratamiento) => withErrors.has(tratamiento.id))
             .map((tratamiento) => tratamiento.id),
           // Las cuatro siempre, aunque el mapa no las traiga: el catálogo es
-          // fijo y la tarjeta pinta las cuatro barras pase lo que pase.
-          postcosecha: Object.fromEntries(
-            EVALS_POST_COSECHA.map((item) => [
-              item.id,
-              postcosecha.get(postcosechaKey(plant.id, item.id)) ?? 0,
-            ]),
-          ),
+          // fijo y la tarjeta pinta las cuatro barras pase lo que pase. Por eso
+          // mismo sirve tal cual como denominador del bloque de post-cosecha.
+          postcosecha: avancePostcosecha,
         };
       });
     },

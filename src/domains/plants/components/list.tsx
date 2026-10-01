@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { EVALS_POST_COSECHA } from "../lib/evals-post-cosecha";
+import { formatProgress } from "../lib/evaluation-progress";
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
@@ -115,10 +116,13 @@ const CardHeader = ({ item, match }: { item: Plant; match?: FieldMatch }) => {
             text={item.name}
             match={match?.field === "name" ? match : undefined}
           />
-          {/* El estatus y no el porcentaje: cuánto lleva cada tratamiento ya lo
-              dice su propia barra, y esta palabra es la que usan los filtros. */}
+          {/* El porcentaje y no la palabra: las barras de abajo dicen cuánto
+              lleva cada captura, y esto resume la plantación entera de un
+              vistazo. El color sigue separando lo empezado de lo que no, que es
+              lo que preguntan los filtros. Pasa por `formatProgress` para que
+              este número y el de la pantalla de captura redondeen igual. */}
           <Badge variant={item.progress === 0 ? "secondary" : "success"}>
-            <Text>{item.progress === 0 ? "Sin iniciar" : "Iniciada"}</Text>
+            <Text>{`${formatProgress(item.progress)} %`}</Text>
           </Badge>
           {/* Después del de estatus y sin sustituirlo: una plantación iniciada
               también puede traer un dato inválido. */}
@@ -216,12 +220,7 @@ export const PlantCard = memo(function PlantCard({
                     params: { id: item.id, eval: id },
                   })
                 }
-                className={cn(
-                  "w-28 h-[72px] overflow-hidden rounded-xl border-2 px-2.5 py-2 items-center justify-center",
-                  (item.postcosecha[id] ?? 0) > 0
-                    ? "border-leaf/50"
-                    : "border-border",
-                )}
+                className="w-28 h-[72px] overflow-hidden rounded-xl border-2 px-2.5 py-2 items-center justify-center border-border"
               >
                 {/* El avance llena la tarjeta en vez de llevar barra, igual
                   que el chip de tratamiento y por lo mismo. Declarado **antes**
@@ -242,7 +241,7 @@ export const PlantCard = memo(function PlantCard({
                     style={{
                       width: `${(item.postcosecha[id] ?? 0) * 100}%`,
                     }}
-                    className="h-full bg-leaf/15"
+                    className="h-full bg-leaf/30"
                   />
                 </View>
 

@@ -60,20 +60,20 @@ describe("<PlantCard />", () => {
     });
   });
 
-  // El chip dice el estatus y no el porcentaje: cuánto lleva cada tratamiento
-  // ya lo enseña su propia barra.
-  it("renders status chip as started when there is progress", async () => {
+  // El chip dice el porcentaje de la plantación entera; cuánto lleva cada
+  // captura lo enseña su propia tarjeta.
+  it("renders progress chip when there is progress", async () => {
     const item = buildPlant();
     const { getByText } = await render(<PlantCard item={item} />);
 
-    expect(getByText("Iniciada")).toBeOnTheScreen();
+    expect(getByText("10 %")).toBeOnTheScreen();
   });
 
-  it("renders status chip as not started without progress", async () => {
+  it("renders zero in the progress chip without progress", async () => {
     const item = buildPlant({ progress: 0 });
     const { getByText } = await render(<PlantCard item={item} />);
 
-    expect(getByText("Sin iniciar")).toBeOnTheScreen();
+    expect(getByText("0 %")).toBeOnTheScreen();
   });
 
   it("renders sync chip", async () => {

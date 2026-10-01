@@ -166,27 +166,37 @@ export function formatProgress(progress: number): number {
   return Math.round(progress * 100);
 }
 
+const media = (valores: number[]) =>
+  valores.length === 0
+    ? null
+    : valores.reduce((suma, valor) => suma + valor, 0) / valores.length;
+
 /**
- * El avance de una plantación, de 0 a 1.
+ * El avance de una plantación, de 0 a 1: **mitad tratamientos, mitad
+ * post-cosecha**.
  *
- * **Por ahora solo cuentan los tratamientos**, aunque la post-cosecha ya se
- * captura y su avance ya está calculado por evaluación
- * (`getPostcosechaProgress`, que es lo que pinta las barras de sus tarjetas).
- * Falta el reparto 50/50, y se dejó aparte a propósito: el día que entre, la
- * barra de toda plantación en campaña cae a la mitad y se mueven los contadores
- * de «Sin iniciar» / «Iniciadas». Cuando entre, esto pasa a ser la media de los
- * dos bloques —cada uno prorrateado por dentro— y el resto de la app no se
- * entera.
+ * Cada bloque se prorratea por dentro con sus propias unidades, así que tener
+ * toda la post-cosecha capturada vale 50 % de la plantación por mucho que los
+ * tratamientos sigan en blanco, y al revés. Dentro de cada bloque todas las
+ * capturas pesan igual: tres tratamientos con uno completo son `(1/3) × 50 %`, y
+ * el denominador de post-cosecha es siempre 4, porque su catálogo es fijo.
  *
- * Una plantación sin tratamientos es cero y no un hueco: no hay nada capturado.
+ * **Si un bloque no existe, el otro se queda con todo.** Una plantación sin
+ * tratamientos configurados no tiene ahí trabajo pendiente, es que no hay nada
+ * que capturar: repartirle igualmente su mitad dejaría la tarjeta con un tope
+ * del 50 % que el evaluador no podría subir haga lo que haga. Es el caso que la
+ * regla del negocio no contempla, y se resuelve así a propósito.
+ *
+ * Sin nada de nada —ni tratamientos ni evaluaciones— es cero, no un hueco.
  */
-export function plantProgress(tratamientos: { progress: number }[]): number {
-  if (tratamientos.length === 0) return 0;
+export function plantProgress(
+  tratamientos: { progress: number }[],
+  postcosecha: number[],
+): number {
+  const bloques = [
+    media(tratamientos.map((t) => t.progress)),
+    media(postcosecha),
+  ].filter((bloque): bloque is number => bloque !== null);
 
-  const total = tratamientos.reduce(
-    (sum, tratamiento) => sum + tratamiento.progress,
-    0,
-  );
-
-  return total / tratamientos.length;
+  return media(bloques) ?? 0;
 }

@@ -131,20 +131,53 @@ describe("evaluationProgress", () => {
 });
 
 describe("plantProgress", () => {
-  it("promedia sus tratamientos", () => {
-    expect(plantProgress([{ progress: 1 }, { progress: 0 }])).toBeCloseTo(0.5);
+  /** Las cuatro evaluaciones de post-cosecha, todas igual. */
+  const postcosecha = (valor: number) => [valor, valor, valor, valor];
+
+  it("promedia dentro de cada bloque", () => {
+    expect(
+      plantProgress([{ progress: 1 }, { progress: 0 }], postcosecha(0)),
+    ).toBeCloseTo(0.25);
   });
 
-  // Sin tratamientos no hay nada capturado: cero, no un hueco.
-  it("es cero sin tratamientos", () => {
-    expect(plantProgress([])).toBe(0);
+  /**
+   * **La mitad y la mitad**, que es la regla del negocio: toda la post-cosecha
+   * capturada vale el 50 % aunque no se haya tocado un solo tratamiento, y al
+   * revés.
+   */
+  it("cada bloque vale la mitad", () => {
+    expect(plantProgress([{ progress: 0 }], postcosecha(1))).toBeCloseTo(0.5);
+    expect(plantProgress([{ progress: 1 }], postcosecha(0))).toBeCloseTo(0.5);
+    expect(plantProgress([{ progress: 1 }], postcosecha(1))).toBe(1);
+  });
+
+  // El denominador de post-cosecha es fijo: una evaluación de cuatro es un
+  // octavo de la plantación.
+  it("una sola evaluación de post-cosecha vale un octavo", () => {
+    expect(plantProgress([{ progress: 0 }], [1, 0, 0, 0])).toBeCloseTo(1 / 8);
+  });
+
+  /**
+   * Sin tratamientos configurados no hay ahí trabajo pendiente, así que
+   * post-cosecha se queda con todo: si no, la tarjeta tendría un tope del 50 %
+   * que nadie podría subir.
+   */
+  it("sin tratamientos, post-cosecha se lo lleva todo", () => {
+    expect(plantProgress([], postcosecha(1))).toBe(1);
+    expect(plantProgress([], postcosecha(0.5))).toBeCloseTo(0.5);
+  });
+
+  it("es cero sin nada capturado", () => {
+    expect(plantProgress([], [])).toBe(0);
+    expect(plantProgress([{ progress: 0 }], postcosecha(0))).toBe(0);
   });
 
   // De esto vive el estatus de la tarjeta y los filtros: en cuanto una sola
   // encuesta arranca, la plantación deja de estar «sin iniciar».
-  it("deja de ser cero en cuanto un tratamiento arranca", () => {
+  it("deja de ser cero en cuanto algo arranca", () => {
     expect(
-      plantProgress([{ progress: 0 }, { progress: 0.1 }, { progress: 0 }]),
+      plantProgress([{ progress: 0 }, { progress: 0.1 }], postcosecha(0)),
     ).toBeGreaterThan(0);
+    expect(plantProgress([{ progress: 0 }], [0, 0.1, 0, 0])).toBeGreaterThan(0);
   });
 });
