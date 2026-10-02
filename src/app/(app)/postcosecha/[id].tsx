@@ -34,6 +34,21 @@ import {
   type PostcosechaFormValues,
 } from "@/domains/plants/lib/postcosecha-schema";
 import { EVALS_POST_COSECHA } from "@/domains/plants/lib/evals-post-cosecha";
+import {
+  SectionSkeleton,
+  type SectionSkeletonRow,
+} from "@/domains/plants/components/section-skeleton";
+
+/**
+ * Los anchos de las tres cabeceras mientras la pantalla se monta, aproximando
+ * su texto real: «Fotografías» es corto y «Comentarios y observaciones» largo.
+ * Si se añade una sección, su fila entra aquí.
+ */
+const SKELETON_ROWS: SectionSkeletonRow[] = [
+  { title: 96, description: 180, summary: 148 },
+  { title: 136, description: 300, summary: 120 },
+  { title: 208, description: 276, summary: 88 },
+];
 
 /**
  * Una evaluación de post-cosecha.
@@ -223,6 +238,18 @@ export default function PostcosechaScreen() {
               }
             />
           </View>
+        )}
+
+        {/* Las secciones nacen abiertas, así que montarlas cuesta un rato en
+          el que el hilo de JS no puede pintar nada: sin esto la pantalla es un
+          hueco en blanco. Va atado a `isLoading` y no a `!plant`: con la
+          plantación podada lo que toca es el `EmptyState`, no un esqueleto
+          esperando algo que no va a llegar. */}
+        {isLoading && (
+          <SectionSkeleton
+            rows={SKELETON_ROWS}
+            reservedHeight={reservedHeight}
+          />
         )}
 
         {/* Alcanzable de verdad, no defensivo: una descarga puede podar la
