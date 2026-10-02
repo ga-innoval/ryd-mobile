@@ -118,6 +118,12 @@ export const CardRecordSection = ({
 };
 
 const CardHeader = ({ item, match }: { item: Plant; match?: FieldMatch }) => {
+  // Las dos encuestas por igual: lo que el chip dice es que hay algo que
+  // revisar en esta plantación, no en cuál de las dos.
+  const conError =
+    item.tratamientosWithError.length > 0 ||
+    item.postcosechaWithError.length > 0;
+
   return (
     <View className="flex-row justify-between items-center pr-6">
       <View className="px-4 py-4 gap-2">
@@ -127,23 +133,34 @@ const CardHeader = ({ item, match }: { item: Plant; match?: FieldMatch }) => {
             text={item.name}
             match={match?.field === "name" ? match : undefined}
           />
-          {/* El porcentaje y no la palabra: las barras de abajo dicen cuánto
-              lleva cada captura, y esto resume la plantación entera de un
-              vistazo. El color sigue separando lo empezado de lo que no, que es
-              lo que preguntan los filtros. Pasa por `formatProgress` para que
-              este número y el de la pantalla de captura redondeen igual. */}
-          <Badge variant={item.progress === 0 ? "secondary" : "success"}>
-            <Text>{`${formatProgress(item.progress)} %`}</Text>
+          {/* **Un solo chip para las dos cosas**: cuánto lleva y si hay algo
+              que revisar. Antes eran dos y el segundo repetía en palabras lo
+              que el color ya dice; en una tarjeta con cuatro chips, cada uno de
+              más es uno que nadie lee.
+
+              El porcentaje y no la palabra: las barras de abajo dicen cuánto
+              lleva cada captura, y esto resume la plantación entera. Pasa por
+              `formatProgress` para que este número y el de la pantalla de
+              captura redondeen igual.
+
+              **Cuál falla no lo dice aquí**, lo dicen los chips de abajo con su
+              borde y su equis: este solo avisa de que hay que bajar a mirar. */}
+          <Badge
+            variant={
+              conError
+                ? "outline"
+                : item.progress === 0
+                  ? "secondary"
+                  : "success"
+            }
+            className={cn(
+              conError && "bg-destructive-background border-destructive/20",
+            )}
+          >
+            <Text className={cn(conError && "text-destructive font-medium")}>
+              {`${formatProgress(item.progress)} %`}
+            </Text>
           </Badge>
-          {/* Después del de estatus y sin sustituirlo: una plantación iniciada
-              también puede traer un dato inválido. */}
-          {item.tratamientosWithError.length > 0 && (
-            <Badge className="bg-destructive-background border-destructive/30 gap-1">
-              <Text className="text-destructive font-medium">
-                Error de captura
-              </Text>
-            </Badge>
-          )}
           {item.syncStatus === SyncStatus.pending && (
             <Badge className="bg-orange-300/20 border-orange-300 gap-1">
               <View className="rounded-full bg-orange-400 h-1.5 w-1.5" />
