@@ -4,6 +4,9 @@ import { Text } from "@/components/ui/text";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import { usePulseAnimation } from "@/lib/use-pulse-animation";
 import { cn } from "@/lib/utils";
+import { CircleCheckIcon, CircleXIcon } from "lucide-react-native";
+import { Icon } from "@/components/ui/icon";
+import { isComplete } from "../lib/evaluation-progress";
 import type { TratamientoRecord } from "../types";
 
 type ChipVariant = "card" | "header";
@@ -71,8 +74,6 @@ function borderClassName({
   hasError: boolean;
 }): string {
   if (variant === "header") return "border-primary-foreground/50";
-  if (hasError) return "border-destructive/35";
-  if (progress > 0) return "border-leaf/50";
 
   return "border-border";
 }
@@ -91,7 +92,10 @@ export function TratamientoChip({
     <PressableScale
       onPress={onPress}
       className={cn(
-        "rounded-xl items-center justify-center border-2 overflow-hidden flex-col",
+        // **Sin `overflow-hidden`**: el check se monta sobre la esquina y aquí
+        // se le recortaría. El relleno no lo echa de menos —se recorta en su
+        // propia capa— y el nombre tampoco, que trunca con `numberOfLines`.
+        "rounded-xl items-center justify-center border-2 flex-col",
         styles.container,
         borderClassName({ variant, progress, hasError }),
         // Después del borde de estado y no antes: el chip abierto tiene que
@@ -134,8 +138,24 @@ export function TratamientoChip({
               "h-full",
               // Con un dato imposible el chip ya está en rojo; un relleno verde
               // encima lo dejaría de dos colores sin querer decir nada nuevo.
-              hasError ? "bg-destructive/15" : "bg-leaf/15 ",
+              hasError ? "bg-destructive/20" : "bg-leaf/30 ",
             )}
+          />
+        </View>
+      )}
+
+      {/* Una sola señal en la esquina, y **el error gana**: una captura llena
+          con un dato imposible no está terminada —es justo lo que el error
+          impide—, así que enseñar las dos, o solo la palomita, diría lo
+          contrario. En la cabecera no va ninguna: allí el chip solo sitúa en
+          cuál estás. */}
+      {variant === "card" && (hasError || isComplete(progress)) && (
+        <View pointerEvents="none" className="absolute -right-1.5 -top-1.5">
+          <Icon
+            as={hasError ? CircleXIcon : CircleCheckIcon}
+            size={20}
+            strokeWidth={2.5}
+            className={hasError ? "text-destructive" : "text-leaf"}
           />
         </View>
       )}

@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { useController, useWatch } from "react-hook-form";
 import {
   ArrowRightIcon,
+  CircleAlertIcon,
   GrapeIcon,
   TriangleAlertIcon,
 } from "lucide-react-native";
@@ -23,6 +24,7 @@ import { formatISODate } from "@/lib/dates";
 import type { PostcosechaFormValues } from "../lib/postcosecha-schema";
 import {
   evaluacionAntesDelEmpaque,
+  evaluacionFueraDePeriodo,
   fechaEsperada,
   frutaAnswered,
   FRUTA_TOTAL_PREGUNTAS,
@@ -85,6 +87,12 @@ export function PostcosechaFrutaForm({
     values.fecha_empaque,
     values.fecha_evaluacion,
   );
+  // Nunca a la vez que el error: lo decide la propia regla, no este render.
+  const fechaFueraDePeriodo = evaluacionFueraDePeriodo(
+    values.fecha_empaque,
+    values.fecha_evaluacion,
+    dias,
+  );
 
   return (
     <View className="gap-3">
@@ -110,7 +118,12 @@ export function PostcosechaFrutaForm({
           />
 
           {/* La esperada se ofrece, no se impone: el evaluador puede abrir la
-              caja un día después y la fecha real es la que vale. */}
+              caja un día después y la fecha real es la que vale.
+
+              Sin pie debajo, al revés que el empaque: lo que habría que decir
+              ahí —cuántos días van— solo importa cuando la fecha no cuadra, y
+              entonces ya lo dice el aviso con la fecha concreta. Un recordatorio
+              permanente para una regla que casi siempre se cumple es ruido. */}
           {sugerir && (
             <PressableScale
               onPress={() => set("fecha_evaluacion", esperada)}
@@ -123,14 +136,6 @@ export function PostcosechaFrutaForm({
               </Text>
             </PressableScale>
           )}
-
-          {!sugerir && (
-            <Text className="text-[13px] text-muted-foreground">
-              {values.fecha_evaluacion && dias !== null
-                ? `${dias} días después del empaque.`
-                : "Se sugiere al capturar el empaque."}
-            </Text>
-          )}
         </View>
       </View>
 
@@ -139,6 +144,18 @@ export function PostcosechaFrutaForm({
         <Alert icon={TriangleAlertIcon} variant="destructive">
           <AlertDescription>
             La fecha de evaluación no puede ser anterior a la de empaque.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Raro, no imposible: la caja pudo abrirse un día tarde y el dato sigue
+          valiendo, así que **no impide guardar**. Dice la fecha esperada en vez
+          de solo señalar el fallo, que es lo que deja arreglarlo sin contar días
+          a mano. */}
+      {fechaFueraDePeriodo && (
+        <Alert icon={CircleAlertIcon} variant="warning">
+          <AlertDescription>
+            {`La evaluación se debe realizar ${dias} días después del empaque: tocaba el ${formatISODate(esperada)}.`}
           </AlertDescription>
         </Alert>
       )}

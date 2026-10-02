@@ -1,6 +1,7 @@
 import {
   buildFrutaDefaults,
   evaluacionAntesDelEmpaque,
+  evaluacionFueraDePeriodo,
   fechaEsperada,
   frutaAnswered,
   periodoDias,
@@ -65,6 +66,50 @@ describe("evaluacionAntesDelEmpaque", () => {
   it("calla mientras falte alguna de las dos", () => {
     expect(evaluacionAntesDelEmpaque("", "2026-09-28")).toBe(false);
     expect(evaluacionAntesDelEmpaque("2026-09-29", "")).toBe(false);
+  });
+});
+
+describe("evaluacionFueraDePeriodo", () => {
+  it("calla cuando la evaluación cae el día esperado", () => {
+    expect(evaluacionFueraDePeriodo("2026-09-29", "2026-10-14", 15)).toBe(
+      false,
+    );
+    expect(evaluacionFueraDePeriodo("2026-09-29", "2026-10-29", 30)).toBe(
+      false,
+    );
+  });
+
+  it("avisa si se abrió antes o después de lo que tocaba", () => {
+    expect(evaluacionFueraDePeriodo("2026-09-29", "2026-10-13", 15)).toBe(true);
+    expect(evaluacionFueraDePeriodo("2026-09-29", "2026-10-16", 15)).toBe(true);
+  });
+
+  /**
+   * El mismo día, con el otro periodo, es justo el caso que esto existe para
+   * cazar: capturar en «30 días» una caja que se abrió a los 15.
+   */
+  it("avisa si la fecha es la del otro periodo", () => {
+    expect(evaluacionFueraDePeriodo("2026-09-29", "2026-10-14", 30)).toBe(true);
+    expect(evaluacionFueraDePeriodo("2026-09-29", "2026-10-29", 15)).toBe(true);
+  });
+
+  // Un dato que falta no es un dato raro.
+  it("calla mientras falte alguna de las dos fechas o el periodo", () => {
+    expect(evaluacionFueraDePeriodo("", "2026-10-14", 15)).toBe(false);
+    expect(evaluacionFueraDePeriodo("2026-09-29", "", 15)).toBe(false);
+    expect(evaluacionFueraDePeriodo("2026-09-29", "2026-10-14", null)).toBe(
+      false,
+    );
+  });
+
+  /**
+   * Un aviso a la vez, el más grave: si la evaluación es anterior al empaque ya
+   * habla el error, y enseñar los dos sería contar dos veces lo mismo.
+   */
+  it("se calla cuando el error ya está hablando", () => {
+    expect(evaluacionFueraDePeriodo("2026-09-29", "2026-09-28", 15)).toBe(
+      false,
+    );
   });
 });
 

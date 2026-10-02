@@ -6,7 +6,10 @@ import {
   getTratamientoIdsWithErrors,
   getTratamientoProgress,
 } from "../lib/db/respuestas.repository";
-import { getPostcosechaProgress } from "../lib/db/postcosecha-respuestas.repository";
+import {
+  getPostcosechaIdsWithErrors,
+  getPostcosechaProgress,
+} from "../lib/db/postcosecha-respuestas.repository";
 import { postcosechaKey } from "../lib/postcosecha-progress";
 import { EVALS_POST_COSECHA } from "../lib/evals-post-cosecha";
 
@@ -31,12 +34,14 @@ export function usePlants() {
   return useQuery({
     queryKey: PLANTS_QUERY_KEY,
     queryFn: async () => {
-      const [plants, withErrors, progress, postcosecha] = await Promise.all([
-        getAllPlants(db),
-        getTratamientoIdsWithErrors(db),
-        getTratamientoProgress(db),
-        getPostcosechaProgress(db),
-      ]);
+      const [plants, withErrors, progress, postcosecha, postcosechaErrors] =
+        await Promise.all([
+          getAllPlants(db),
+          getTratamientoIdsWithErrors(db),
+          getTratamientoProgress(db),
+          getPostcosechaProgress(db),
+          getPostcosechaIdsWithErrors(db),
+        ]);
 
       return plants.map((plant) => {
         const tratamientos = plant.tratamientos.map((tratamiento) => ({
@@ -65,6 +70,9 @@ export function usePlants() {
           // fijo y la tarjeta pinta las cuatro barras pase lo que pase. Por eso
           // mismo sirve tal cual como denominador del bloque de post-cosecha.
           postcosecha: avancePostcosecha,
+          postcosechaWithError: EVALS_POST_COSECHA.filter((item) =>
+            postcosechaErrors.has(postcosechaKey(plant.id, item.id)),
+          ).map((item) => item.id),
         };
       });
     },

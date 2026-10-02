@@ -9,7 +9,13 @@ import Animated from "react-native-reanimated";
 import { ScrollView, View } from "react-native";
 import { FlashList, FlashListProps, FlashListRef } from "@shopify/flash-list";
 import { useAppRouter } from "@/lib/use-app-router";
-import { BoxIcon, LeafIcon, LucideIcon } from "lucide-react-native";
+import {
+  BoxIcon,
+  CircleCheckIcon,
+  CircleXIcon,
+  LeafIcon,
+  LucideIcon,
+} from "lucide-react-native";
 import {
   type PlantWithMatch,
   type FieldMatch,
@@ -20,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { EVALS_POST_COSECHA } from "../lib/evals-post-cosecha";
-import { formatProgress } from "../lib/evaluation-progress";
+import { formatProgress, isComplete } from "../lib/evaluation-progress";
 import { Text } from "@/components/ui/text";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
@@ -94,11 +100,16 @@ export const CardRecordSection = ({
         </Text>
       </View>
       <Separator orientation="vertical" decorative className="h-16 -ml-1" />
+      {/* El `py-2.5` es el aire que necesita el check de completado, que se
+          monta sobre la esquina superior derecha de cada tarjeta: el
+          `ScrollView` se ajusta al alto de su contenido y **recorta** lo que
+          asome, así que sin este hueco el icono sale cortado por arriba. Cabe de
+          sobra en los 96 px de la fila. */}
       <ScrollView
         showsHorizontalScrollIndicator={false}
         horizontal
         className="-mr-6"
-        contentContainerClassName="gap-4 flex-grow pl-4 pr-6"
+        contentContainerClassName="gap-4 flex-grow pl-4 pr-6 py-2.5"
       >
         {children}
       </ScrollView>
@@ -208,47 +219,71 @@ export const PlantCard = memo(function PlantCard({
             label="post-cosecha"
             variant="secondary"
           >
-            {EVALS_POST_COSECHA.map(({ id, title, subtitle }) => (
-              // La ruta lleva la plantación, y cuál de las cuatro en `eval`:
-              // post-cosecha no tiene id propio, es catálogo fijo.
-              <PressableScale
-                key={id}
-                testID={`post-cosecha-${id}`}
-                onPress={() =>
-                  router.push({
-                    pathname: "/postcosecha/[id]",
-                    params: { id: item.id, eval: id },
-                  })
-                }
-                className="w-28 h-[72px] overflow-hidden rounded-xl border-2 px-2.5 py-2 items-center justify-center border-border"
-              >
-                {/* El avance llena la tarjeta en vez de llevar barra, igual
+            {EVALS_POST_COSECHA.map(({ id, title, subtitle }) => {
+              const avance = item.postcosecha[id] ?? 0;
+              const conError = item.postcosechaWithError.includes(id);
+
+              return (
+                // La ruta lleva la plantación, y cuál de las cuatro en `eval`:
+                // post-cosecha no tiene id propio, es catálogo fijo.
+                <PressableScale
+                  key={id}
+                  testID={`post-cosecha-${id}`}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/postcosecha/[id]",
+                      params: { id: item.id, eval: id },
+                    })
+                  }
+                  // **Sin `overflow-hidden`**: el check se monta sobre la esquina y
+                  // aquí se le recortaría. El relleno no lo echa de menos, que se
+                  // recorta en su propia capa.
+                  className="w-28 h-[72px] rounded-xl border-2 px-2.5 py-2 items-center justify-center border-border"
+                >
+                  {/* El avance llena la tarjeta en vez de llevar barra, igual
                   que el chip de tratamiento y por lo mismo. Declarado **antes**
                   que el texto y sin `zIndex`: en React Native pinta encima lo
-                  que se declara después, así que el orden basta. El recorte —y
-                  con él la curva del borde— lo pone el `overflow-hidden`.
+                  que se declara después, así que el orden basta.
 
-                  Y las dos capas tampoco son adorno: el porqué está en
+                  Su `overflow-hidden` es el que recorta, y el `rounded-[10px]`
+                  es la curva interior —la de la tarjeta menos su borde—, o el
+                  relleno se pintaría encima de él en las cuatro esquinas. Las
+                  dos capas tampoco son adorno: el porqué está en
                   `tratamiento-chip.tsx`, que es donde se midió. */}
-                {/* `rounded-[10px]` es la curva interior —la de la tarjeta
-                  menos su borde—, o el relleno se pinta encima de él en las
-                  cuatro esquinas. */}
-                <View
-                  pointerEvents="none"
-                  className="absolute inset-0 overflow-hidden rounded-[10px]"
-                >
                   <View
-                    style={{
-                      width: `${(item.postcosecha[id] ?? 0) * 100}%`,
-                    }}
-                    className="h-full bg-leaf/30"
-                  />
-                </View>
+                    pointerEvents="none"
+                    className="absolute inset-0 overflow-hidden rounded-[10px]"
+                  >
+                    <View
+                      style={{ width: `${avance * 100}%` }}
+                      className="h-full bg-leaf/20"
+                    />
+                  </View>
 
-                <Text className="font-medium">{title}</Text>
-                <Text variant="muted">{subtitle}</Text>
-              </PressableScale>
-            ))}
+                  {/* La misma señal que en el chip de tratamiento, en la misma
+                  esquina y con la misma regla: **el error gana al check**, que
+                  una captura llena con una fecha imposible no está terminada. */}
+                  {(conError || isComplete(avance)) && (
+                    <View
+                      pointerEvents="none"
+                      className="absolute -right-1.5 -top-1.5"
+                    >
+                      <Icon
+                        as={conError ? CircleXIcon : CircleCheckIcon}
+                        size={20}
+                        strokeWidth={2.5}
+                        className={
+                          conError ? "text-destructive" : "text-foreground"
+                        }
+                      />
+                    </View>
+                  )}
+
+                  <Text className="font-medium">{title}</Text>
+                  <Text variant="muted">{subtitle}</Text>
+                </PressableScale>
+              );
+            })}
           </CardRecordSection>
         </View>
       </View>

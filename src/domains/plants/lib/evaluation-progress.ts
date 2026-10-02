@@ -172,6 +172,17 @@ const media = (valores: number[]) =>
     : valores.reduce((suma, valor) => suma + valor, 0) / valores.length;
 
 /**
+ * Si una captura puede darse por llena.
+ *
+ * Mira **el número que se enseña**, no el flotante: así el check aparece
+ * exactamente cuando la cifra dice 100 %, y no falta por un decimal de ruido
+ * binario ni sobra con un 99,6 % que se redondea a 100.
+ */
+export function isComplete(progress: number): boolean {
+  return formatProgress(progress) === 100;
+}
+
+/**
  * El avance de una plantación, de 0 a 1: **mitad tratamientos, mitad
  * post-cosecha**.
  *

@@ -151,6 +151,31 @@ export function fechaEsperada(empaque: string, dias: number | null): string {
 }
 
 /**
+ * Si la evaluación no cayó el día que le tocaba: ni 15 ni 30 días después del
+ * empaque, según cuál de las cuatro se esté capturando.
+ *
+ * **Aviso y no error**, con el criterio de siempre: la caja pudo abrirse un día
+ * tarde y el dato sigue valiendo. Lo que no puede ser cierto es evaluarla antes
+ * de empacarla, y de eso habla `evaluacionAntesDelEmpaque`.
+ *
+ * Calla mientras falte cualquiera de las dos fechas —no hay nada que comparar
+ * todavía, es un dato que falta— **y también cuando la evaluación es anterior al
+ * empaque**: ahí ya habla el error, y enseñar los dos sería contar dos veces lo
+ * mismo. Es la misma regla de «un aviso a la vez, el más grave» que ordena los
+ * de Criba.
+ */
+export function evaluacionFueraDePeriodo(
+  empaque: string,
+  evaluacion: string,
+  dias: number | null,
+): boolean {
+  if (!empaque || !evaluacion || dias === null) return false;
+  if (evaluacionAntesDelEmpaque(empaque, evaluacion)) return false;
+
+  return evaluacion !== fechaEsperada(empaque, dias);
+}
+
+/**
  * Si la evaluación cae antes del empaque, que es imposible: la caja no se puede
  * evaluar antes de existir.
  *
