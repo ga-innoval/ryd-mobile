@@ -113,12 +113,17 @@ export interface Plant extends Omit<PlantWithTratamientos, "tratamientos"> {
    * Cuánto lleva capturada cada evaluación de post-cosecha, de 0 a 1, con el
    * `id` del catálogo como clave. Siempre trae las cuatro —las que nadie tocó,
    * en cero—, para que la tarjeta no tenga que distinguir «sin capturar» de «sin
-   * dato».
-   *
-   * **No entra en el `progress` de la plantación todavía**: ese sigue siendo
-   * solo el de los tratamientos (ver `plantProgress`).
+   * dato», y por eso sirve tal cual como denominador de su bloque en
+   * `plantProgress`.
    */
   postcosecha: Record<string, number>;
+  /**
+   * Las evaluaciones de post-cosecha con algún dato imposible
+   * (`postcosecha-errors.ts`), por su `id` del catálogo. Lista y no booleano por
+   * lo mismo que `tratamientosWithError`: la tarjeta marca **cuál** hay que
+   * revisar, no que haya alguna.
+   */
+  postcosechaWithError: string[];
 }
 
 export type MatchableField =

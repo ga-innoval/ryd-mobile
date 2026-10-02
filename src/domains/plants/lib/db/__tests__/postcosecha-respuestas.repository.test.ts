@@ -10,6 +10,7 @@ import {
 } from "../postcosecha-fotos.repository";
 import {
   deletePostcosechaRespuestas,
+  getPostcosechaIdsWithErrors,
   getPostcosechaProgress,
   getPostcosechaRespuestas,
   savePostcosechaRespuesta,
@@ -224,6 +225,49 @@ describe("postcosecha-respuestas.repository", () => {
 
       expect(avance.get(postcosechaKey("p1", "15caja"))).toBeCloseTo(1 / 12);
       expect(avance.get(postcosechaKey("p2", "15caja"))).toBeCloseTo(1 / 12);
+    });
+  });
+
+  describe("las evaluaciones con un dato imposible", () => {
+    const conFechaImposible = (evalId: string, plantId = "p1") =>
+      guardarFruta(
+        { fecha_empaque: "2026-09-29", fecha_evaluacion: "2026-09-28" },
+        evalId,
+        plantId,
+      );
+
+    it("sin errores, el conjunto va vacío", async () => {
+      await guardarFruta({ acidez: "medium" });
+
+      expect(await getPostcosechaIdsWithErrors(db)).toEqual(new Set());
+    });
+
+    it("señala la evaluación marcada, no la plantación entera", async () => {
+      await conFechaImposible("15caja");
+      await guardarFruta({ acidez: "medium" }, "30caja");
+
+      expect(await getPostcosechaIdsWithErrors(db)).toEqual(
+        new Set([postcosechaKey("p1", "15caja")]),
+      );
+    });
+
+    // La marca se quita sola al corregir, igual que se puso.
+    it("deja de señalarla al guardar la fecha buena", async () => {
+      await conFechaImposible("15caja");
+      await guardarFruta(
+        { fecha_empaque: "2026-09-29", fecha_evaluacion: "2026-10-14" },
+        "15caja",
+      );
+
+      expect(await getPostcosechaIdsWithErrors(db)).toEqual(new Set());
+    });
+
+    it("distingue plantaciones", async () => {
+      await conFechaImposible("15caja", "p2");
+
+      expect(await getPostcosechaIdsWithErrors(db)).toEqual(
+        new Set([postcosechaKey("p2", "15caja")]),
+      );
     });
   });
 

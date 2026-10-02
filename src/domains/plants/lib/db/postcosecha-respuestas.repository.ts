@@ -215,3 +215,25 @@ export const getPostcosechaProgress = async (
     ]),
   );
 };
+
+/**
+ * Las evaluaciones con alguna captura marcada con un dato imposible, por
+ * `plantId:evalId` (`postcosechaKey`).
+ *
+ * SQL puro contra la columna `hasError`: no abre un solo `payload`, igual que su
+ * hermana de tratamiento. **Sin índice parcial**, al revés que allí: esta tabla
+ * tiene como mucho dos filas por evaluación y cuatro evaluaciones por
+ * plantación, así que recorrerla entera no es nada y un índice sería ruido en el
+ * esquema. El día que crezca, es un `CREATE INDEX` de una línea sobre
+ * `(plantId, evalId) WHERE hasError = 1` — la columna ya está al día, así que no
+ * necesitaría backfill.
+ */
+export const getPostcosechaIdsWithErrors = async (
+  db: SQLiteDatabase,
+): Promise<Set<string>> => {
+  const rows = await db.getAllAsync<{ plantId: string; evalId: string }>(
+    "SELECT DISTINCT plantId, evalId FROM postcosecha_respuestas WHERE hasError = 1",
+  );
+
+  return new Set(rows.map((row) => postcosechaKey(row.plantId, row.evalId)));
+};
