@@ -138,7 +138,7 @@ export function TratamientoChip({
               "h-full",
               // Con un dato imposible el chip ya está en rojo; un relleno verde
               // encima lo dejaría de dos colores sin querer decir nada nuevo.
-              hasError ? "bg-destructive/20" : "bg-leaf/30 ",
+              hasError ? "bg-destructive/15" : "bg-leaf/20 ",
             )}
           />
         </View>
