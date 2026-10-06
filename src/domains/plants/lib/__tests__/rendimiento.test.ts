@@ -47,10 +47,10 @@ describe("summarizeRendimiento", () => {
     expect(registeredCount).toBe(1);
   });
 
-  it("promedia los kilogramos entre los racimos", () => {
+  it("promedia los gramos entre los racimos", () => {
     const { cortes } = summarizeRendimiento([COMPLETO]);
 
-    expect(cortes[0].average).toBeCloseTo(412.5 / 318);
+    expect(cortes[0].average).toBeCloseTo((412.5 / 318) * 1000);
   });
 
   it("deja vacío el promedio mientras falte un dato", () => {
