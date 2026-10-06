@@ -305,7 +305,7 @@ export function EvalRendimiento() {
                   ? "No aplica"
                   : formatAveragePerRacimo(corte.average)}
               </Text>
-              {corte.average !== null && <Text variant="muted">kg</Text>}
+              {corte.average !== null && <Text variant="muted">g</Text>}
             </View>
           </View>
         ))}

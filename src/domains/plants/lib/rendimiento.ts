@@ -120,7 +120,7 @@ export function summarizeRendimiento(
         racimos === 0,
       average:
         kilogramos !== null && racimos !== null && racimos > 0
-          ? kilogramos / racimos
+          ? (kilogramos / racimos) * 1000
           : null,
       complete: corte.fecha !== "" && kilogramos !== null && racimos !== null,
     };
