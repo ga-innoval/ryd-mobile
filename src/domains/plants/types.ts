@@ -124,6 +124,12 @@ export interface Plant extends Omit<PlantWithTratamientos, "tratamientos"> {
    * revisar, no que haya alguna.
    */
   postcosechaWithError: string[];
+  /**
+   * Las evaluaciones cuya caja ya tiene fecha de empaque, por su `id` del
+   * catálogo. La tarjeta las señala: la caja entró, aunque la evaluación esté
+   * sin terminar.
+   */
+  postcosechaEmpacada: string[];
 }
 
 export type MatchableField =

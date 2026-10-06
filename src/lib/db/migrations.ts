@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 8;
+const DATABASE_VERSION = 9;
 
 export async function runMigrations(db: SQLiteDatabase) {
   await db.execAsync("PRAGMA foreign_keys = ON");
@@ -242,10 +242,25 @@ export async function runMigrations(db: SQLiteDatabase) {
     currentVersion = 8;
   }
 
+  if (currentVersion === 8) {
+    // Si esa evaluación ya tiene fecha de empaque. Columna y no `json_extract`
+    // sobre el payload: el listado lo pregunta de todas las plantaciones a la
+    // vez, y el diseño no depende de las funciones JSON de SQLite —la misma
+    // razón por la que `progress` y `hasError` se escriben al guardar—.
+    //
+    // Como `hasError` en la v4: las filas escritas antes nacen en 0 aunque su
+    // payload traiga la fecha, y se corrigen solas en cuanto esa sección se
+    // vuelve a guardar. Sin backfill, que no hay datos en producción.
+    await db.execAsync(
+      `ALTER TABLE postcosecha_respuestas ADD COLUMN empacada INTEGER NOT NULL DEFAULT 0`,
+    );
+    currentVersion = 9;
+  }
+
   // Próxima migración. ej:
-  // if (currentVersion === 8) {
+  // if (currentVersion === 9) {
   //   await db.execAsync(`CREATE TABLE IF NOT EXISTS newTable (...)`);
-  //   currentVersion = 9;
+  //   currentVersion = 10;
   // }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

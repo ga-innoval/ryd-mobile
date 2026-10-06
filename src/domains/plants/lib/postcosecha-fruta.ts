@@ -235,6 +235,22 @@ export function summarizeFrutaPesos(values: FrutaValues): FrutaPesosSummary {
   };
 }
 
+/**
+ * Si la caja ya tiene fecha de empaque.
+ *
+ * Es lo primero que se captura de una evaluación —la fecha que trae la caja—, y
+ * por eso la tarjeta del listado la señala: dice que esa caja ya entró aunque la
+ * evaluación esté sin terminar.
+ *
+ * Recibe `unknown` porque se le pregunta por lo que sale de SQLite: lo que no
+ * encaje con la forma esperada se responde que no.
+ */
+export function frutaEmpacada(payload: unknown): boolean {
+  if (payload === null || typeof payload !== "object") return false;
+
+  return ((payload as Partial<FrutaValues>).fecha_empaque ?? "") !== "";
+}
+
 /** Si alguno de los cuatro pesos no puede ser cierto. */
 export function frutaPesosHasError(values: FrutaValues): boolean {
   const { errors } = summarizeFrutaPesos(values);

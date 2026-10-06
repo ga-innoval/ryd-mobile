@@ -7,6 +7,7 @@ import {
   getTratamientoProgress,
 } from "../lib/db/respuestas.repository";
 import {
+  getPostcosechaEmpacadas,
   getPostcosechaIdsWithErrors,
   getPostcosechaProgress,
 } from "../lib/db/postcosecha-respuestas.repository";
@@ -34,14 +35,21 @@ export function usePlants() {
   return useQuery({
     queryKey: PLANTS_QUERY_KEY,
     queryFn: async () => {
-      const [plants, withErrors, progress, postcosecha, postcosechaErrors] =
-        await Promise.all([
-          getAllPlants(db),
-          getTratamientoIdsWithErrors(db),
-          getTratamientoProgress(db),
-          getPostcosechaProgress(db),
-          getPostcosechaIdsWithErrors(db),
-        ]);
+      const [
+        plants,
+        withErrors,
+        progress,
+        postcosecha,
+        postcosechaErrors,
+        empacadas,
+      ] = await Promise.all([
+        getAllPlants(db),
+        getTratamientoIdsWithErrors(db),
+        getTratamientoProgress(db),
+        getPostcosechaProgress(db),
+        getPostcosechaIdsWithErrors(db),
+        getPostcosechaEmpacadas(db),
+      ]);
 
       return plants.map((plant) => {
         const tratamientos = plant.tratamientos.map((tratamiento) => ({
@@ -72,6 +80,9 @@ export function usePlants() {
           postcosecha: avancePostcosecha,
           postcosechaWithError: EVALS_POST_COSECHA.filter((item) =>
             postcosechaErrors.has(postcosechaKey(plant.id, item.id)),
+          ).map((item) => item.id),
+          postcosechaEmpacada: EVALS_POST_COSECHA.filter((item) =>
+            empacadas.has(postcosechaKey(plant.id, item.id)),
           ).map((item) => item.id),
         };
       });
