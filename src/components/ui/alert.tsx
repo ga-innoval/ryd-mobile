@@ -21,6 +21,11 @@ const alertVariants = cva(
         // que no cuadra. Ámbar y no rojo porque el dato sigue contando; el rojo
         // queda para lo que no puede ser cierto.
         warning: "border-warn/20 bg-warn-background",
+        // Algo que salió bien. No la usa ningún aviso del formulario —ahí no
+        // hay nada que celebrar a media captura—; existe para el toast, que sí
+        // tiene que decir que la descarga terminó. Sale de los tokens que ya
+        // hay: el verde claro de `secondary` con el verde de la app encima.
+        success: "border-leaf/20 bg-leaf-background",
       },
     },
     defaultVariants: {
@@ -35,6 +40,7 @@ const alertIconVariants = cva("size-4", {
       default: "",
       destructive: "text-destructive",
       warning: "text-warn",
+      success: "text-primary",
     },
   },
   defaultVariants: {
@@ -49,6 +55,7 @@ const alertTextVariants = cva("text-sm text-foreground font-medium", {
       default: "",
       destructive: "text-destructive",
       warning: "text-amber-800",
+      success: "text-primary",
     },
   },
   defaultVariants: {
@@ -56,21 +63,30 @@ const alertTextVariants = cva("text-sm text-foreground font-medium", {
   },
 });
 
-const alertDescriptionVariants = cva(
-  "text-muted-foreground ml-0.5 pb-1.5 pl-6 text-sm leading-relaxed",
-  {
-    variants: {
-      variant: {
-        default: "",
-        destructive: "text-destructive",
-        warning: "text-amber-800",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
+/**
+ * El color del cuerpo, **aparte del sangrado**.
+ *
+ * Partido en dos porque el toast usa estos mismos colores con otra disposición:
+ * allí el icono es un hermano en la fila y no hay bajo qué sangrar, así que
+ * heredar el `pl-6` le dejaría el texto descolgado.
+ */
+const alertDescriptionColorVariants = cva("", {
+  variants: {
+    variant: {
+      default: "text-muted-foreground",
+      destructive: "text-destructive",
+      warning: "text-amber-800",
+      success: "text-primary",
     },
   },
-);
+  defaultVariants: {
+    variant: "default",
+  },
+});
+
+/** El sangrado del cuerpo, que es igual en las cuatro variantes: deja sitio al
+ *  icono, que va absoluto a la izquierda. */
+const ALERT_DESCRIPTION_CN = "ml-0.5 pb-1.5 pl-6 text-sm leading-relaxed";
 
 type AlertVariant = NonNullable<VariantProps<typeof alertVariants>["variant"]>;
 
@@ -141,10 +157,26 @@ function AlertDescription({
 
   return (
     <Text
-      className={cn(alertDescriptionVariants({ variant }), className)}
+      className={cn(
+        ALERT_DESCRIPTION_CN,
+        alertDescriptionColorVariants({ variant }),
+        className,
+      )}
       {...props}
     />
   );
 }
 
-export { Alert, AlertDescription, AlertTitle };
+export {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  // Las variantes salen fuera para que el toast se pinte con ellas en vez de con
+  // una copia: son el mismo vocabulario —esto va mal, esto es raro, esto salió
+  // bien— y dos copias acaban diciéndolo con dos rojos distintos.
+  alertVariants,
+  alertIconVariants,
+  alertTextVariants,
+  alertDescriptionColorVariants,
+  type AlertVariant,
+};
