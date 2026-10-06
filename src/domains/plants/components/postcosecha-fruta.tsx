@@ -81,6 +81,9 @@ function EscalaPicker({
       <OptionPicker
         label={label}
         options={ESCALA_OPTIONS}
+        // Cinco dígitos no necesitan un cuarto de fila cada uno, y además en
+        // `extended` el quinto se iría a la línea de abajo.
+        variant="compressed"
         value={value === undefined ? undefined : String(value)}
         onChange={(next) =>
           onChange(next === undefined ? undefined : Number(next))
@@ -403,6 +406,13 @@ export function PostcosechaFrutaForm({
       />
 
       <Separator />
+      <EscalaPicker
+        label="Calidad de tallo"
+        value={values.tallo}
+        onChange={(value) => set("tallo", value)}
+      />
+
+      <Separator />
       <OptionPicker
         label="Daño por azufre"
         options={NIVEL_MASCULINO}
@@ -419,13 +429,7 @@ export function PostcosechaFrutaForm({
       />
 
       <Separator />
-      <EscalaPicker
-        label="Calidad de tallo"
-        value={values.tallo}
-        onChange={(value) => set("tallo", value)}
-      />
 
-      <Separator />
       <EscalaPicker
         label="Calidad de consumo"
         value={values.calidad_consumo}
