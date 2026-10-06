@@ -142,12 +142,12 @@ describe("postcosecha-respuestas.repository", () => {
       expect(await derivados(db)).toMatchObject({ hasError: 0 });
     });
 
-    // 1 de 11 → 9 %, y no el peso que esa sección tiene dentro de la
+    // 1 de 12 → 8 %, y no el peso que esa sección tiene dentro de la
     // evaluación: la columna guarda su propio relleno y quien la lee aplica el
     // peso. Una sección en blanco guarda 0.
     it("escribe el relleno de la sección, no su peso en la evaluación", async () => {
       await guardarFruta({ acidez: "medium" });
-      expect(await derivados(db)).toMatchObject({ progress: 9 });
+      expect(await derivados(db)).toMatchObject({ progress: 8 });
 
       await guardarFruta();
       expect(await derivados(db)).toMatchObject({ progress: 0 });
@@ -188,7 +188,7 @@ describe("postcosecha-respuestas.repository", () => {
 
       expect(
         (await getPostcosechaProgress(db)).get(postcosechaKey("p1", "15caja")),
-      ).toBeCloseTo(1 / 12);
+      ).toBeCloseTo(1 / 13);
     });
 
     /**
@@ -201,7 +201,7 @@ describe("postcosecha-respuestas.repository", () => {
 
       expect(
         (await getPostcosechaProgress(db)).get(postcosechaKey("p1", "30caja")),
-      ).toBeCloseTo(1 / 12);
+      ).toBeCloseTo(1 / 13);
     });
 
     it("no suma las cuatro evaluaciones entre ellas", async () => {
@@ -211,9 +211,9 @@ describe("postcosecha-respuestas.repository", () => {
 
       const avance = await getPostcosechaProgress(db);
 
-      expect(avance.get(postcosechaKey("p1", "15caja"))).toBeCloseTo(2 / 12);
+      expect(avance.get(postcosechaKey("p1", "15caja"))).toBeCloseTo(2 / 13);
       expect(avance.get(postcosechaKey("p1", "30plastico"))).toBeCloseTo(
-        1 / 12,
+        1 / 13,
       );
     });
 
@@ -223,8 +223,8 @@ describe("postcosecha-respuestas.repository", () => {
 
       const avance = await getPostcosechaProgress(db);
 
-      expect(avance.get(postcosechaKey("p1", "15caja"))).toBeCloseTo(1 / 12);
-      expect(avance.get(postcosechaKey("p2", "15caja"))).toBeCloseTo(1 / 12);
+      expect(avance.get(postcosechaKey("p1", "15caja"))).toBeCloseTo(1 / 13);
+      expect(avance.get(postcosechaKey("p2", "15caja"))).toBeCloseTo(1 / 13);
     });
   });
 
