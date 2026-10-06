@@ -54,12 +54,62 @@ describe("evaluationErrors", () => {
     expect(evaluationErrors(values)).toEqual(["criba", "rendimiento"]);
   });
 
-  // Los otros cuatro avisos siguen siendo avisos: la captura vale igual.
+  /**
+   * Los dos avisos que siguen siendo avisos, porque no dependen de un número
+   * que el negocio haya fijado: una muestra que no pesa ni 1.5 ni 2.5 kg, y un
+   * promedio por baya menor que el del calibre anterior.
+   */
   it("no convierte en error lo que solo está fuera de lo habitual", () => {
     const values = buildEvaluationDefaults();
-    // Un calibre de un kilo y una muestra que no pesa 1.5 ni 2.5 kg.
-    values.criba.calibres[0] = { total: "1000", average: "5" };
-    values.brix.cortes[0].readings[0] = "99";
+    // Entre los dos no llegan a 1.5 kg, y el segundo promedio baja.
+    values.criba.calibres[0] = { total: "500", average: "5" };
+    values.criba.calibres[1] = { total: "400", average: "4" };
+
+    expect(evaluationErrors(values)).toEqual([]);
+  });
+
+  // Los rangos que fijó el negocio: fuera de ellos ya no se avisa, se bloquea.
+  it("marca Brix fuera de su rango", () => {
+    const values = buildEvaluationDefaults();
+    values.brix.cortes[0].readings[0] = "31";
+
+    expect(evaluationErrors(values)).toEqual(["brix"]);
+  });
+
+  it("marca el calibre que pasa de cuatro kilos y el promedio imposible", () => {
+    const values = buildEvaluationDefaults();
+    values.criba.calibres[0] = { total: "4500", average: "5" };
+
+    expect(evaluationErrors(values)).toEqual(["criba"]);
+
+    values.criba.calibres[0] = { total: "900", average: "0.4" };
+
+    expect(evaluationErrors(values)).toEqual(["criba"]);
+  });
+
+  it("marca el corte fuera de los rangos de rendimiento", () => {
+    const values = buildEvaluationDefaults();
+    values.rendimiento.cortes[0] = {
+      fecha: "2026-09-29",
+      kilogramos: "600",
+      racimos: "300",
+    };
+
+    expect(evaluationErrors(values)).toEqual(["rendimiento"]);
+  });
+
+  /**
+   * **Un corte sin fruta sigue siendo válido**: 0 kg con 0 racimos es un corte
+   * que se cosechó y no dio nada, y tiene que poder registrarse. Es la
+   * excepción a los dos rangos, y lo que este test defiende.
+   */
+  it("no marca el corte que no dio fruta", () => {
+    const values = buildEvaluationDefaults();
+    values.rendimiento.cortes[0] = {
+      fecha: "2026-09-29",
+      kilogramos: "0",
+      racimos: "0",
+    };
 
     expect(evaluationErrors(values)).toEqual([]);
   });

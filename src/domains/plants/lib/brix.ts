@@ -23,7 +23,7 @@ export const BRIX_PAIRS_PER_CORTE = BRIX_READINGS_PER_CORTE / 2;
  * avisa, pero la lectura cuenta igual: podría ser real, y descartarla en
  * silencio sería peor que mostrar un promedio raro.
  */
-export const BRIX_EXPECTED_RANGE = { min: 5, max: 35 } as const;
+export const BRIX_VALID_RANGE = { min: 14.5, max: 30 } as const;
 
 /** Suficiente para "18.25"; lo que pase de ahí es un error de tecleo. */
 const MAX_INPUT_LENGTH = 6;
@@ -67,17 +67,22 @@ export function sanitizeBrixInput(text: string): string {
 }
 
 /**
- * El rango habitual, como esquema para el **aviso**, no para el guardado.
+ * El rango de una lectura válida, **como error**: fuera de él el dato no puede
+ * ser cierto y la evaluación no se puede dar por terminada.
  *
- * Va aparte del esquema del formulario y así debe seguir: una lectura fuera
- * de rango se avisa pero cuenta igual (ver `BRIX_EXPECTED_RANGE`). Metido en el
- * resolver, se convertiría en un error que impediría guardar una lectura que
- * podría ser real.
+ * Antes era un aviso ámbar sobre 5–35 °Brix, un rango que el negocio nunca
+ * confirmó. Ahora el negocio fijó el suyo y pasa a rojo, así que esta regla
+ * decide si la sección entra en la cola del push (ver `evaluation-errors.ts`).
+ *
+ * **Sigue fuera del esquema del formulario** y así debe seguir: un error no
+ * impide guardar —SQLite es la libreta del evaluador—, impide dar por terminado.
+ * Metido en el resolver, bloquearía la escritura de un dato que hay que poder
+ * corregir luego.
  */
 export const brixReadingRangeSchema = z
   .number()
-  .min(BRIX_EXPECTED_RANGE.min)
-  .max(BRIX_EXPECTED_RANGE.max);
+  .min(BRIX_VALID_RANGE.min)
+  .max(BRIX_VALID_RANGE.max);
 
 /** Un corte completo: sus diez lecturas, en orden. */
 export const brixCorteSchema = z.object({
@@ -91,6 +96,26 @@ export function parseBrixReading(text: string): number | null {
 
 export function isBrixOutOfRange(value: number): boolean {
   return !brixReadingRangeSchema.safeParse(value).success;
+}
+
+/**
+ * Si algún corte trae una lectura imposible.
+ *
+ * Recibe el payload como `unknown` porque se le pregunta también por lo que sale
+ * de SQLite: lo que no encaje con la forma esperada no es un error, es algo que
+ * esta regla no sabe leer.
+ */
+export function brixHasError(payload: unknown): boolean {
+  const cortes = (payload as { cortes?: BrixCorte[] } | undefined)?.cortes;
+  if (!Array.isArray(cortes)) return false;
+
+  return cortes.some((corte) =>
+    (corte.readings ?? []).some((reading) => {
+      const value = parseBrixReading(reading);
+
+      return value !== null && isBrixOutOfRange(value);
+    }),
+  );
 }
 
 function mean(values: number[]): number | null {

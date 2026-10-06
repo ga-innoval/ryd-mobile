@@ -132,20 +132,41 @@ describe("summarizeCriba", () => {
     expect(calibres[2].belowPrevious).toBe(false);
   });
 
-  // Un kilo en un solo calibre no cabe en una muestra de kilo y medio: casi
-  // siempre es un punto decimal que faltó.
-  it("avisa del peso total de un calibre a partir de un kilo", () => {
-    const { calibres } = summarizeCriba(criba(["1000", ""], ["999.9", ""]));
+  // El tope que fijó el negocio: 4 kg en un solo calibre. Justo en el tope
+  // todavía vale; lo que pasa de ahí, no.
+  it("marca el peso total que pasa de cuatro kilos", () => {
+    const { calibres } = summarizeCriba(criba(["4000.1", ""], ["4000", ""]));
 
     expect(calibres[0].totalOutOfRange).toBe(true);
     expect(calibres[1].totalOutOfRange).toBe(false);
   });
 
-  it("no avisa del peso total que se está tecleando", () => {
-    // Camino de "100.5", el "1000" intermedio no es un error todavía.
+  it("no marca el peso total que se está tecleando", () => {
+    // Camino de "400.5", el "4005" intermedio no es un error todavía.
     expect(
-      summarizeCriba(criba(["1000", ""]), 0).calibres[0].totalOutOfRange,
+      summarizeCriba(criba(["4005", ""]), 0).calibres[0].totalOutOfRange,
     ).toBe(false);
+  });
+
+  // Lo que puede pesar una baya. Los extremos entran; fuera de ellos es un
+  // punto decimal de más o de menos.
+  it("marca el promedio por baya fuera de rango", () => {
+    const { calibres } = summarizeCriba(
+      criba(["900", "0.4"], ["900", "30.1"], ["900", "0.5"], ["900", "30"]),
+    );
+
+    expect(calibres[0].averageOutOfRange).toBe(true);
+    expect(calibres[1].averageOutOfRange).toBe(true);
+    expect(calibres[2].averageOutOfRange).toBe(false);
+    expect(calibres[3].averageOutOfRange).toBe(false);
+  });
+
+  // Un calibre pesado en 0 g no tiene bayas que pesar: su promedio vacío no es
+  // un dato imposible, es uno que no aplica.
+  it("no marca el promedio que falta", () => {
+    expect(summarizeCriba(criba(["0", ""])).calibres[0].averageOutOfRange).toBe(
+      false,
+    );
   });
 
   it("da por buena la muestra que pesa uno de los dos", () => {
@@ -229,16 +250,22 @@ describe("firstCribaWarning", () => {
     expect(warning(["1000000", ""])).toBe("totalOutOfRange");
   });
 
-  // Lo imposible va antes que lo raro: el promedio que no cabe en su calibre
-  // es error, y el peso desmedido solo un aviso.
+  // Los tres imposibles van antes que los dos avisos, y entre ellos manda el
+  // promedio que no cabe en su calibre.
   it("enseña el error antes que cualquier aviso", () => {
     expect(warning(["1000000", "2000000"])).toBe("overTotal");
+  });
+
+  it("sabe cuáles bloquean y cuáles solo avisan", () => {
     expect(isCribaError("overTotal")).toBe(true);
-    expect(isCribaError("totalOutOfRange")).toBe(false);
+    expect(isCribaError("totalOutOfRange")).toBe(true);
+    expect(isCribaError("averageOutOfRange")).toBe(true);
+    expect(isCribaError("sampleOutOfRange")).toBe(false);
+    expect(isCribaError("belowPrevious")).toBe(false);
   });
 
   it("enseña la muestra una vez arreglado el peso total", () => {
-    // Ningún calibre llega al kilo, pero entre los tres pasan de 2.5.
+    // Ningún calibre llega al tope, pero entre los tres pasan de 2.5 kg.
     expect(warning(["900", ""], ["900", ""], ["900", ""])).toBe(
       "sampleOutOfRange",
     );

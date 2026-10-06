@@ -19,6 +19,8 @@ import { TextButton } from "@/components/ui/text-button";
 import { cn } from "@/lib/utils";
 import {
   createRendimientoCorte,
+  RENDIMIENTO_KILOS_RANGE,
+  RENDIMIENTO_RACIMOS_RANGE,
   formatAveragePerRacimo,
   formatKilos,
   sanitizeKilogramos,
@@ -186,8 +188,21 @@ export function EvalRendimiento() {
   const [focused, setFocused] = useState<number | null>(null);
 
   const summary = summarizeRendimiento(rows, typing?.index ?? null);
-  const hasError = summary.cortes.some((corte) => corte.zeroRacimos);
+  const hasError = summary.cortes.some(
+    (corte) =>
+      corte.zeroRacimos ||
+      corte.racimosOutOfRange ||
+      corte.kilogramosOutOfRange,
+  );
   const lastFieldIndex = summary.cortes.length * FIELDS_PER_CORTE - 1;
+
+  // Uno a la vez y el más concreto primero, como en Criba: dos alertas sobre la
+  // misma fila se leen como dos problemas distintos.
+  const errorText = summary.cortes.some((corte) => corte.zeroRacimos)
+    ? "Hay kilogramos capturados y el conteo dice cero racimos: revisa el conteo."
+    : summary.cortes.some((corte) => corte.racimosOutOfRange)
+      ? `El conteo de racimos tiene que estar entre ${RENDIMIENTO_RACIMOS_RANGE.min} y ${RENDIMIENTO_RACIMOS_RANGE.max}.`
+      : `Los kilogramos de un corte tienen que ser más de ${RENDIMIENTO_KILOS_RANGE.min} y menos de ${RENDIMIENTO_KILOS_RANGE.max}.`;
 
   const addCorte = () => {
     // El corte nuevo llega vacío y sin enfocar: por defecto RHF enfocaría su
@@ -262,9 +277,14 @@ export function EvalRendimiento() {
                     suffix={suffix}
                     className={FIELD_CN[key]}
                     accessibilityLabel={`${label} del corte ${corte.numero}`}
-                    // El error es del conteo: los kilogramos están, y decir que
-                    // los dieron cero racimos es imposible.
-                    warn={key === "racimos" && corte.zeroRacimos}
+                    // Cada celda marca lo suyo: el conteo imposible —cero
+                    // racimos con kilos, o más de los que fijó el negocio— y el
+                    // peso fuera de su rango.
+                    warn={
+                      key === "racimos"
+                        ? corte.zeroRacimos || corte.racimosOutOfRange
+                        : key === "kilogramos" && corte.kilogramosOutOfRange
+                    }
                     isFocused={focused === fieldIndex}
                     isLast={fieldIndex === lastFieldIndex}
                     // Teclear cualquier dato cancela un descarte pendiente:
@@ -349,10 +369,7 @@ export function EvalRendimiento() {
         // que faltan habla el avance de la sección, y una alerta por cada hueco
         // sería una alerta permanente.
         <Alert variant="destructive" icon={CircleAlertIcon}>
-          <AlertDescription>
-            Hay kilogramos capturados y el conteo dice cero racimos: revisa el
-            conteo.
-          </AlertDescription>
+          <AlertDescription>{errorText}</AlertDescription>
         </Alert>
       )}
 

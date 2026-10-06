@@ -1,3 +1,4 @@
+import { brixHasError } from "./brix";
 import { summarizeCriba } from "./criba";
 import { summarizeRendimiento } from "./rendimiento";
 import type {
@@ -11,17 +12,21 @@ import type {
  * La diferencia con los avisos ámbar es esa: un aviso dice que algo se sale de
  * lo habitual y la captura vale igual —el rango de Brix, la muestra que no pesa
  * 1.5 ni 2.5 kg—; un error dice que el dato no puede ser cierto, se mire como
- * se mire. Hoy son dos:
+ * se mire. Están repartidos en tres secciones:
  *
- * - **Criba**, el promedio por baya mayor que el peso total de su calibre: una
- *   baya no pesa más que todo lo que cayó en su calibre.
- * - **Rendimiento**, kilogramos cosechados con el conteo de racimos en cero: la
- *   fruta salió de algún sitio. Que el conteo esté **sin capturar** no entra
- *   aquí: eso es un dato que falta, no uno imposible, y avisa en ámbar.
+ * - **Brix**, una lectura fuera de `BRIX_VALID_RANGE` (14.5–30 °Brix).
+ * - **Criba**, el promedio por baya mayor que el peso total de su calibre —una
+ *   baya no pesa más que todo lo que cayó en su calibre—, un calibre que pasa
+ *   de 4 kg, y un promedio por baya fuera de 0.5–30 g.
+ * - **Rendimiento**, kilogramos cosechados con el conteo de racimos en cero —la
+ *   fruta salió de algún sitio—, y los dos rangos que fijó el negocio: de 1 a
+ *   500 racimos y un peso mayor que cero y menor que 500 kg. Que un dato esté
+ *   **sin capturar** no entra aquí: eso es un dato que falta, no uno imposible.
  *
- * Los otros cuatro avisos siguen siendo avisos hasta que el negocio confirme
- * sus números —cuánta diferencia se le admite a la muestra, a partir de qué
- * peso un calibre es imposible y no solo raro, y el rango real de Brix—.
+ * Los números los fijó el negocio; hasta entonces eran avisos ámbar sobre
+ * rangos sin confirmar. Siguen siendo avisos los dos que no dependen de un
+ * número suyo: el peso de muestra que no cuadra y el promedio que rompe la
+ * progresión de calibres.
  *
  * **Un error no impide guardar.** SQLite es la libreta del evaluador y ahí cabe
  * todo; lo que impide es dar el tratamiento por terminado y mandarlo. Por eso
@@ -40,11 +45,11 @@ export function evaluationErrors(
 }
 
 /**
- * Las únicas secciones que pueden traer un error. Que sean dos —y no las seis—
+ * Las únicas secciones que pueden traer un error. Que sean tres —y no las seis—
  * es lo que deja preguntarlo fila a fila en `respuestas` sin reconstruir la
  * evaluación entera: cada regla cabe dentro de su propia sección.
  */
-export const ERROR_SECTIONS = ["criba", "rendimiento"] as const;
+export const ERROR_SECTIONS = ["brix", "criba", "rendimiento"] as const;
 
 type ErrorSection = (typeof ERROR_SECTIONS)[number];
 
@@ -60,12 +65,16 @@ export function seccionHasError(seccion: string, payload: unknown): boolean {
   // Sin `typingIndex`: esto no describe lo que se está tecleando sino lo que
   // hay capturado. Quien quiera silencio mientras se escribe se lo da por su
   // lado, mirando valores ya reposados.
+  if (seccion === "brix") return brixHasError(payload);
+
   if (seccion === "criba") {
     const calibres = (payload as EvaluationFormValues["criba"] | undefined)
       ?.calibres;
     if (!Array.isArray(calibres)) return false;
 
-    return summarizeCriba(calibres).calibres.some((c) => c.overTotal);
+    return summarizeCriba(calibres).calibres.some(
+      (c) => c.overTotal || c.totalOutOfRange || c.averageOutOfRange,
+    );
   }
 
   if (seccion === "rendimiento") {
@@ -73,7 +82,9 @@ export function seccionHasError(seccion: string, payload: unknown): boolean {
       ?.cortes;
     if (!Array.isArray(cortes)) return false;
 
-    return summarizeRendimiento(cortes).cortes.some((c) => c.zeroRacimos);
+    return summarizeRendimiento(cortes).cortes.some(
+      (c) => c.zeroRacimos || c.racimosOutOfRange || c.kilogramosOutOfRange,
+    );
   }
 
   return false;

@@ -1,10 +1,11 @@
 import {
-  BRIX_EXPECTED_RANGE,
+  BRIX_VALID_RANGE,
   BRIX_READINGS_PER_CORTE,
   canAddBrixCorte,
   canRemoveBrixCorte,
   createBrixCorte,
   formatBrix,
+  brixHasError,
   isBrixOutOfRange,
   parseBrixReading,
   sanitizeBrixInput,
@@ -68,14 +69,20 @@ describe("parseBrixReading", () => {
 });
 
 describe("isBrixOutOfRange", () => {
+  // El rango que fijó el negocio. Fuera de él la lectura no puede ser cierta y
+  // la sección no entra en la cola del push, así que el número importa.
+  it("es el rango que fijó el negocio", () => {
+    expect(BRIX_VALID_RANGE).toEqual({ min: 14.5, max: 30 });
+  });
+
   it("toma los extremos del rango como dentro", () => {
-    expect(isBrixOutOfRange(BRIX_EXPECTED_RANGE.min)).toBe(false);
-    expect(isBrixOutOfRange(BRIX_EXPECTED_RANGE.max)).toBe(false);
+    expect(isBrixOutOfRange(BRIX_VALID_RANGE.min)).toBe(false);
+    expect(isBrixOutOfRange(BRIX_VALID_RANGE.max)).toBe(false);
   });
 
   it("marca lo que queda por debajo o por encima", () => {
-    expect(isBrixOutOfRange(BRIX_EXPECTED_RANGE.min - 0.01)).toBe(true);
-    expect(isBrixOutOfRange(BRIX_EXPECTED_RANGE.max + 0.01)).toBe(true);
+    expect(isBrixOutOfRange(BRIX_VALID_RANGE.min - 0.01)).toBe(true);
+    expect(isBrixOutOfRange(BRIX_VALID_RANGE.max + 0.01)).toBe(true);
   });
 });
 
@@ -248,5 +255,25 @@ describe("formatBrix", () => {
   // En binario 59.725 queda en 59.72499…, y `toFixed` a secas daría "59.72".
   it("redondea la mitad hacia arriba, como la cuenta a mano", () => {
     expect(formatBrix((18.4 + 101.05) / 2)).toBe("59.73");
+  });
+});
+
+describe("brixHasError", () => {
+  const corte = (readings: string[]) => ({ cortes: [{ readings }] });
+
+  it("una lectura fuera de rango marca la sección", () => {
+    expect(brixHasError(corte(["14.4"]))).toBe(true);
+    expect(brixHasError(corte(["30.1"]))).toBe(true);
+  });
+
+  it("dentro del rango, ninguna", () => {
+    expect(brixHasError(corte(["14.5", "22", "30"]))).toBe(false);
+  });
+
+  // Lo que falta no es un dato imposible, y lo que no sabe leer tampoco.
+  it("calla con lo vacío y con lo que no sabe leer", () => {
+    expect(brixHasError(corte(["", "."]))).toBe(false);
+    expect(brixHasError(undefined)).toBe(false);
+    expect(brixHasError({ cortes: "vaya" })).toBe(false);
   });
 });
