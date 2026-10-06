@@ -18,7 +18,7 @@ export const EVALS_POST_COSECHA: PostCosechaEval[] = [
   {
     id: "15plastico",
     title: "15 días",
-    subtitle: "Plástico",
+    subtitle: "Liner",
   },
   {
     id: "30caja",
@@ -28,6 +28,6 @@ export const EVALS_POST_COSECHA: PostCosechaEval[] = [
   {
     id: "30plastico",
     title: "30 días",
-    subtitle: "Plástico",
+    subtitle: "Liner",
   },
 ];

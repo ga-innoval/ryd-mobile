@@ -39,21 +39,12 @@ import {
   type FrutaValues,
 } from "../lib/postcosecha-fruta";
 
-/**
- * TODO(escala): el diseño deja los extremos de las tres escalas como
- * `[MÍNIMO]` y `[MÁXIMO]` — el negocio todavía no ha dicho qué significan un 1
- * y un 5 en Tallo, Calidad de consumo y Sabor. Se enseñan así a propósito, para
- * que se vea que falta, en vez de inventar «Malo/Bueno» y que nadie lo revise.
- */
 const styles = StyleSheet.create({
   // Cifras de ancho fijo, para que los cuatro pesos queden en columna. En
   // `style` y no como clase: react-native-css-interop no traduce
   // `font-variant-numeric`, así que `tabular-nums` fallaría en silencio.
   tabular: { fontVariant: ["tabular-nums"] },
 });
-
-const ESCALA_MIN = "[MÍNIMO]";
-const ESCALA_MAX = "[MÁXIMO]";
 
 /**
  * Los cinco grados, como opciones.
@@ -95,9 +86,6 @@ function EscalaPicker({
           onChange(next === undefined ? undefined : Number(next))
         }
       />
-      <Text className="text-[13px] text-muted-foreground">
-        {`1 — ${ESCALA_MIN} · 5 — ${ESCALA_MAX}`}
-      </Text>
     </View>
   );
 }
@@ -177,14 +165,18 @@ function PesoField({
 }
 
 /**
- * Los tres resultados, en su propio bloque.
+ * Los tres resultados.
  *
  * **No son campos**: salen de los cuatro pesos y no se guardan, igual que el
- * peso de la muestra y la distribución de Criba. Por eso van juntos y aparte,
- * sobre el verde claro: lo que se captura se lee como una lista de preguntas, y
- * esto es lo que esa lista produce.
+ * peso de la muestra y la distribución de Criba.
  *
- * Cada uno lleva su leyenda, que es la que explica por qué falta cuando falta —
+ * Y se enseñan **con el mismo lenguaje que los R1–R5 de Brix**: el resultado
+ * vive en una píldora oscura y el campo que se teclea es claro, así que de un
+ * vistazo se distingue lo que escribió el evaluador de lo que sacó la app. Sin
+ * poder calcular, la píldora se apaga y enseña «—», igual que un par de lecturas
+ * incompleto.
+ *
+ * Cada uno lleva su leyenda, que es la que explica por qué falta cuando falta:
  * una raya sin motivo deja al evaluador buscando cuál de los cuatro pesos es.
  */
 function FrutaResultados({ pesos }: { pesos: FrutaPesosSummary }) {
@@ -198,30 +190,35 @@ function FrutaResultados({ pesos }: { pesos: FrutaPesosSummary }) {
     <View
       role="group"
       aria-label="Porcentajes calculados"
-      className="flex-row items-start gap-3 rounded-xl bg-secondary px-4 py-3"
+      className="flex-row items-start gap-2"
     >
       {resultados.map((resultado) => (
-        <View key={resultado.label} className="flex-1 gap-0.5">
+        <View key={resultado.label} className="flex-1 gap-2">
           <Text className="text-[13px] font-semibold text-muted-foreground">
             {resultado.label}
           </Text>
-          <View className="flex-row items-baseline gap-1">
+
+          <View
+            className={cn(
+              "h-10 flex-row items-center justify-center gap-1.5 rounded-lg",
+              resultado.value === null ? "bg-background" : "bg-foreground/90",
+            )}
+          >
             <Text
-              style={styles.tabular}
               className={cn(
-                "text-2xl font-bold",
-                resultado.value === null
-                  ? "text-muted-foreground"
-                  : "text-primary",
+                "text-lg font-bold text-white",
+                resultado.value === null && "text-muted-foreground",
               )}
+              style={styles.tabular}
             >
               {formatResultado(resultado.value)}
             </Text>
             {resultado.value !== null && (
-              <Text className="text-[15px] font-semibold text-primary">%</Text>
+              <Text className="text-sm font-semibold text-white/70">%</Text>
             )}
           </View>
-          <Text className="text-[13px] text-muted-foreground">
+
+          <Text className="text-[13px] text-muted-foreground -mt-0.5 mb-2">
             {resultado.caption}
           </Text>
         </View>
@@ -348,21 +345,7 @@ export function PostcosechaFrutaForm({
       )}
 
       <Separator />
-      <OptionPicker
-        label="Acidez"
-        options={NIVEL_FEMENINO}
-        value={values.acidez}
-        onChange={(value) => set("acidez", value)}
-      />
 
-      <Separator />
-      <EscalaPicker
-        label="Tallo"
-        value={values.tallo}
-        onChange={(value) => set("tallo", value)}
-      />
-
-      <Separator />
       {/* En el orden en que se pesa: la caja entera al entrar y al salir del
           cuarto frío, y después lo que se separa de ella. */}
       <View className="flex-row gap-4">
@@ -411,6 +394,15 @@ export function PostcosechaFrutaForm({
       <FrutaResultados pesos={pesos} />
 
       <Separator />
+
+      <OptionPicker
+        label="Acidez"
+        options={NIVEL_FEMENINO}
+        value={values.acidez}
+        onChange={(value) => set("acidez", value)}
+      />
+
+      <Separator />
       <OptionPicker
         label="Daño por azufre"
         options={NIVEL_MASCULINO}
@@ -428,6 +420,13 @@ export function PostcosechaFrutaForm({
 
       <Separator />
       <EscalaPicker
+        label="Calidad de tallo"
+        value={values.tallo}
+        onChange={(value) => set("tallo", value)}
+      />
+
+      <Separator />
+      <EscalaPicker
         label="Calidad de consumo"
         value={values.calidad_consumo}
         onChange={(value) => set("calidad_consumo", value)}
@@ -435,7 +434,7 @@ export function PostcosechaFrutaForm({
 
       <Separator />
       <EscalaPicker
-        label="Sabor"
+        label="Calidad de sabor"
         value={values.sabor}
         onChange={(value) => set("sabor", value)}
       />
