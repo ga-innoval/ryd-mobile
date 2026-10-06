@@ -154,7 +154,7 @@ export function TratamientoChip({
           <Icon
             as={hasError ? CircleXIcon : CircleCheckIcon}
             size={20}
-            strokeWidth={2.5}
+            strokeWidth={1.8}
             className={hasError ? "text-destructive" : "text-leaf"}
           />
         </View>
