@@ -1,14 +1,20 @@
-import { evaluacionAntesDelEmpaque, type FrutaValues } from "./postcosecha-fruta";
+import {
+  evaluacionAntesDelEmpaque,
+  frutaPesosHasError,
+  type FrutaValues,
+} from "./postcosecha-fruta";
 
 /**
  * Si el contenido de una sección de post-cosecha trae un dato **imposible**, no
  * solo raro.
  *
- * Hoy la regla es una sola y está en fruta: **la evaluación no puede ser
- * anterior al empaque**, porque la caja no se puede evaluar antes de existir.
- * Es el mismo criterio que separa errores de avisos en tratamiento —un aviso
- * dice que algo se sale de lo habitual y la captura vale igual; un error dice
- * que el dato no puede ser cierto—.
+ * Las reglas están todas en fruta, y son cuatro: **la evaluación no puede ser
+ * anterior al empaque** —la caja no se puede evaluar antes de existir— y los
+ * tres pesos imposibles (`summarizeFrutaPesos`): la fruta no sale del cuarto
+ * frío pesando más de lo que entró, y ninguna parte de la caja pesa más que la
+ * caja entera. Es el mismo criterio que separa errores de avisos en tratamiento
+ * —un aviso dice que algo se sale de lo habitual y la captura vale igual; un
+ * error dice que el dato no puede ser cierto—.
  *
  * Que la regla **quepa dentro de su propia sección** no es casualidad, es el
  * invariante del que vive la columna `hasError`: se puede preguntar fila a fila
@@ -33,8 +39,23 @@ export function postcosechaSeccionHasError(
 
   const fruta = payload as Partial<FrutaValues>;
 
-  return evaluacionAntesDelEmpaque(
-    fruta.fecha_empaque ?? "",
-    fruta.fecha_evaluacion ?? "",
-  );
+  if (
+    evaluacionAntesDelEmpaque(
+      fruta.fecha_empaque ?? "",
+      fruta.fecha_evaluacion ?? "",
+    )
+  ) {
+    return true;
+  }
+
+  // Lo que sale de SQLite puede no traer los cuatro pesos —un payload viejo, uno
+  // a medias—: los que falten se leen como vacíos, que es «sin capturar» y no un
+  // dato imposible.
+  return frutaPesosHasError({
+    ...fruta,
+    peso_inicial: fruta.peso_inicial ?? "",
+    peso_final: fruta.peso_final ?? "",
+    peso_bayas_reventadas: fruta.peso_bayas_reventadas ?? "",
+    peso_desgrane: fruta.peso_desgrane ?? "",
+  } as FrutaValues);
 }

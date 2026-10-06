@@ -1,5 +1,11 @@
 import { z } from "zod";
 import { parseISODate, toISODate } from "@/lib/dates";
+import {
+  formatDecimal,
+  formatGrouped,
+  parseDecimalText,
+  sanitizeDecimalText,
+} from "./decimal-text";
 import type { PickerOption } from "@/components/ui/option-picker";
 
 /**
@@ -45,14 +51,22 @@ const nivelSchema = (options: PickerOption<string>[]) =>
 const estrellasSchema = z.number().int().min(1).max(5).optional();
 
 /**
- * Un porcentaje del slider: de 0 a 100, o sin capturar.
+ * Un peso en gramos, **tal como se teclea**.
  *
- * El `.optional()` es lo que separa **«0 %» de «nadie lo tocó»**, que no es lo
- * mismo: un cero medido es un dato. Sin él, las tres preguntas de porcentaje
- * contaban como contestadas desde el primer frame y una evaluación en blanco ya
- * enseñaba avance.
+ * Texto y no número por la misma razón que en Criba y en Brix: reabrir la
+ * pantalla tiene que enseñar exactamente lo que se escribió, y un «8002.» a
+ * medio teclear no existe como número. El paso a número es cosa de quien
+ * calcula —`summarizeFrutaPesos`— y, el día del push, del mapper.
  */
-const porcentajeSchema = z.number().min(0).max(100).optional();
+const pesoSchema = z.string();
+
+/** Lo que admite un peso tecleado: hasta cinco dígitos y un decimal. */
+const MAX_PESO_LENGTH = 7;
+
+/** Deja solo lo que puede formar un peso: dígitos y un separador decimal. */
+export function sanitizePesoInput(text: string): string {
+  return sanitizeDecimalText(text, MAX_PESO_LENGTH);
+}
 
 /**
  * Los once campos de la sección, tal como los nombra la hoja de empaque.
@@ -67,13 +81,16 @@ export const frutaSchema = z.object({
   fecha_evaluacion: z.string(),
   acidez: nivelSchema(NIVEL_FEMENINO),
   tallo: estrellasSchema,
-  bayas_reventadas: porcentajeSchema,
-  desgrane: porcentajeSchema,
+  // En el orden en que se pesa: la caja entera al entrar y al salir del cuarto
+  // frío, y después lo que se separa de ella.
+  peso_inicial: pesoSchema,
+  peso_final: pesoSchema,
+  peso_bayas_reventadas: pesoSchema,
+  peso_desgrane: pesoSchema,
   dano_azufre: nivelSchema(NIVEL_MASCULINO),
   manchas_cafes: nivelSchema(NIVEL_FEMENINO_PLURAL),
   calidad_consumo: estrellasSchema,
   sabor: estrellasSchema,
-  deshidratacion: porcentajeSchema,
 });
 
 /**
@@ -83,12 +100,11 @@ export const frutaSchema = z.object({
 export type FrutaValues = z.infer<typeof frutaSchema>;
 
 /**
- * Cuántos de los once llevan dato.
+ * Cuántos de los doce llevan dato.
  *
- * **Los tres porcentajes solo cuentan una vez tocados.** Su barra distingue «sin
- * capturar» de «0 %» —la manija nace atenuada y basta un toque para capturar—,
- * así que un cero medido cuenta y un campo que nadie miró, no. El conteo abre en
- * 0, como las demás.
+ * **Los tres porcentajes no entran**: ya no se capturan, se calculan desde los
+ * cuatro pesos (ver `summarizeFrutaPesos`). Lo que cuenta aquí son los pesos, y
+ * un peso vacío no cuenta — pero uno de 0 g sí, porque se pesó.
  */
 export function frutaAnswered(values: FrutaValues): number {
   return Object.values(values).filter(
@@ -96,7 +112,7 @@ export function frutaAnswered(values: FrutaValues): number {
   ).length;
 }
 
-export const FRUTA_TOTAL_PREGUNTAS = 11;
+export const FRUTA_TOTAL_PREGUNTAS = 12;
 
 /** Una evaluación en blanco. Objetos nuevos en cada llamada, a propósito. */
 export function buildFrutaDefaults(): FrutaValues {
@@ -105,14 +121,130 @@ export function buildFrutaDefaults(): FrutaValues {
     fecha_evaluacion: "",
     acidez: undefined,
     tallo: undefined,
-    bayas_reventadas: undefined,
-    desgrane: undefined,
+    peso_inicial: "",
+    peso_final: "",
+    peso_bayas_reventadas: "",
+    peso_desgrane: "",
     dano_azufre: undefined,
     manchas_cafes: undefined,
     calidad_consumo: undefined,
     sabor: undefined,
-    deshidratacion: undefined,
   };
+}
+
+/** Un resultado calculado y el porqué de que falte, si falta. */
+export type FrutaResultado = {
+  /** De 0 a 100, o `null` si todavía no se puede calcular. */
+  value: number | null;
+  /** Qué falta o qué revisar, para enseñarlo bajo la cifra. */
+  caption: string;
+};
+
+export type FrutaPesosSummary = {
+  deshidratacion: FrutaResultado;
+  bayasReventadas: FrutaResultado;
+  desgrane: FrutaResultado;
+  /** Los tres imposibles, por campo, para marcar el que falla. */
+  errors: {
+    peso_final: boolean;
+    peso_bayas_reventadas: boolean;
+    peso_desgrane: boolean;
+  };
+};
+
+/**
+ * Los tres porcentajes de la sección, **calculados y no capturados**.
+ *
+ * Es el mismo movimiento que el peso de la muestra y la distribución de Criba:
+ * lo que se teclea son los cuatro pesos, y de ellos salen la deshidratación —lo
+ * que la caja perdió en el cuarto frío— y qué parte del peso final se fue en
+ * bayas reventadas y en desgrane. Ninguno de los tres se guarda: son derivados
+ * de datos que sí están en la misma fila.
+ *
+ * **Tres pesos son imposibles, no raros**, y por eso son error y no aviso: la
+ * fruta no sale del cuarto frío pesando más de lo que entró, y ninguna parte de
+ * la caja pesa más que la caja entera.
+ *
+ * **Con un peso imposible el resultado no se calcula.** Un porcentaje salido de
+ * un dato que no puede ser cierto parece un resultado y no lo es; en su lugar la
+ * leyenda dice qué revisar. Lo mismo mientras falte un peso: ahí no hay error,
+ * hay un dato que falta.
+ *
+ * Un peso inicial de 0 g tampoco deja calcular la deshidratación —sería dividir
+ * entre cero—, y un peso final de 0 g deja sin base a los otros dos.
+ */
+export function summarizeFrutaPesos(values: FrutaValues): FrutaPesosSummary {
+  const inicial = parseDecimalText(values.peso_inicial);
+  const final = parseDecimalText(values.peso_final);
+  const bayas = parseDecimalText(values.peso_bayas_reventadas);
+  const desgrane = parseDecimalText(values.peso_desgrane);
+
+  const finalImposible = inicial !== null && final !== null && final > inicial;
+  const bayasImposible = final !== null && bayas !== null && bayas > final;
+  const desgraneImposible =
+    final !== null && desgrane !== null && desgrane > final;
+
+  const parteDelFinal = (
+    peso: number | null,
+    imposible: boolean,
+    falta: string,
+  ): FrutaResultado => {
+    if (imposible) return { value: null, caption: "Revisa el peso" };
+    if (peso === null) return { value: null, caption: falta };
+    if (final === null) return { value: null, caption: "Falta el peso final" };
+    if (final === 0) return { value: null, caption: "El peso final es cero" };
+
+    return { value: (peso / final) * 100, caption: "del peso final" };
+  };
+
+  return {
+    deshidratacion: ((): FrutaResultado => {
+      if (finalImposible) {
+        return { value: null, caption: "Revisa el peso final" };
+      }
+      if (inicial === null) {
+        return { value: null, caption: "Falta el peso inicial" };
+      }
+      if (final === null) {
+        return { value: null, caption: "Falta el peso final" };
+      }
+      if (inicial === 0) {
+        return { value: null, caption: "El peso inicial es cero" };
+      }
+
+      return {
+        value: ((inicial - final) / inicial) * 100,
+        caption: `${formatGrouped(inicial - final, 1)} g menos que al entrar`,
+      };
+    })(),
+    bayasReventadas: parteDelFinal(
+      bayas,
+      bayasImposible,
+      "Falta el peso de las bayas",
+    ),
+    desgrane: parteDelFinal(
+      desgrane,
+      desgraneImposible,
+      "Falta el peso de desgrane",
+    ),
+    errors: {
+      peso_final: finalImposible,
+      peso_bayas_reventadas: bayasImposible,
+      peso_desgrane: desgraneImposible,
+    },
+  };
+}
+
+/** Si alguno de los cuatro pesos no puede ser cierto. */
+export function frutaPesosHasError(values: FrutaValues): boolean {
+  const { errors } = summarizeFrutaPesos(values);
+
+  return Object.values(errors).some(Boolean);
+}
+
+/** Un resultado como se muestra: un decimal fijo, o una raya si no lo hay. */
+export function formatResultado(value: number | null): string {
+  return value === null ? "—" : formatDecimal(value, 1);
 }
 
 /**

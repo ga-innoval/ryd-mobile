@@ -11,19 +11,20 @@ import {
   FRUTA_TOTAL_PREGUNTAS,
 } from "../postcosecha-fruta";
 
-/** Las once contestadas, para el extremo de arriba. */
+/** Los doce campos contestados, para el extremo de arriba. */
 const frutaLlena = {
   fecha_empaque: "2026-09-29",
   fecha_evaluacion: "2026-10-14",
   acidez: "medium",
   tallo: 4,
-  bayas_reventadas: 3.5,
-  desgrane: 6,
+  peso_inicial: "8200",
+  peso_final: "8002",
+  peso_bayas_reventadas: "280",
+  peso_desgrane: "160",
   dano_azufre: "zero",
   manchas_cafes: "low",
   calidad_consumo: 4,
   sabor: 5,
-  deshidratacion: 22,
 };
 
 describe("postcosechaSeccionProgress", () => {
@@ -35,7 +36,7 @@ describe("postcosechaSeccionProgress", () => {
         ...buildFrutaDefaults(),
         acidez: "low",
       }),
-    ).toBeCloseTo(1 / 11);
+    ).toBeCloseTo(1 / 12);
   });
 
   it("las notas no reparten", () => {
@@ -54,8 +55,8 @@ describe("postcosechaSeccionProgress", () => {
 });
 
 describe("postcosechaProgress", () => {
-  it("reparte entre once preguntas y una toma", () => {
-    expect(POSTCOSECHA_TOTAL_UNIDADES).toBe(12);
+  it("reparte entre doce campos y una toma", () => {
+    expect(POSTCOSECHA_TOTAL_UNIDADES).toBe(13);
   });
 
   /**
@@ -72,10 +73,10 @@ describe("postcosechaProgress", () => {
 
     expect(
       postcosechaProgress(vacia, 1) - postcosechaProgress(vacia, 0),
-    ).toBeCloseTo(1 / 12);
+    ).toBeCloseTo(1 / 13);
   });
 
-  it("llega al 100 % con las once y la toma", () => {
+  it("llega al 100 % con los doce y la toma", () => {
     expect(
       postcosechaProgress(
         { ...buildPostcosechaDefaults(), fruta: frutaLlena },
@@ -109,12 +110,12 @@ describe("postcosechaProgress", () => {
 describe("postcosechaProgressFromRow", () => {
   /**
    * **La propiedad de la que vive la barra de la tarjeta.** La columna guarda un
-   * entero —`round(contestadas / 11 × 100)`— y el listado tiene que recuperar
-   * el conteo a partir de él, porque no puede abrir payloads. Con once preguntas
-   * los doce valores no se pisan y la vuelta es exacta; con otro número podría
-   * dejar de serlo sin que nada avise, y por eso se recorren los doce.
+   * entero —`round(contestadas / 12 × 100)`— y el listado tiene que recuperar
+   * el conteo a partir de él, porque no puede abrir payloads. Con doce campos
+   * los trece valores no se pisan y la vuelta es exacta; con otro número podría
+   * dejar de serlo sin que nada avise, y por eso se recorren todos.
    */
-  it("recupera el conteo exacto de la columna, para las doce", () => {
+  it("recupera el conteo exacto de la columna, para todos", () => {
     for (
       let contestadas = 0;
       contestadas <= FRUTA_TOTAL_PREGUNTAS;
@@ -147,6 +148,6 @@ describe("postcosechaProgressFromRow", () => {
 
   // Una evaluación que solo tiene fotografía no tiene fila en `postcosecha_respuestas`.
   it("la fotografía sola ya suma", () => {
-    expect(postcosechaProgressFromRow(0, 1)).toBeCloseTo(1 / 12);
+    expect(postcosechaProgressFromRow(0, 1)).toBeCloseTo(1 / 13);
   });
 });
