@@ -422,10 +422,11 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
     vez y calcularlo al leer obligaba a abrir cada payload. El del tratamiento
     sale en SQL, sumando sus filas y dividiendo entre las seis secciones; las que
     no tienen fila cuentan cero, que es lo correcto.
-  - **El estatus de la tarjeta sale de ahí**: con avance cero, «Sin iniciar»;
-    con cualquier avance, «Iniciada». Es la palabra que usan los filtros, y por
-    eso el chip no enseña el porcentaje —cuánto lleva cada tratamiento ya lo
-    dice su barra—. El filtro por estatus nunca tuvo lógica rota: miraba
+  - **El chip de la tarjeta enseña el porcentaje de la plantación** («45 %»), y
+    su color sigue separando lo empezado de lo que no —que es lo que preguntan
+    los filtros «Sin iniciar» / «Iniciadas»—. Antes enseñaba esa palabra; el
+    número resume la plantación entera —los dos bloques, ver el 50/50 aquí
+    abajo— y cuánto lleva cada captura ya lo dice su propia tarjeta. El filtro por estatus nunca tuvo lógica rota: miraba
     `progress`, que estaba clavado a `0` en `index.tsx`. «Pendientes» sigue
     esperando a la sincronización.
   - **Dónde se ve**: en la pantalla de captura, una barra fina a ancho completo
@@ -446,6 +447,11 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
   Cada bloque se prorratea internamente por sus propias unidades:
   3 tratamientos con 1 completo → `(1/3) × 50% = 16.6%`. Una plantación con
   su único tratamiento completo y toda la post-cosecha pendiente va en 50%.
+  **Si un bloque no existe, el otro se queda con todo**: una plantación sin
+  tratamientos configurados no tiene ahí trabajo pendiente, y repartirle su
+  mitad igualmente dejaría la tarjeta con un tope del 50 % que nadie podría
+  subir. Es el caso que la regla no contemplaba y está resuelto en
+  `plantProgress`, con test.
 - **`EVALS_POST_COSECHA`** (`src/domains/plants/lib/evals-post-cosecha.ts`)
   es un **catálogo fijo del negocio**: 15 y 30 días × caja y plástico.
   Es idéntico para toda plantación, así que el denominador de ese bloque
@@ -554,10 +560,9 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
 > **Qué hay de esto:** la pantalla guarda de punta a punta —migración v8,
 > `lib/db/postcosecha-respuestas.repository.ts`, autoguardado, guardado a mano,
 > limpiar y barra de avance—, y **cada tarjeta de post-cosecha del listado
-> enseña la suya** (`getPostcosechaProgress`). **Falta el push**, igual que en
-> tratamiento, y que ese avance entre en el `progress` de la plantación (el
-> 50/50 de **Reglas de negocio**), que se dejó aparte porque el día que entre
-> toda tarjeta en campaña cae a la mitad.
+> enseña la suya** (`getPostcosechaProgress`), que además ya entra en el
+> `progress` de la plantación con su mitad. **Falta el push**, igual que en
+> tratamiento.
 
 Es la encuesta de tratamiento hecha otra vez, y **deliberadamente aparte**. Lo
 que comparten está en `lib/` —el catálogo de comentarios, la mecánica del
@@ -588,14 +593,35 @@ Lo que no es obvio:
   fruta y la única toma de fotografía, todas pesando lo mismo. Con el reparto de
   tratamiento —cada sección un sexto— adjuntar una foto valdría el 50 %.
   Comentarios no reparte, igual que allí.
-- **Una evaluación en blanco abre en 3 de 12, no en cero**: los tres porcentajes
-  no tienen estado vacío y llevan dato desde el primer frame. Es una decisión de
-  producto —enseñar `0 %` sin tenerlo guardado engañaría a quien busca justo un
-  0 %—, y lo que la hace inofensiva para el listado es que abrir una evaluación y
-  salir **no escribe ninguna fila**.
+- **Los tres porcentajes no se capturan, se calculan** desde cuatro pesos en
+  gramos —inicial con empaque, final a los 15 o 30 días, y los de bayas
+  reventadas y desgrane—: deshidratación es `(inicial − final) ÷ inicial`, y los
+  otros dos son su parte del peso final. Es el mismo movimiento que el peso de
+  muestra y la distribución de Criba, y por lo mismo **no se guardan**: son
+  derivados de datos que ya están en la fila. Vive en `summarizeFrutaPesos`.
+- **Los pesos se guardan como texto**, no como número, igual que Criba y Brix:
+  reabrir tiene que enseñar lo tecleado, y un «8002.» a medio escribir no existe
+  como número. El paso a número es de quien calcula y, el día del push, del
+  mapper.
+- **Con un peso imposible el resultado no se calcula.** Un porcentaje salido de
+  un dato que no puede ser cierto parece un resultado y no lo es; en su sitio la
+  leyenda dice qué revisar o cuál de los cuatro falta.
+- **`PercentSlider` ya no lo usa nadie**, y se conserva a propósito: resuelve el
+  gesto, el paso, el clamp y el estado «sin capturar» con su manija atenuada, y
+  volver a escribirlo costaría más que mantenerlo.
 - **Limpiar borra una evaluación, no las cuatro**, y sí se lleva sus
   fotografías. Por eso el texto del diálogo la nombra: con los chips es fácil
   estar en la que no es.
+- **Cuatro errores y un aviso** (`postcosecha-fruta.ts`). Los errores son los
+  imposibles: evaluar **antes** del empaque —la caja no se puede abrir antes de
+  existir—, un peso final mayor que el inicial —la fruta no sale del cuarto frío
+  pesando más de lo que entró— y cada parte de la caja pesando más que la caja
+  entera. Los cuatro marcan la columna `hasError`. Que
+  la evaluación no caiga a los 15 o 30 días del empaque —según cuál de las
+  cuatro se capture— es **aviso**: pudo abrirse un día tarde y el dato sigue
+  valiendo. El aviso **calla cuando el error habla**, igual que en Criba: dos
+  alertas para la misma fecha sería contarlo dos veces. Y nombra la fecha que
+  tocaba, para poder corregirla sin contar días a mano.
 - **Sin `resolver` en el formulario**: nada se envía. El papel de
   `postcosechaSchema` es hacer de portero al volcar lo que sale de SQLite y tipar
   el formulario, no validar al capturar.
@@ -749,9 +775,19 @@ renombró) y `temporada` en español.
   que hace fallar `npm ci` **también en macOS**, o sea que `npm install` produce
   un árbol que `npm ci` rechaza acto seguido. De paso mueve 114 versiones.
 
+  **Las borra cualquier `npm install`**, aunque sea para añadir un paquete sin
+  relación: pasó al instalar `@rn-primitives/slider` y tumbó el build de EAS
+  (`npm ci` en su linux). Después de tocar dependencias, comprobar y reponerlas
+  —el commit `c0aee44` tiene las entradas buenas, con sus `integrity`—.
+
   Para comprobar si el lockfile está sano, sin esperar al CI: recorrer
-  `packages` buscando `peerDependencies` que no tengan entrada ni en la raíz ni
-  anidadas. Con el árbol de hoy tienen que salir **cero**.
+  `packages` buscando `peerDependencies` **no opcionales** —las que no están
+  marcadas en `peerDependenciesMeta`— que no resuelvan subiendo por los
+  `node_modules` hasta la raíz. Con el árbol de hoy tienen que salir **cero**.
+  Las dos precisiones importan: sin descartar las opcionales salen 148 falsos
+  positivos, y sin subir hasta la raíz salen 504. `npm ci --dry-run` en macOS
+  **no vale** para esto: ahí npm ni siquiera evalúa esa rama —de hecho propone
+  quitar `@emnapi/wasi-threads`—, así que pasa en verde con el hueco puesto.
 
 - **`react-native-css-interop` va pineada exacta a lo que pida `nativewind`**,
   hoy `0.2.7`. No se puede quitar aunque `src/` no la importe nunca: el preset

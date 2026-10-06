@@ -288,7 +288,7 @@ export const PlantCard = memo(function PlantCard({
                       <Icon
                         as={conError ? CircleXIcon : CircleCheckIcon}
                         size={20}
-                        strokeWidth={2.5}
+                        strokeWidth={1.8}
                         className={
                           conError ? "text-destructive" : "text-foreground"
                         }
