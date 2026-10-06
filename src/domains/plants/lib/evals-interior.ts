@@ -51,6 +51,16 @@ export const EVALS_INTERIOR: EvalQuestion[] = [
     ],
   },
   {
+    id: "astringencia",
+    label: "Astringencia",
+    options: [
+      { label: "Nula", value: "zero" },
+      { label: "Baja", value: "low" },
+      { label: "Media", value: "medium" },
+      { label: "Alta", value: "high" },
+    ],
+  },
+  {
     id: "intensidad_sabor",
     label: "Intensidad del sabor",
     options: [
@@ -63,7 +73,7 @@ export const EVALS_INTERIOR: EvalQuestion[] = [
     id: "traza_semilla",
     label: "Traza de semilla",
     options: [
-      { label: "Nula", value: "without_trace" },
+      { label: "Sin traza", value: "without_trace" },
       { label: "Imperceptible", value: "with_imperceptible_trace" },
       { label: "Perceptible", value: "with_perceptible_trace" },
       { label: "Semilla", value: "seed" },
@@ -83,7 +93,6 @@ export const EVALS_INTERIOR: EvalQuestion[] = [
     label: "Sabor de la piel",
     options: [
       { label: "Neutro", value: "neutral" },
-      { label: "Sin sabor", value: "without_flavor" },
       { label: "Dulce", value: "sweet" },
       { label: "Ácido", value: "acid" },
     ],
@@ -93,7 +102,6 @@ export const EVALS_INTERIOR: EvalQuestion[] = [
     label: "Intensidad del sabor de la piel",
     options: [
       { label: "Neutro", value: "neutral" },
-      { label: "Sin sabor", value: "without_flavor" },
       { label: "Pronunciado", value: "prominent" },
     ],
   },
