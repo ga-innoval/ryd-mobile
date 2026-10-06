@@ -5,6 +5,7 @@ import type {
   PostcosechaSectionId,
 } from "../postcosecha-schema";
 import { postcosechaSeccionHasError } from "../postcosecha-errors";
+import { frutaEmpacada } from "../postcosecha-fruta";
 import {
   postcosechaKey,
   postcosechaProgressFromRow,
@@ -122,15 +123,16 @@ export const savePostcosechaRespuesta = async <S extends PostcosechaSectionId>(
   }: SavePostcosechaRespuestaInput<S>,
 ): Promise<void> => {
   await db.runAsync(
-    `INSERT INTO postcosecha_respuestas (plantId, evalId, seccion, payload, syncStatus, updatedAtLocal, syncedAt, hasError, progress)
-     VALUES ($plantId, $evalId, $seccion, $payload, $syncStatus, $updatedAtLocal, NULL, $hasError, $progress)
+    `INSERT INTO postcosecha_respuestas (plantId, evalId, seccion, payload, syncStatus, updatedAtLocal, syncedAt, hasError, progress, empacada)
+     VALUES ($plantId, $evalId, $seccion, $payload, $syncStatus, $updatedAtLocal, NULL, $hasError, $progress, $empacada)
      ON CONFLICT(plantId, evalId, seccion) DO UPDATE SET
        payload = excluded.payload,
        syncStatus = excluded.syncStatus,
        updatedAtLocal = excluded.updatedAtLocal,
        syncedAt = excluded.syncedAt,
        hasError = excluded.hasError,
-       progress = excluded.progress`,
+       progress = excluded.progress,
+       empacada = excluded.empacada`,
     {
       $plantId: plantId,
       $evalId: evalId,
@@ -144,6 +146,8 @@ export const savePostcosechaRespuesta = async <S extends PostcosechaSectionId>(
       // un dato derivado.
       $hasError: postcosechaSeccionHasError(seccion, payload) ? 1 : 0,
       $progress: formatProgress(postcosechaSeccionProgress(seccion, payload)),
+      // La fecha vive en fruta; las notas no tienen nada que decir de esto.
+      $empacada: seccion === "fruta" && frutaEmpacada(payload) ? 1 : 0,
     },
   );
 };
@@ -233,6 +237,23 @@ export const getPostcosechaIdsWithErrors = async (
 ): Promise<Set<string>> => {
   const rows = await db.getAllAsync<{ plantId: string; evalId: string }>(
     "SELECT DISTINCT plantId, evalId FROM postcosecha_respuestas WHERE hasError = 1",
+  );
+
+  return new Set(rows.map((row) => postcosechaKey(row.plantId, row.evalId)));
+};
+
+/**
+ * Las evaluaciones cuya caja ya tiene fecha de empaque, por `plantId:evalId`.
+ *
+ * Lo mismo que `getPostcosechaIdsWithErrors`: una columna escrita al guardar y
+ * leída en SQL, sin abrir un solo payload. Sirve para que la tarjeta señale la
+ * caja que ya entró aunque su evaluación esté sin terminar.
+ */
+export const getPostcosechaEmpacadas = async (
+  db: SQLiteDatabase,
+): Promise<Set<string>> => {
+  const rows = await db.getAllAsync<{ plantId: string; evalId: string }>(
+    "SELECT DISTINCT plantId, evalId FROM postcosecha_respuestas WHERE empacada = 1",
   );
 
   return new Set(rows.map((row) => postcosechaKey(row.plantId, row.evalId)));

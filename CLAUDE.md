@@ -30,7 +30,7 @@ sincronización manual.
 - **Testing**: Jest + `@testing-library/react-native`, factories en
   `src/test-utils/factories/`
 
-## Estado actual del schema (v8) — leer antes de tocar la DB
+## Estado actual del schema (v9) — leer antes de tocar la DB
 
 `src/lib/db/migrations.ts` crea **seis tablas**:
 
@@ -58,7 +58,7 @@ capturedAt, syncStatus, syncedAt`), lo mismo para post-cosecha, con CASCADE
   evaluaciones del catálogo, que no vive en SQLite
 
 - `postcosecha_respuestas` (`plantId, evalId, seccion, payload, syncStatus,
-updatedAtLocal, syncedAt, hasError, progress`), con PK compuesta
+updatedAtLocal, syncedAt, hasError, progress, empacada`), con PK compuesta
   `(plantId, evalId, seccion)` y CASCADE contra `plants`. **Sin índices
   todavía**: el autoíndice de la PK cubre por prefijo la única lectura caliente,
   y el parcial de `hasError` y el de `syncStatus` entran el día que exista su
@@ -66,7 +66,7 @@ updatedAtLocal, syncedAt, hasError, progress`), con PK compuesta
   porqué está en **Captura de post-cosecha**
 
 **NO existe todavía**: la VIEW `plantaciones_with_progress`. No escribas SELECT
-contra nada que no esté en la migración v8.
+contra nada que no esté en la migración v9.
 
 ## Modelo de dominio
 
@@ -623,6 +623,12 @@ Lo que no es obvio:
 - **Limpiar borra una evaluación, no las cuatro**, y sí se lleva sus
   fotografías. Por eso el texto del diálogo la nombra: con los chips es fácil
   estar en la que no es.
+- **La esquina de la tarjeta enseña una sola señal, y en este orden**: la equis
+  roja si hay un dato imposible, el check si está al 100 %, y el icono de
+  empaque si la caja ya tiene fecha. El de empaque desaparece al completarse
+  porque para llegar al 100 % hay que haberla capturado — serían dos iconos
+  diciendo lo mismo. Las tres salen de columnas (`hasError`, `progress`,
+  `empacada`) escritas al guardar, así que el listado no abre ningún payload.
 - **Cuatro errores y un aviso** (`postcosecha-fruta.ts`). Los errores son los
   imposibles: evaluar **antes** del empaque —la caja no se puede abrir antes de
   existir—, un peso final mayor que el inicial —la fruta no sale del cuarto frío

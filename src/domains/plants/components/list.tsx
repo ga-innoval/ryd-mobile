@@ -12,6 +12,7 @@ import { useAppRouter } from "@/lib/use-app-router";
 import {
   BoxIcon,
   CircleCheckIcon,
+  PackageIcon,
   CircleXIcon,
   LeafIcon,
   LucideIcon,
@@ -239,6 +240,12 @@ export const PlantCard = memo(function PlantCard({
             {EVALS_POST_COSECHA.map(({ id, title, subtitle }) => {
               const avance = item.postcosecha[id] ?? 0;
               const conError = item.postcosechaWithError.includes(id);
+              const completa = isComplete(avance);
+              // El de empaque solo mientras falte algo: para llegar al 100 %
+              // hay que haber capturado la fecha, así que con el check puesto
+              // sería decir dos veces lo mismo.
+              const empacada =
+                !completa && item.postcosechaEmpacada.includes(id);
 
               return (
                 // La ruta lleva la plantación, y cuál de las cuatro en `eval`:
@@ -280,18 +287,26 @@ export const PlantCard = memo(function PlantCard({
                   {/* La misma señal que en el chip de tratamiento, en la misma
                   esquina y con la misma regla: **el error gana al check**, que
                   una captura llena con una fecha imposible no está terminada. */}
-                  {(conError || isComplete(avance)) && (
+                  {(conError || completa || empacada) && (
                     <View
                       pointerEvents="none"
                       className="absolute -right-1.5 -top-1.5"
                     >
                       <Icon
-                        as={conError ? CircleXIcon : CircleCheckIcon}
+                        as={
+                          conError
+                            ? CircleXIcon
+                            : completa
+                              ? CircleCheckIcon
+                              : PackageIcon
+                        }
                         size={20}
                         strokeWidth={1.8}
-                        className={
-                          conError ? "text-destructive" : "text-foreground"
-                        }
+                        className={cn(
+                          conError && "text-destructive",
+                          completa && "text-foreground",
+                          empacada && "text-foreground",
+                        )}
                       />
                     </View>
                   )}

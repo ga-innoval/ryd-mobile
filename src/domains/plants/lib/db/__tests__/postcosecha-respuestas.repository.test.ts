@@ -10,6 +10,7 @@ import {
 } from "../postcosecha-fotos.repository";
 import {
   deletePostcosechaRespuestas,
+  getPostcosechaEmpacadas,
   getPostcosechaIdsWithErrors,
   getPostcosechaProgress,
   getPostcosechaRespuestas,
@@ -268,6 +269,31 @@ describe("postcosecha-respuestas.repository", () => {
       expect(await getPostcosechaIdsWithErrors(db)).toEqual(
         new Set([postcosechaKey("p2", "15caja")]),
       );
+    });
+  });
+
+  describe("las cajas con fecha de empaque", () => {
+    it("sin fecha, ninguna", async () => {
+      await guardarFruta({ acidez: "medium" });
+
+      expect(await getPostcosechaEmpacadas(db)).toEqual(new Set());
+    });
+
+    it("señala la evaluación que ya tiene su fecha", async () => {
+      await guardarFruta({ fecha_empaque: "2026-09-29" }, "15caja");
+      await guardarFruta({ acidez: "low" }, "30caja");
+
+      expect(await getPostcosechaEmpacadas(db)).toEqual(
+        new Set([postcosechaKey("p1", "15caja")]),
+      );
+    });
+
+    // La marca se quita sola al borrar la fecha, igual que se puso.
+    it("deja de señalarla si se borra la fecha", async () => {
+      await guardarFruta({ fecha_empaque: "2026-09-29" }, "15caja");
+      await guardarFruta({ fecha_empaque: "" }, "15caja");
+
+      expect(await getPostcosechaEmpacadas(db)).toEqual(new Set());
     });
   });
 
