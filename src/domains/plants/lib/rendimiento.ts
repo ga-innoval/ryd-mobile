@@ -25,6 +25,20 @@ const MAX_KILOS_LENGTH = 8;
 /** Seis dígitos de racimos dan de sobra para un corte. */
 const MAX_RACIMOS_LENGTH = 6;
 
+/**
+ * Los rangos que fijó el negocio para un corte. Fuera de ellos el dato no puede
+ * ser cierto: son **errores**, no avisos.
+ *
+ * Los dos extremos entran salvo en el peso, que es abierto por los dos lados —
+ * un corte de 0 kg con racimos contados es imposible, y los 500 kg son el tope—.
+ *
+ * **Un corte sin fruta queda fuera de las dos reglas**: 0 kg con 0 racimos es un
+ * corte que se cosechó y no dio nada, y eso se puede registrar. El error salta
+ * en cuanto uno de los dos tiene valor y el otro no cuadra.
+ */
+export const RENDIMIENTO_RACIMOS_RANGE = { min: 1, max: 500 } as const;
+export const RENDIMIENTO_KILOS_RANGE = { min: 0, max: 500 } as const;
+
 export type RendimientoCorteSummary = {
   /** El número del corte, empezando en 1. */
   numero: number;
@@ -39,6 +53,11 @@ export type RendimientoCorteSummary = {
    * fruta salió de algún sitio. Es uno de los errores de `evaluation-errors.ts`.
    */
   zeroRacimos: boolean;
+  /** Imposible: el conteo fuera de `RENDIMIENTO_RACIMOS_RANGE`. El cero lo
+   *  cubre `zeroRacimos`, que además explica por qué. */
+  racimosOutOfRange: boolean;
+  /** Imposible: el peso fuera de `RENDIMIENTO_KILOS_RANGE`. */
+  kilogramosOutOfRange: boolean;
   /** Con sus tres datos: es lo que habilita agregar el corte siguiente. */
   complete: boolean;
 };
@@ -107,17 +126,33 @@ export function summarizeRendimiento(
   const summaries = cortes.map((corte, index) => {
     const kilogramos = parseDecimalText(corte.kilogramos);
     const racimos = parseDecimalText(corte.racimos);
+    // Un corte que se cosechó y no dio nada: queda fuera de los dos rangos a
+    // propósito, o no habría forma de registrarlo.
+    const noFruit = kilogramos === 0 && racimos === 0;
 
     return {
       numero: index + 1,
       kilogramos,
       racimos,
-      noFruit: kilogramos === 0 && racimos === 0,
+      noFruit,
       zeroRacimos:
         index !== typingIndex &&
         kilogramos !== null &&
         kilogramos > 0 &&
         racimos === 0,
+      // El cero se queda para `zeroRacimos`, que dice por qué: aquí solo entra
+      // lo que se pasa del tope, o no habría dos marcas para la misma celda.
+      racimosOutOfRange:
+        index !== typingIndex &&
+        !noFruit &&
+        racimos !== null &&
+        racimos > RENDIMIENTO_RACIMOS_RANGE.max,
+      kilogramosOutOfRange:
+        index !== typingIndex &&
+        !noFruit &&
+        kilogramos !== null &&
+        (kilogramos <= RENDIMIENTO_KILOS_RANGE.min ||
+          kilogramos >= RENDIMIENTO_KILOS_RANGE.max),
       average:
         kilogramos !== null && racimos !== null && racimos > 0
           ? (kilogramos / racimos) * 1000

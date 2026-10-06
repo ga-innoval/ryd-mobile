@@ -22,6 +22,7 @@ import { TextButton } from "@/components/ui/text-button";
 import { cn } from "@/lib/utils";
 import {
   BRIX_READINGS_PER_CORTE,
+  BRIX_VALID_RANGE,
   canAddBrixCorte,
   canRemoveBrixCorte,
   createBrixCorte,
@@ -396,9 +397,12 @@ function BrixCorteCard({
 
           {summary.firstOutOfRange !== null && (
             <View className="-mt-1 px-4 pb-4">
-              <Alert variant="warning" icon={CircleAlertIcon}>
+              {/* Rojo y no ámbar: el rango lo fijó el negocio, así que fuera
+                  de él la lectura no puede ser cierta y la sección no entra en
+                  la cola del push. Guardar se guarda igual. */}
+              <Alert variant="destructive" icon={CircleAlertIcon}>
                 <AlertDescription>
-                  {`L${summary.firstOutOfRange + 1} = ${readings[summary.firstOutOfRange]} está fuera del rango habitual. ¿Faltó el punto decimal?`}
+                  {`L${summary.firstOutOfRange + 1} = ${readings[summary.firstOutOfRange]} está fuera de ${BRIX_VALID_RANGE.min} a ${BRIX_VALID_RANGE.max} °Brix. ¿Faltó el punto decimal?`}
                 </AlertDescription>
               </Alert>
             </View>
@@ -458,7 +462,7 @@ function CorteResults({ pairs }: { pairs: BrixPairSummary[] }) {
             className={cn(
               "font-medium",
               pair.value === null && "text-muted-foreground",
-              pair.outOfRange && "text-warn",
+              pair.outOfRange && "text-destructive",
             )}
             style={styles.tabular}
           >
@@ -572,7 +576,7 @@ function BrixReadingInput({
         submitBehavior={isLast ? "blurAndSubmit" : "submit"}
         // Corregir una lectura es reescribirla entera, no editar un dígito.
         selectTextOnFocus
-        variant={outOfRange ? "warn" : "default"}
+        variant={outOfRange ? "destructive" : "default"}
         className="pl-10 text-right text-lg font-medium leading-6"
         style={styles.tabular}
       />

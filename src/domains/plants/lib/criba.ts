@@ -19,10 +19,19 @@ export const CRIBA_CALIBRES = [8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
 const MAX_INPUT_LENGTH = 7;
 
 /**
- * Un calibre de un kilo no cabe ni en la muestra más grande: casi siempre es un
- * punto decimal que faltó. Como el rango de Brix, solo avisa.
+ * El tope que fijó el negocio para un solo calibre, en gramos: 4 kg.
+ *
+ * **Es error, no aviso.** Antes avisaba en ámbar a partir de 1 kg —un número que
+ * nadie había confirmado—; ahora el límite es suyo y pasarlo impide dar la
+ * evaluación por terminada.
  */
-export const CRIBA_MAX_CALIBRE_WEIGHT = 1_000;
+export const CRIBA_MAX_CALIBRE_WEIGHT = 4_000;
+
+/**
+ * Lo que puede pesar una baya, en gramos. Fuera de ahí el promedio no puede ser
+ * cierto: es error, y casi siempre un punto decimal de más o de menos.
+ */
+export const CRIBA_AVERAGE_RANGE = { min: 0.5, max: 30 } as const;
 
 /**
  * Los dos pesos de muestra del negocio, en gramos: 1.5 kg en plantación
@@ -57,6 +66,8 @@ export type CribaCalibreSummary = {
   /** 0 g: el calibre se pesó y no tenía fruta, así que no hay promedio. */
   noFruit: boolean;
   complete: boolean;
+  /** Imposible: el promedio por baya fuera de `CRIBA_AVERAGE_RANGE`. */
+  averageOutOfRange: boolean;
   /** Imposible: una baya no puede pesar más que todo su calibre. */
   overTotal: boolean;
   /** Se pasa de `CRIBA_MAX_CALIBRE_WEIGHT`: no cabría en la muestra. */
@@ -165,7 +176,14 @@ export function summarizeCriba(
       totalOutOfRange:
         index !== typingIndex &&
         total !== null &&
-        total >= CRIBA_MAX_CALIBRE_WEIGHT,
+        total > CRIBA_MAX_CALIBRE_WEIGHT,
+      // Un calibre pesado en 0 g no tiene bayas que pesar, así que su promedio
+      // vacío no entra: lo que falta no es lo que no puede ser.
+      averageOutOfRange:
+        index !== typingIndex &&
+        average !== null &&
+        (average < CRIBA_AVERAGE_RANGE.min ||
+          average > CRIBA_AVERAGE_RANGE.max),
       belowPrevious: belowPrevious[index],
       share:
         total !== null && sampleWeight !== null && sampleWeight > 0
@@ -197,18 +215,32 @@ export function summarizeCriba(
   };
 }
 
-/** Las cuatro reglas que avisan, ninguna bloquea el guardado. */
+/** Las cinco reglas que marcan algo; ninguna bloquea el guardado. */
 export type CribaWarning =
-  "totalOutOfRange" | "sampleOutOfRange" | "overTotal" | "belowPrevious";
+  | "totalOutOfRange"
+  | "averageOutOfRange"
+  | "sampleOutOfRange"
+  | "overTotal"
+  | "belowPrevious";
 
 /**
- * De las cuatro, la única que es un dato imposible y no algo fuera de lo
- * habitual: una baya no pesa más que todo lo que cayó en su calibre. Se pinta
- * en rojo e impide dar la evaluación por terminada —ver `evaluation-errors.ts`—;
- * las otras tres siguen siendo avisos ámbar y la captura vale igual.
+ * Cuáles son datos imposibles y no algo fuera de lo habitual.
+ *
+ * Tres de las cinco: una baya no pesa más que todo lo que cayó en su calibre, un
+ * calibre no pasa de 4 kg y una baya no pesa menos de 0.5 g ni más de 30 g. Se
+ * pintan en rojo e impiden dar la evaluación por terminada —ver
+ * `evaluation-errors.ts`—.
+ *
+ * Las otras dos siguen siendo avisos ámbar y la captura vale igual, porque no
+ * dependen de un número que el negocio haya fijado: el peso de muestra que no
+ * cuadra y el promedio que rompe la progresión de calibres.
  */
 export function isCribaError(warning: CribaWarning): boolean {
-  return warning === "overTotal";
+  return (
+    warning === "overTotal" ||
+    warning === "totalOutOfRange" ||
+    warning === "averageOutOfRange"
+  );
 }
 
 /**
@@ -227,6 +259,9 @@ export function firstCribaWarning(summary: CribaSummary): CribaWarning | null {
   if (summary.calibres.some((calibre) => calibre.overTotal)) return "overTotal";
   if (summary.calibres.some((calibre) => calibre.totalOutOfRange)) {
     return "totalOutOfRange";
+  }
+  if (summary.calibres.some((calibre) => calibre.averageOutOfRange)) {
+    return "averageOutOfRange";
   }
   if (summary.sampleOutOfRange) return "sampleOutOfRange";
   if (summary.calibres.some((calibre) => calibre.belowPrevious)) {

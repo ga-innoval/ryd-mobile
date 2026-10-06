@@ -139,20 +139,31 @@ Ver **Guardado y sincronización de respuestas** más abajo.
 **Un error es un dato que no puede ser cierto; un aviso, uno que se sale de lo
 habitual.** Esa es toda la diferencia, y decide el color: rojo contra ámbar.
 
-Hoy son **dos errores**, los únicos imposibles se mire como se mire:
+**El negocio fijó sus números**, así que lo que antes eran avisos sobre rangos
+inventados hoy son errores. Son seis, repartidos en tres secciones:
 
-- **Criba**, el promedio por baya mayor que el peso total de su calibre.
-- **Rendimiento**, kilogramos cosechados con el conteo de racimos en cero. Que
-  el conteo esté sin capturar no marca nada: es un dato que falta, no uno
-  imposible.
+- **Brix**: una lectura fuera de **14.5–30 °Brix** (`BRIX_VALID_RANGE`).
+- **Criba**: el promedio por baya mayor que el peso total de su calibre —una
+  baya no pesa más que todo lo que cayó en él—, un calibre que pasa de **4 kg**
+  (`CRIBA_MAX_CALIBRE_WEIGHT`) y un promedio por baya fuera de **0.5–30 g**
+  (`CRIBA_AVERAGE_RANGE`).
+- **Rendimiento**: kilogramos cosechados con el conteo de racimos en cero, un
+  conteo de más de **500** racimos y un peso que no esté **entre 0 y 500 kg**,
+  los dos extremos excluidos.
 
-Los otros cuatro —el rango de Brix, el calibre de un kilo, la muestra que no
-pesa 1.5 ni 2.5 kg, el promedio que rompe la progresión— **siguen siendo
-avisos**, y no por timidez: tres de ellos dependen de un número que el negocio
-todavía no ha confirmado (cuánta diferencia se le admite a la muestra, a partir
-de qué peso un calibre es imposible y no solo raro, y el rango real de Brix). Con
-los números de hoy, como error bloquearían capturas legítimas — una muestra que
-de verdad pesó 1.7 kg, un calibre con el 40 % de una muestra de 2.5 kg.
+Que un dato esté **sin capturar** no marca nada en ninguna: es un dato que falta,
+no uno imposible, y de eso habla el avance de la sección.
+
+**Un corte sin fruta es la excepción de Rendimiento**: 0 kg con 0 racimos es un
+corte que se cosechó y no dio nada, y tiene que poder registrarse, así que queda
+fuera de los dos rangos. El error salta en cuanto uno de los dos tiene valor y el
+otro no cuadra. Tiene test, porque es justo lo que se pierde leyendo la regla al
+pie de la letra.
+
+Los **dos que siguen siendo avisos** son los que no dependen de un número del
+negocio: la muestra que no pesa ni 1.5 ni 2.5 kg y el promedio que rompe la
+progresión de calibres. Como error bloquearían capturas legítimas — una muestra
+que de verdad pesó 1.7 kg.
 
 **Un error no impide guardar.** SQLite es la libreta del evaluador y ahí cabe
 todo: bloquear la escritura no protegería el reporte, destruiría trabajo, y

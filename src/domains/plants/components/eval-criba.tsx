@@ -10,6 +10,7 @@ import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import {
   CRIBA_CALIBRES,
+  CRIBA_AVERAGE_RANGE,
   CRIBA_MAX_CALIBRE_WEIGHT,
   CRIBA_SAMPLE_WEIGHTS,
   firstCribaWarning,
@@ -52,7 +53,8 @@ type FieldTone = Extract<InputVariant, "warn" | "destructive">;
 /** Qué dice cada aviso. Cuál toca lo decide `firstCribaWarning`, que es donde
  *  vive el orden y lo que tiene test. */
 const WARNING_TEXT: Record<CribaWarning, string> = {
-  totalOutOfRange: `Hay un peso total fuera del rango habitual: ${formatGrouped(CRIBA_MAX_CALIBRE_WEIGHT, 0)} g o más en un solo calibre. ¿Faltó el punto decimal?`,
+  totalOutOfRange: `Un calibre no puede pasar de ${formatGrouped(CRIBA_MAX_CALIBRE_WEIGHT, 0)} g. ¿Faltó el punto decimal?`,
+  averageOutOfRange: `El peso promedio por baya tiene que estar entre ${CRIBA_AVERAGE_RANGE.min} y ${CRIBA_AVERAGE_RANGE.max} g.`,
   sampleOutOfRange: `El peso de la muestra está fuera de lo habitual: la criba se hace con ${CRIBA_SAMPLE_WEIGHTS.map((weight) => `${weight / 1000} kg`).join(" o con ")}.`,
   overTotal:
     "El peso promedio no puede ser mayor que el peso total del calibre.",
@@ -205,6 +207,8 @@ export function EvalCriba() {
                   warn={
                     key === "average"
                       ? (warning === "overTotal" && calibre.overTotal) ||
+                        (warning === "averageOutOfRange" &&
+                          calibre.averageOutOfRange) ||
                         (warning === "belowPrevious" && calibre.belowPrevious)
                       : warning === "totalOutOfRange" && calibre.totalOutOfRange
                   }
