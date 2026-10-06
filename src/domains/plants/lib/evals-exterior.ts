@@ -29,9 +29,10 @@ export const EVALS_EXTERIOR: EvalQuestion[] = [
     label: "Forma de racimo",
     options: [
       { label: "Doble hombro", value: "double_shoulder" },
-      { label: "Ramificado", value: "hairy" },
+      { label: "Hombrudo", value: "hairy" },
       { label: "Cónico", value: "conical" },
       { label: "Cilíndrico", value: "cylindrical" },
+      { label: "Sin estructura", value: "unstructured" },
     ],
   },
   {
@@ -49,9 +50,9 @@ export const EVALS_EXTERIOR: EvalQuestion[] = [
     id: "tamano_racimo",
     label: "Tamaño de racimo",
     options: [
-      { label: "Ideal", value: "ideal" },
       { label: "Pequeño", value: "small" },
       { label: "Mediano", value: "medium" },
+      { label: "Ideal", value: "ideal" },
       { label: "Grande", value: "big" },
     ],
   },
@@ -60,7 +61,7 @@ export const EVALS_EXTERIOR: EvalQuestion[] = [
     label: "Forma de baya",
     options: [
       { label: "Redonda", value: "round" },
-      { label: "Ovoide", value: "ovoid" },
+      { label: "Ovalada", value: "ovoid" },
       { label: "Alargada", value: "extended" },
     ],
   },
@@ -69,7 +70,7 @@ export const EVALS_EXTERIOR: EvalQuestion[] = [
     label: "Uniformidad del tamaño de bayas",
     options: [
       { label: "Uniforme", value: "even" },
-      { label: "Desigual", value: "uneven" },
+      { label: "Desuniforme", value: "uneven" },
     ],
   },
   {
@@ -87,7 +88,8 @@ export const EVALS_EXTERIOR: EvalQuestion[] = [
     label: "Coloración de baya",
     options: [
       { label: "Uniforme", value: "uniforme" },
-      { label: "Desigual", value: "desuniforme" },
+      { label: "Completa", value: "full" },
+      { label: "Parcial", value: "partial" },
     ],
   },
   {
@@ -96,7 +98,7 @@ export const EVALS_EXTERIOR: EvalQuestion[] = [
     options: [
       { label: "Limpia", value: "clean" },
       { label: "Pocas marcas", value: "few_marks" },
-      { label: "Rugosidad", value: "russet" },
+      { label: "Russet", value: "russet" },
       { label: "Con pecas", value: "with_freckles" },
     ],
   },
