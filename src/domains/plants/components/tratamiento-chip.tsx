@@ -156,6 +156,7 @@ export function TratamientoChip({
             size={20}
             strokeWidth={1.8}
             className={hasError ? "text-destructive" : "text-leaf"}
+            fill={"#f5f2eb"}
           />
         </View>
       )}

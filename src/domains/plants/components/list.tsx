@@ -302,6 +302,7 @@ export const PlantCard = memo(function PlantCard({
                         }
                         size={20}
                         strokeWidth={1.8}
+                        fill={"#e8f0e6"}
                         className={cn(
                           conError && "text-destructive",
                           completa && "text-foreground",
