@@ -15,6 +15,71 @@ import type { CribaCalibre } from "../types";
  */
 export const CRIBA_CALIBRES = [8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
 
+/**
+ * Cómo se escribe un calibre: la parte entera y su fracción, aparte, porque la
+ * columna las pinta de distinto tamaño.
+ */
+export type CribaCalibreLabel = {
+  whole: string;
+  frac: string;
+  /** Las dos juntas, para leerlo y para el lector de pantalla. */
+  label: string;
+};
+
+/**
+ * Los tres calibres grandes, en el orden en que se agregan.
+ *
+ * Catálogo fijo y finito: no se eligen, se destapan de uno en uno, así que el
+ * botón puede decir cuál viene y la numeración no depende de nadie.
+ */
+export const CRIBA_EXTRA_CALIBRES: CribaCalibreLabel[] = [
+  { whole: "1", frac: "1/8", label: "1 1/8" },
+  { whole: "1", frac: "1/4", label: "1 1/4" },
+  { whole: "1", frac: "1/2", label: "1 1/2" },
+];
+
+/**
+ * La etiqueta del calibre que ocupa esa posición.
+ *
+ * **Los nueve de siempre son dieciseisavos** —8/16 a 16/16— y por eso la
+ * columna enseña el denominador: sin él, saltar de «16» a «1 1/8» parece cambiar
+ * de sistema de medida, cuando es la misma escala pasando de la unidad.
+ */
+export function cribaCalibreLabel(index: number): CribaCalibreLabel {
+  const fijo = CRIBA_CALIBRES[index];
+  if (fijo !== undefined) {
+    return { whole: String(fijo), frac: "/16", label: `${fijo}/16` };
+  }
+
+  return (
+    CRIBA_EXTRA_CALIBRES[index - CRIBA_CALIBRES.length] ?? {
+      whole: String(index + 1),
+      frac: "",
+      label: String(index + 1),
+    }
+  );
+}
+
+/** Cuántos renglones puede llegar a tener la tabla. */
+export const CRIBA_MAX_CALIBRES =
+  CRIBA_CALIBRES.length + CRIBA_EXTRA_CALIBRES.length;
+
+/**
+ * **Agregar no pide que el anterior esté completo**, al revés que Brix y
+ * Rendimiento: aquí los nueve renglones nacen vacíos y dejar huecos es normal,
+ * así que exigirlo solo en los extra sería una regla que no se parece a nada de
+ * lo que hay encima.
+ */
+export function canAddCribaCalibre(calibres: CribaCalibre[]): boolean {
+  return calibres.length < CRIBA_MAX_CALIBRES;
+}
+
+/** Solo se descarta el último, y nunca uno de los nueve fijos: la tabla no
+ *  puede quedar con huecos en medio. */
+export function canRemoveCribaCalibre(calibres: CribaCalibre[]): boolean {
+  return calibres.length > CRIBA_CALIBRES.length;
+}
+
 /** Suficiente para "2500.5"; lo que pase de ahí es un error de tecleo. */
 const MAX_INPUT_LENGTH = 7;
 
@@ -59,7 +124,10 @@ const largestSampleWeight = Math.max(...CRIBA_SAMPLE_WEIGHTS);
 
 export type CribaCalibreSummary = {
   /** El calibre al que corresponde la fila, del 8 al 16. */
-  calibre: number;
+  label: CribaCalibreLabel;
+  /** Uno de los tres grandes que se agregan a mano: cuenta para la muestra,
+   *  pero no para el avance. */
+  isExtra: boolean;
   /** Peso de todo lo que cayó en ese calibre; `null` si no se ha capturado. */
   total: number | null;
   average: number | null;
@@ -87,7 +155,11 @@ export type CribaSummary = {
   sampleWeight: number | null;
   /** La suma no es ninguno de los `CRIBA_SAMPLE_WEIGHTS`. */
   sampleOutOfRange: boolean;
+  /** Cuántos de los **nueve fijos** están completos. Los extra no entran: son
+   *  trabajo de más, no un hueco. */
   completeCount: number;
+  /** Cuántos calibres grandes se han agregado, de `CRIBA_EXTRA_CALIBRES`. */
+  extrasCount: number;
 };
 
 /** Los nueve calibres en blanco, en orden. */
@@ -132,9 +204,11 @@ export function summarizeCriba(
   calibres: CribaCalibre[],
   typingIndex: number | null = null,
 ): CribaSummary {
-  const values = CRIBA_CALIBRES.map((_, index) => ({
-    total: parseDecimalText(calibres[index]?.total ?? ""),
-    average: parseDecimalText(calibres[index]?.average ?? ""),
+  // Sobre los renglones que haya y no sobre el catálogo fijo: a los nueve se
+  // les pueden agregar hasta tres calibres grandes.
+  const values = calibres.map((calibre) => ({
+    total: parseDecimalText(calibre?.total ?? ""),
+    average: parseDecimalText(calibre?.average ?? ""),
   }));
 
   const weights = values.flatMap(({ total }) =>
@@ -162,7 +236,8 @@ export function summarizeCriba(
     const noFruit = total === 0;
 
     return {
-      calibre: CRIBA_CALIBRES[index],
+      label: cribaCalibreLabel(index),
+      isExtra: index >= CRIBA_CALIBRES.length,
       total,
       average,
       noFruit,
@@ -211,7 +286,13 @@ export function summarizeCriba(
       !matchesSampleWeight(sampleWeight) &&
       (sampleWeight > largestSampleWeight + SAMPLE_TOLERANCE ||
         values.every(({ total }) => total !== null)),
-    completeCount: summaries.filter((calibre) => calibre.complete).length,
+    // **Los extra no mueven el denominador**: la muestra sigue siendo de nueve
+    // calibres y agregar uno no puede hacer que el avance retroceda, que es lo
+    // único que una barra no puede hacer.
+    completeCount: summaries.filter(
+      (calibre) => !calibre.isExtra && calibre.complete,
+    ).length,
+    extrasCount: Math.max(0, summaries.length - CRIBA_CALIBRES.length),
   };
 }
 
@@ -283,4 +364,32 @@ export function formatShare(value: number | null): string {
   if (value === null) return "—";
 
   return `${formatDecimal(value, 1)} %`;
+}
+
+/**
+ * Lo que la cabecera dice de los calibres: cuántos de los nueve van, y aparte
+ * cuántos extra se han agregado.
+ *
+ * Aparte y no sumados **porque los extra no mueven el denominador**: contarlos
+ * dentro haría que agregar uno bajara el avance, que es lo único que una barra
+ * no puede hacer. Vacío mientras no haya nada que contar: con la sección recién
+ * abierta no hay noticia que dar.
+ */
+export function cribaCalibresLabel(summary: CribaSummary): string {
+  const partes: string[] = [];
+
+  if (summary.completeCount > 0) {
+    partes.push(
+      `${summary.completeCount} de ${CRIBA_CALIBRES.length} calibres`,
+    );
+  }
+  if (summary.extrasCount > 0) {
+    partes.push(
+      summary.extrasCount === 1
+        ? "1 calibre extra"
+        : `${summary.extrasCount} calibres extra`,
+    );
+  }
+
+  return partes.join(" · ");
 }

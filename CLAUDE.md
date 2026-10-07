@@ -492,6 +492,21 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
 - **Criba** (`src/domains/plants/lib/criba.ts`, con tests): la muestra se pasa
   por la criba y queda repartida en nueve calibres, del 8 al 16. De cada uno se
   captura el peso total y el de una baya promedio. Lo que no es obvio:
+  - **Los nueve son dieciseisavos y la columna lo enseña**: «8/16» a «16/16»,
+    con la parte entera grande y la fracción pequeña. Sin el denominador, saltar
+    de «16» al primer extra —«1 1/8»— parece cambiar de sistema de medida,
+    cuando es la misma escala pasando de la unidad.
+  - **Hasta tres calibres grandes extra** (`CRIBA_EXTRA_CALIBRES`: 1 1/8, 1 1/4
+    y 1 1/2), que se destapan de uno en uno con un botón que nombra el que
+    viene. Catálogo fijo y finito, así que la numeración no depende de nadie.
+    **Agregar no pide que el anterior esté completo**, al revés que Brix y
+    Rendimiento: aquí los nueve renglones nacen vacíos y dejar huecos es normal.
+    Solo se descarta el último, con doble toque.
+  - **Los extra no mueven el denominador del avance.** Suman al peso de la
+    muestra —salieron de la misma criba— pero no cuentan como calibre completo:
+    si contaran, agregar uno haría **retroceder** el avance, que es lo único que
+    una barra no puede hacer. Por eso el resumen los dice aparte: «3 de 9
+    calibres · 1 calibre extra».
   - **Vacío no es cero, y 0 g sí significa algo.** Un calibre sin capturar no
     entra en ninguna cuenta; uno pesado en 0 g no tenía fruta, así que cuenta
     como completo sin promedio —no hay bayas que pesar— y su campo de promedio
