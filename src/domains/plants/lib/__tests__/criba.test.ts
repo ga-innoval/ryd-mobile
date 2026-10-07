@@ -1,5 +1,11 @@
 import {
+  canAddCribaCalibre,
+  canRemoveCribaCalibre,
+  cribaCalibreLabel,
+  cribaCalibresLabel,
   CRIBA_CALIBRES,
+  CRIBA_EXTRA_CALIBRES,
+  CRIBA_MAX_CALIBRES,
   createCribaCalibres,
   firstCribaWarning,
   isCribaError,
@@ -313,5 +319,79 @@ describe("sanitizeCribaInput", () => {
 
   it("recorta lo que ya no puede ser un peso", () => {
     expect(sanitizeCribaInput("1234.5678")).toBe("1234.56");
+  });
+});
+
+describe("los calibres extra", () => {
+  const nueve = () => createCribaCalibres();
+  const con = (extras: number) => [
+    ...nueve(),
+    ...Array.from({ length: extras }, () => ({ total: "", average: "" })),
+  ];
+
+  /**
+   * Los nueve de siempre son dieciseisavos, y la columna enseña el denominador:
+   * sin él, saltar de «16» a «1 1/8» parece cambiar de sistema de medida cuando
+   * es la misma escala pasando de la unidad.
+   */
+  it("escribe los nueve como dieciseisavos", () => {
+    expect(cribaCalibreLabel(0)).toEqual({
+      whole: "8",
+      frac: "/16",
+      label: "8/16",
+    });
+    expect(cribaCalibreLabel(8).label).toBe("16/16");
+  });
+
+  it("y los extra con su parte entera", () => {
+    expect(cribaCalibreLabel(9)).toEqual(CRIBA_EXTRA_CALIBRES[0]);
+    expect(cribaCalibreLabel(11).label).toBe("1 1/2");
+  });
+
+  it("se agregan hasta los tres del catálogo", () => {
+    expect(canAddCribaCalibre(nueve())).toBe(true);
+    expect(canAddCribaCalibre(con(3))).toBe(false);
+    expect(CRIBA_MAX_CALIBRES).toBe(12);
+  });
+
+  // Nunca uno de los nueve fijos: es la posición la que dice de qué calibre es
+  // cada peso, así que la tabla no puede quedar con huecos.
+  it("solo se descarta un extra", () => {
+    expect(canRemoveCribaCalibre(nueve())).toBe(false);
+    expect(canRemoveCribaCalibre(con(1))).toBe(true);
+  });
+
+  /**
+   * **No mueven el denominador.** Si contaran, agregar un calibre haría
+   * retroceder el avance de la sección, que es lo único que una barra no puede
+   * hacer.
+   */
+  it("no cuentan para el avance ni aunque estén llenos", () => {
+    const calibres = con(1);
+    calibres[9] = { total: "500", average: "5" };
+
+    const { completeCount, extrasCount } = summarizeCriba(calibres);
+
+    expect(completeCount).toBe(0);
+    expect(extrasCount).toBe(1);
+  });
+
+  // Pero sí son peso de la muestra: salieron de la misma criba.
+  it("sí entran en el peso de la muestra", () => {
+    const calibres = con(1);
+    calibres[9] = { total: "500", average: "5" };
+
+    expect(summarizeCriba(calibres).sampleWeight).toBe(500);
+  });
+
+  it("el resumen los cuenta aparte", () => {
+    expect(cribaCalibresLabel(summarizeCriba(nueve()))).toBe("");
+
+    const calibres = con(2);
+    calibres[0] = { total: "500", average: "5" };
+
+    expect(cribaCalibresLabel(summarizeCriba(calibres))).toBe(
+      "1 de 9 calibres · 2 calibres extra",
+    );
   });
 });

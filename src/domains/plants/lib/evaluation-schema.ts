@@ -5,6 +5,7 @@ import {
   createCribaCalibres,
   cribaCalibreSchema,
   CRIBA_CALIBRES,
+  CRIBA_MAX_CALIBRES,
 } from "./criba";
 import { comentariosSchema, createComentarios } from "./comentarios";
 import { createRendimientoCorte, rendimientoCorteSchema } from "./rendimiento";
@@ -49,9 +50,13 @@ export const evaluationSchema = z.object({
     cortes: z.array(brixCorteSchema).min(1),
   }),
   criba: z.object({
-    // Los nueve calibres siempre, en orden: la tabla es fija y es su posición
-    // la que dice de qué calibre es cada peso. Lo que no se capturó va vacío.
-    calibres: z.array(cribaCalibreSchema).length(CRIBA_CALIBRES.length),
+    // Los nueve de siempre y hasta tres calibres grandes agregados a mano. Es
+    // su **posición** la que dice de qué calibre es cada peso, así que el mínimo
+    // es fijo: lo que no se capturó va vacío, nunca ausente.
+    calibres: z
+      .array(cribaCalibreSchema)
+      .min(CRIBA_CALIBRES.length)
+      .max(CRIBA_MAX_CALIBRES),
   }),
   rendimiento: z.object({
     // Nunca vacío: la pantalla arranca con un corte y no deja descartar el

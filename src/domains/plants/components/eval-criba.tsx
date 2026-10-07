@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState, type Ref } from "react";
-import { StyleSheet, View, type TextInput } from "react-native";
-import { CircleAlertIcon } from "lucide-react-native";
-import { useController, useWatch } from "react-hook-form";
+import { Keyboard, StyleSheet, View, type TextInput } from "react-native";
+import { CircleAlertIcon, PlusIcon, Trash2Icon } from "lucide-react-native";
+import { useController, useFieldArray, useWatch } from "react-hook-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input, type InputVariant } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { Progress } from "@/components/ui/progress";
+import { TextButton } from "@/components/ui/text-button";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import {
-  CRIBA_CALIBRES,
   CRIBA_AVERAGE_RANGE,
+  CRIBA_EXTRA_CALIBRES,
   CRIBA_MAX_CALIBRE_WEIGHT,
   CRIBA_SAMPLE_WEIGHTS,
+  cribaCalibresLabel,
   firstCribaWarning,
   isCribaError,
   formatGrams,
@@ -86,15 +90,12 @@ export function CribaHeaderSummary() {
   const calibres = useWatch<EvaluationFormValues, "criba.calibres">({
     name: "criba.calibres",
   });
-  const { sampleWeight, completeCount } = summarizeCriba(calibres);
+  const summary = summarizeCriba(calibres);
+  const { sampleWeight } = summary;
 
   return (
     <View className="flex-row items-baseline justify-between gap-4">
-      <Text variant="muted">
-        {completeCount > 0
-          ? `${completeCount} de ${CRIBA_CALIBRES.length} calibres`
-          : ""}
-      </Text>
+      <Text variant="muted">{cribaCalibresLabel(summary)}</Text>
       <View className="flex-row items-baseline gap-2">
         <Text variant="muted">Peso de la muestra</Text>
         <Text
@@ -139,10 +140,33 @@ export function EvalCriba() {
     return () => clearTimeout(timeout);
   }, [typing]);
 
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  // Los nueve nacen con el formulario; los extra se agregan y se quitan por el
+  // final, así que la posición sigue diciendo de qué calibre es cada peso.
+  const { fields, append, remove } = useFieldArray<
+    EvaluationFormValues,
+    "criba.calibres"
+  >({ name: "criba.calibres" });
+
   const calibres = useWatch<EvaluationFormValues, "criba.calibres">({
     name: "criba.calibres",
   });
-  const summary = summarizeCriba(calibres, typing?.index ?? null);
+
+  /**
+   * **Cuántas filas hay lo dice `fields`; qué lleva cada una, el `useWatch`.**
+   *
+   * Es la misma trampa que ya está documentada en Rendimiento: lo observado no
+   * encoge al descartar —el valor del índice que se va sigue registrado—, así
+   * que pintando desde ahí el calibre resucitaba y el descarte no hacía nada.
+   *
+   * Emparejando contra `fields`, uno recién agregado se pinta en blanco durante
+   * ese render —que es justo lo que es— y uno descartado desaparece ya.
+   */
+  const rows = fields.map(
+    (_, index) => calibres[index] ?? { total: "", average: "" },
+  );
+  const summary = summarizeCriba(rows, typing?.index ?? null);
   // Uno solo, el más grave de los que estén rotos. En cuanto se arregla,
   // aparece el siguiente si sigue ahí (ver `firstCribaWarning`).
   const warning = firstCribaWarning(summary);
@@ -154,7 +178,30 @@ export function EvalCriba() {
   // promedio, y de ahí al calibre siguiente. Es lo que encadena «Siguiente».
   const inputs = useRef<(TextInput | null)[]>([]);
   const [focused, setFocused] = useState<number | null>(null);
-  const lastFieldIndex = CRIBA_CALIBRES.length * FIELDS_PER_CALIBRE - 1;
+  const lastFieldIndex = summary.calibres.length * FIELDS_PER_CALIBRE - 1;
+
+  // El que viene, que es el que nombra el botón: los tres son fijos y en ese
+  // orden, así que el evaluador no tiene que recordar cuál sigue.
+  const nextExtra = CRIBA_EXTRA_CALIBRES[summary.extrasCount];
+  const lastExtra = CRIBA_EXTRA_CALIBRES[summary.extrasCount - 1];
+
+  const addExtra = () => {
+    setConfirmingDelete(false);
+    append({ total: "", average: "" }, { shouldFocus: false });
+  };
+
+  // Primer toque: pregunta. Segundo: descarta. Siempre el último, que es el que
+  // se acaba de agregar.
+  const handleDelete = () => {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      return;
+    }
+
+    setConfirmingDelete(false);
+    Keyboard.dismiss();
+    remove(fields.length - 1);
+  };
 
   return (
     <View className="gap-4">
@@ -170,20 +217,34 @@ export function EvalCriba() {
 
         {summary.calibres.map((calibre, index) => (
           <View
-            key={calibre.calibre}
+            key={calibre.label.label}
             role="group"
-            aria-label={`Calibre ${calibre.calibre}`}
+            aria-label={`Calibre ${calibre.label.label}`}
             className="flex-row items-center gap-3"
           >
-            <Text
-              className={cn(
-                CALIBRE_CN,
-                "text-center text-sm font-bold text-muted-foreground",
-              )}
-              style={styles.tabular}
+            {/* La parte entera grande y la fracción pequeña, alineadas por la
+                base: los nueve de siempre son dieciseisavos —8/16 a 16/16— y
+                sin el denominador, saltar de «16» a «1 1/8» parece cambiar de
+                sistema de medida cuando es la misma escala pasando de la
+                unidad. */}
+            <View
+              className={cn(CALIBRE_CN, "flex-row items-baseline justify-end")}
             >
-              {calibre.calibre}
-            </Text>
+              <Text
+                className="text-sm font-bold text-muted-foreground"
+                style={styles.tabular}
+              >
+                {calibre.label.whole}
+              </Text>
+              <Text
+                className={cn(
+                  "text-xs font-semibold text-muted-foreground",
+                  calibre.isExtra && "ml-0.5",
+                )}
+              >
+                {calibre.label.frac}
+              </Text>
+            </View>
 
             {CRIBA_FIELDS.map(({ key, label }, column) => {
               const fieldIndex = index * FIELDS_PER_CALIBRE + column;
@@ -195,7 +256,7 @@ export function EvalCriba() {
                   ref={(input) => {
                     inputs.current[fieldIndex] = input;
                   }}
-                  accessibilityLabel={`Calibre ${calibre.calibre}, ${label}`}
+                  accessibilityLabel={`Calibre ${calibre.label.label}, ${label}`}
                   // Un calibre pesado en 0 g no tiene bayas que pesar, y eso
                   // se dice en el campo que se queda vacío.
                   placeholder={
@@ -254,7 +315,45 @@ export function EvalCriba() {
             </View>
           </View>
         ))}
+
+        {summary.extrasCount > 0 && (
+          // Solo el último, como en Brix y Rendimiento, para que la tabla no
+          // quede con huecos en medio: es la posición la que dice de qué
+          // calibre es cada peso.
+          <View className="items-end py-2">
+            <TextButton
+              icon={Trash2Icon}
+              variant={confirmingDelete ? "destructive" : "onLight"}
+              onPress={handleDelete}
+            >
+              {confirmingDelete
+                ? "Confirmar descarte"
+                : `Descartar calibre ${lastExtra?.label ?? ""}`}
+            </TextButton>
+          </View>
+        )}
       </View>
+
+      {nextExtra && (
+        // **Agregar no pide que el anterior esté completo**, al revés que Brix
+        // y Rendimiento: aquí los nueve renglones nacen vacíos y dejar huecos
+        // es normal, así que exigirlo solo en los extra sería una regla que no
+        // se parece a nada de lo que hay encima.
+        //
+        // Nombra el que viene porque los tres son fijos y en ese orden: el
+        // evaluador no tiene que recordar cuál sigue.
+        <Button
+          variant="secondary"
+          size="lg"
+          className="border border-border"
+          onPress={addExtra}
+        >
+          <Icon as={PlusIcon} size={16} className="text-primary" />
+          <Text className="text-base">
+            {`Agregar calibre ${nextExtra.label}`}
+          </Text>
+        </Button>
+      )}
 
       {warning && (
         // Uno solo para toda la tarjeta, y no uno colgando de cada fila: qué
