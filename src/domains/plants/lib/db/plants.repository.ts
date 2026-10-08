@@ -32,6 +32,55 @@ export const getPlantById = async (
 };
 
 /**
+ * Las plantaciones con algo capturado que todavía no ha salido de la tablet.
+ *
+ * Mira las **cuatro** tablas de captura, porque el evaluador no distingue entre
+ * ellas: lo que pregunta es «¿me falta mandar algo de esta plantación?». Las dos
+ * de tratamiento pasan por `tratamientos` para llegar al `plantId`; las dos de
+ * post-cosecha ya lo llevan.
+ *
+ * Es SQL contra `syncStatus` y no abre un solo payload, igual que
+ * `getTratamientoIdsWithErrors`: el listado lo pregunta de todas las
+ * plantaciones a la vez. Los índices parciales de la v10 son los que lo hacen
+ * barato — dentro de ellos solo hay filas pendientes.
+ *
+ * Vive aquí y no en los repositorios de captura porque la respuesta está
+ * **llaveada por plantación**, y porque es lo que `isSafeToDelete` necesita el
+ * día que deje de ser un guard de adorno.
+ *
+ * `rejected_closed` no cuenta como pendiente: no hay nada que reintentar hasta
+ * que la encuesta se reabra, y contarlo dejaría la tarjeta en «Pendiente» para
+ * siempre sin que nadie pudiera quitarlo.
+ */
+export const getPlantIdsWithPendingWork = async (
+  db: SQLiteDatabase,
+): Promise<Set<string>> => {
+  const rows = await db.getAllAsync<{ plantId: string }>(
+    `SELECT t.plantId AS plantId
+       FROM respuestas r
+       JOIN tratamientos t ON t.id = r.tratamientoId
+      WHERE r.syncStatus = ?
+      UNION
+     SELECT t.plantId AS plantId
+       FROM respuesta_fotos f
+       JOIN tratamientos t ON t.id = f.tratamientoId
+      WHERE f.syncStatus = ?
+      UNION
+     SELECT plantId FROM postcosecha_respuestas WHERE syncStatus = ?
+      UNION
+     SELECT plantId FROM postcosecha_fotos WHERE syncStatus = ?`,
+    [
+      SyncStatus.pending,
+      SyncStatus.pending,
+      SyncStatus.pending,
+      SyncStatus.pending,
+    ],
+  );
+
+  return new Set(rows.map((row) => row.plantId));
+};
+
+/**
  * `ON CONFLICT DO UPDATE` no es preferencia de estilo, es invariante de
  * corrección: con `foreign_keys = ON`, un `INSERT OR REPLACE` haría
  * DELETE + INSERT, dispararía la CASCADE de `tratamientos` y los borraría en

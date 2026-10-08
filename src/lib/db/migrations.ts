@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 9;
+const DATABASE_VERSION = 10;
 
 export async function runMigrations(db: SQLiteDatabase) {
   await db.execAsync("PRAGMA foreign_keys = ON");
@@ -257,10 +257,45 @@ export async function runMigrations(db: SQLiteDatabase) {
     currentVersion = 9;
   }
 
+  if (currentVersion === 9) {
+    // La cola del push. Es el `CREATE INDEX` que la v7 dejó reservado «el día
+    // que exista su consulta».
+    //
+    // **Parciales, y con el dueño en la clave.** Un índice normal sobre
+    // `syncStatus` no sirve de nada —son dos valores, y el planificador prefiere
+    // el barrido—, que es la misma razón por la que el de `hasError` es parcial.
+    // Y el dueño va dentro porque la consulta caliente es doble: barrer la cola
+    // entera para «sincronizar todo», y preguntar por un solo tratamiento o una
+    // sola evaluación para el envío individual. Un parcial sobre el dueño cubre
+    // las dos, porque una vez dentro del índice solo hay filas pendientes.
+    //
+    // El literal `'pending'` tiene que coincidir con `SyncStatus.pending`: si
+    // ese valor cambia, el índice deja de aplicarse **en silencio** y la cola
+    // vuelve al barrido. No hay forma de atarlo desde SQL, así que queda dicho.
+    //
+    // `idx_respuestas_syncStatus`, de la v2, se queda: solapa con el nuevo, pero
+    // quitarlo es una decisión aparte y su coste es una inserción de B-tree por
+    // guardado.
+    await db.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_respuestas_pending
+        ON respuestas(tratamientoId) WHERE syncStatus = 'pending';
+
+      CREATE INDEX IF NOT EXISTS idx_postcosecha_respuestas_pending
+        ON postcosecha_respuestas(plantId, evalId) WHERE syncStatus = 'pending';
+
+      CREATE INDEX IF NOT EXISTS idx_respuesta_fotos_pending
+        ON respuesta_fotos(tratamientoId) WHERE syncStatus = 'pending';
+
+      CREATE INDEX IF NOT EXISTS idx_postcosecha_fotos_pending
+        ON postcosecha_fotos(plantId, evalId) WHERE syncStatus = 'pending';
+    `);
+    currentVersion = 10;
+  }
+
   // Próxima migración. ej:
-  // if (currentVersion === 9) {
+  // if (currentVersion === 10) {
   //   await db.execAsync(`CREATE TABLE IF NOT EXISTS newTable (...)`);
-  //   currentVersion = 10;
+  //   currentVersion = 11;
   // }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

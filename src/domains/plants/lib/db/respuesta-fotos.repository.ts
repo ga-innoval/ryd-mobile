@@ -152,3 +152,47 @@ export const getAllFotoFileNames = async (
 
   return new Set(rows.map((row) => row.fileName));
 };
+
+/**
+ * La cola de subida, de lo más viejo a lo más nuevo. Con `tratamientoId` es la
+ * de uno solo; sin él, la de todos.
+ *
+ * El orden es por `capturedAt` y no por `updatedAtLocal` —que aquí no existe—:
+ * una fotografía no se edita, así que cuándo se tomó es lo único que la ordena.
+ * El desempate por `rowid` por lo mismo que en `getFotosByTratamiento`: elegir
+ * varias de la galería inserta el lote dentro del mismo milisegundo.
+ */
+export const getPendingFotos = async (
+  db: SQLiteDatabase,
+  tratamientoId?: string,
+): Promise<RespuestaFotoRecord[]> => {
+  const rows = await db.getAllAsync<RespuestaFotoRow>(
+    `SELECT * FROM respuesta_fotos
+      WHERE syncStatus = ?${tratamientoId ? " AND tratamientoId = ?" : ""}
+      ORDER BY capturedAt ASC, rowid ASC`,
+    tratamientoId ? [SyncStatus.pending, tratamientoId] : [SyncStatus.pending],
+  );
+
+  return rows.map(toRecord);
+};
+
+/**
+ * El archivo llegó al servidor.
+ *
+ * **Sin el guardia del `updatedAtLocal` que llevan las respuestas, y a
+ * propósito**: una fotografía no se edita. Lo que puede pasar es que el
+ * evaluador la borre mientras subía, y entonces la fila ya no está y este
+ * `UPDATE` no encuentra nada — que es exactamente lo que tiene que ocurrir. Lo
+ * que queda pendiente entonces es decirle al servidor que la quite, y de eso
+ * habla la lápida que sigue sin existir.
+ */
+export const markFotoSynced = async (
+  db: SQLiteDatabase,
+  clientId: string,
+  syncedAt: string,
+): Promise<void> => {
+  await db.runAsync(
+    "UPDATE respuesta_fotos SET syncStatus = ?, syncedAt = ? WHERE clientId = ?",
+    [SyncStatus.synced, syncedAt, clientId],
+  );
+};

@@ -4,6 +4,7 @@ import {
   cribaCalibreLabel,
   cribaCalibresLabel,
   CRIBA_CALIBRES,
+  CRIBA_CALIBRE_SIXTEENTHS,
   CRIBA_EXTRA_CALIBRES,
   CRIBA_MAX_CALIBRES,
   createCribaCalibres,
@@ -393,5 +394,30 @@ describe("los calibres extra", () => {
     expect(cribaCalibresLabel(summarizeCriba(calibres))).toBe(
       "1 de 9 calibres · 2 calibres extra",
     );
+  });
+});
+
+describe("CRIBA_CALIBRE_SIXTEENTHS", () => {
+  it("cubre los doce renglones", () => {
+    expect(CRIBA_CALIBRE_SIXTEENTHS).toHaveLength(CRIBA_MAX_CALIBRES);
+  });
+
+  // Este es el test que impide que los números y las etiquetas se separen en
+  // silencio: no compara contra una lista escrita a mano, **lee la etiqueta y
+  // hace la cuenta**. Si alguien agrega un calibre grande y olvida su
+  // numerador, o lo pone mal, aquí se cae.
+  it("cada número es su etiqueta leída en dieciseisavos", () => {
+    const enDieciseisavos = (label: string) => {
+      const [whole, frac] = label.split(" ");
+      const fraccion = frac ?? whole;
+      const [num, den] = fraccion.split("/").map(Number);
+      const entero = frac ? Number(whole) : 0;
+
+      return Math.round((entero + num / den) * 16);
+    };
+
+    CRIBA_CALIBRE_SIXTEENTHS.forEach((sixteenths, index) => {
+      expect(enDieciseisavos(cribaCalibreLabel(index).label)).toBe(sixteenths);
+    });
   });
 });

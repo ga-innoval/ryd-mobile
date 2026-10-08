@@ -3,9 +3,17 @@
 Qué manda la app de campo cuando el evaluador guarda una evaluación de
 tratamiento, y qué se espera del lado de Django.
 
-> **Estado: diseño acordado, nada implementado todavía.** Ni la tabla local
-> (`respuestas` en SQLite) ni el lado servidor existen. Este documento es lo que
-> hay que implementar, no lo que hay.
+> **Estado: el lado tablet existe, el lado servidor no.** Las cuatro tablas
+> locales —`respuestas`, `postcosecha_respuestas` y sus dos de fotografías— se
+> escriben de punta a punta, y el cliente ya sabe armar estos cuerpos y
+> reconciliar las respuestas. Lo que falta es entero del lado Django: no hay
+> columnas de respuesta, ni serializer de escritura, ni endpoint, ni manejo de
+> imágenes. Este documento es lo que hay que implementar allá.
+>
+> **De los cuatro endpoints de tratamiento, el cliente solo usa dos**: el
+> `batch` y la subida de fotografías. El `PUT` por sección y el `DELETE` de una
+> fotografía están especificados y **no se ejercitan desde la app**, así que
+> nadie debe darlos por probados.
 
 ## Punto de partida del backend
 
@@ -190,7 +198,8 @@ hundiría la cifra sin que nadie lo notara.
 
 ### `criba`
 
-Los nueve calibres siempre, del 8 al 16, capturados o no.
+Los nueve calibres siempre, del 8 al 16, capturados o no, más los calibres
+grandes que se hayan agregado.
 
 ```json
 {
@@ -204,6 +213,22 @@ Los nueve calibres siempre, del 8 al 16, capturados o no.
 
 Unidad: **gramos**, los dos pesos. El calibre 9 del ejemplo se pesó y no tenía
 fruta —por eso no hay promedio: no hay bayas que pesar—; el 10 no se capturó.
+
+**`calibre` es el numerador sobre dieciseisavos**, que es la escala real de la
+criba: los nueve de siempre son 8/16 a 16/16 y viajan como 8..16. Es la misma
+lectura que la tablet enseña en su columna, que pinta el 8 como «8/16».
+
+**Y por eso los tres calibres grandes caben en el mismo entero.** La app permite
+agregar hasta tres (`CRIBA_EXTRA_CALIBRES`), y están en la misma escala pasando
+de la unidad: **1 1/8 es 18/16, 1 1/4 es 20/16 y 1 1/2 es 24/16**. Así que viajan
+en el mismo array, como 18, 20 y 24. No hace falta una segunda lista ni cambiar
+el entero por texto, el `GROUP BY` del reporte sigue ordenando bien, y el día que
+el negocio agregue otro calibre es otro numerador y ninguna migración.
+
+Son hasta doce posiciones, entonces, no nueve. **Y los tres grandes tienen que
+viajar**: suman al peso de la muestra, y como ese peso se **deriva** de los
+calibres recibidos, dejarlos fuera haría que el dashboard diera un peso distinto
+al de la tablet sin que nada avisara.
 
 **El peso de la muestra no viaja**: es la suma de los pesos totales, y la
 distribución de cada calibre es su parte de esa suma. Derivarlo en el reporte
@@ -279,9 +304,9 @@ class RespuestaTratamiento(models.Model):   # ya existe, 1:1 con EvaluacionTrata
     # capturado_en por sección, si se quiere saber cuándo se capturó cada una
     payload_raw = models.TextField(null=True)
 
-class RespuestaCribaCalibre(models.Model):      # 9 filas por respuesta
+class RespuestaCribaCalibre(models.Model):      # 9 a 12 filas por respuesta
     respuesta = FK(RespuestaTratamiento, related_name="calibres", on_delete=CASCADE)
-    calibre = IntegerField()                    # 8..16
+    calibre = IntegerField()                    # dieciseisavos: 8..16, y 18/20/24
     peso_total = DecimalField(null=True)        # gramos
     peso_promedio = DecimalField(null=True)     # gramos
     # UniqueConstraint(respuesta, calibre)
@@ -323,6 +348,133 @@ Cuatro reglas de modelado que se agradecen después:
   con `PROTECT`: borrar una respuesta debe llevarse sus calibres y sus cortes,
   no dejarlos huérfanos.
 
+## Post-cosecha
+
+La otra encuesta, y **deliberadamente aparte** por lo mismo que en la tablet: lo
+que comparte con tratamiento son las reglas, no las tablas.
+
+### Identidad
+
+**`(plantacion_id, eval_id, seccion)`**, de tres partes y no de dos. El dueño no
+es un tratamiento: es la plantación más cuál de las cuatro evaluaciones del
+catálogo del negocio. Las tres partes existen en los dos lados antes del primer
+envío —`plantacion_id` llega en el pull y las otras dos son catálogos fijos—, así
+que tampoco hace falta UUID y un reenvío no puede duplicar.
+
+- `eval_id` ∈ `15caja` · `15plastico` · `30caja` · `30plastico`. Es
+  `EVALS_POST_COSECHA` (`src/domains/plants/lib/evals-post-cosecha.ts`): 15 y 30
+  días × caja y liner. **Catálogo fijo del negocio, idéntico para toda
+  plantación**, así que no se parametriza ni se mueve al servidor, y el
+  denominador del avance siempre es 4.
+- `seccion` ∈ `fruta` · `comentarios`. Las fotografías son una sección en
+  pantalla pero no viajan por aquí.
+
+### Endpoints
+
+```
+PUT    /api/ryd/plantaciones/{plantacion_id}/postcosecha/{eval_id}/respuesta/{seccion}/
+POST   /api/ryd/postcosecha/respuestas/batch/
+POST   /api/ryd/plantaciones/{plantacion_id}/postcosecha/{eval_id}/fotografias/   (multipart)
+DELETE /api/ryd/plantaciones/{plantacion_id}/postcosecha/{eval_id}/fotografias/{client_id}/
+```
+
+Mismo cuerpo `{ capturado_en, payload }`, mismo `results` por registro y nunca
+todo-o-nada, y las **cinco reglas de escritura de arriba valen enteras**: el
+ancla se crea al primer envío, se reemplaza dentro del alcance de la sección,
+`null` no es `0`, el servidor no rechaza por contenido, y se guarda el
+`payload_raw`.
+
+El lote lleva la llave de tres partes, y el cliente **solo usa este**:
+
+```json
+{
+  "respuestas": [
+    {
+      "plantacion_id": "…",
+      "eval_id": "15caja",
+      "seccion": "fruta",
+      "capturado_en": "…",
+      "payload": {}
+    }
+  ]
+}
+```
+
+La fotografía va igual que en tratamiento —una petición multipart por archivo,
+con su `client_id` de cliente como llave de idempotencia—, con una sola
+`categoria`: `racimos`
+(`src/domains/plants/lib/postcosecha-photo-categories.ts`).
+
+### El payload de `fruta`
+
+```json
+{
+  "fecha_empaque": "2026-08-12",
+  "fecha_evaluacion": "2026-08-27",
+  "acidez": "medium",
+  "tallo": 4,
+  "peso_inicial": 8002.5,
+  "peso_final": 7890,
+  "peso_bayas_reventadas": 120.4,
+  "peso_desgrane": 35,
+  "dano_azufre": "zero",
+  "manchas_cafes": null,
+  "calidad_consumo": 5,
+  "sabor": 4
+}
+```
+
+Doce campos, los nombres tal como los dice la hoja de empaque:
+
+- **Las dos fechas** en ISO `YYYY-MM-DD`, sin hora ni zona, o `null`. La de
+  empaque es cuando la caja entró al cuarto frío; la de evaluación, cuando se
+  abrió.
+- **Los cuatro pesos en gramos**, decimales, o `null`. En el orden en que se
+  pesan: la caja entera al entrar (`peso_inicial`) y al salir (`peso_final`), y
+  después lo que se separa de ella.
+- **Cuatro niveles** (`acidez`, `dano_azufre`, `manchas_cafes` y el resto de su
+  familia) por el `value` del catálogo —un slug, nunca la etiqueta visible—:
+  `zero` · `low` · `medium` · `high`, o `null`.
+- **Tres escalas** (`tallo`, `calidad_consumo`, `sabor`) como entero de 1 a 5, o
+  `null`.
+
+**Los tres porcentajes no viajan.** Deshidratación, bayas reventadas y desgrane
+**no se capturan, se calculan** desde los cuatro pesos: la deshidratación es
+`(inicial − final) ÷ inicial`, y los otros dos son la parte que les toca del peso
+final. Es el mismo caso que el peso de la muestra de Criba y que los R de Brix, y
+se resuelve igual: derivarlos al consultar evita que un día discrepen de sus
+insumos.
+
+`comentarios` es idéntico al de tratamiento: las tres notas, siempre presentes.
+
+### Qué guarda el servidor
+
+Un ancla por `(plantacion, eval_id)` y las doce columnas de `fruta`, con las
+mismas cuatro reglas de modelado: `DecimalField` en los pesos, derivados no
+guardados, columnas de pregunta `null=True, blank=True`, y `CASCADE` en las
+hijas.
+
+```python
+class RespuestaPostcosecha(models.Model):
+    plantacion = FK(Plantacion, related_name="postcosecha", on_delete=PROTECT)
+    eval_id = CharField(choices=…)              # 15caja | 15plastico | 30caja | 30plastico
+    evaluador = FK(...)
+    # las dos fechas, los cuatro pesos (DecimalField), los cuatro niveles
+    # (CharField) y las tres escalas (IntegerField), todas null=True
+    # comentarios: positivos / negativos / observaciones
+    payload_raw = models.TextField(null=True)
+    # UniqueConstraint(plantacion, eval_id)
+
+class RespuestaPostcosechaFoto(models.Model):
+    respuesta = FK(..., related_name="fotos", on_delete=CASCADE)
+    categoria = CharField(choices=…)            # racimos
+    imagen = ImageField(…)
+    client_id = UUIDField(unique=True)
+```
+
+**`eval_id` sin tabla de catálogo**, como en la tablet: son cuatro valores que el
+negocio no cambia, y una tabla para ellos solo añade un `JOIN` a cada reporte.
+
 ## Preguntas abiertas
 
 - **Los slugs de exterior e interior** solo existen hoy del lado de la app.
@@ -337,3 +489,66 @@ Cuatro reglas de modelado que se agradecen después:
 - **Qué cuenta como sección completa** para el progreso sigue sin definir —Brix
   no tiene un número fijo de cortes—, y de eso depende el `progress` que la app
   muestra en el listado.
+- **Borrar lo que ya se subió no deja rastro.** Limpiar un tratamiento o una
+  evaluación en la tablet borra sus filas, así que si ya se habían sincronizado,
+  el servidor se queda con ellas y el reporte las sigue contando. Lo mismo con
+  una fotografía: el `DELETE` por `client_id` existe aquí, pero borrar la fila
+  local pierde el id que había que mandar. Hace falta una lápida y todavía no
+  está decidido dónde vive.
+- **Los códigos de rechazo son una lista cerrada, y hoy tiene un elemento.** El
+  cliente solo saca una fila de la cola si el `code` está en su lista de
+  terminales (hoy `encuesta_cerrada`); cualquier otro código, y cualquier
+  `status: "error"` sin código, lo reintenta. Así un código nuevo del servidor no
+  puede enterrar una captura en un estado del que nadie la saca — pero significa
+  que **añadir un rechazo terminal es un cambio en los dos lados**, no solo en
+  Django.
+
+## Apéndice: un servidor de mentira para probar
+
+El camino de éxito no se puede probar sin algo que conteste. Esto es lo más
+barato que sirve, y de paso es la especificación ejecutable que los dos lados
+pueden mirar: sin dependencias, con `node:http`, y apuntando
+`EXPO_PUBLIC_API_URL` a él.
+
+```js
+// scripts/push-stub.mjs — node scripts/push-stub.mjs
+import { createServer } from "node:http";
+
+const leer = (req) =>
+  new Promise((ok) => {
+    let raw = "";
+    req.on("data", (c) => (raw += c));
+    req.on("end", () => ok(raw));
+  });
+
+createServer(async (req, res) => {
+  const body = await leer(req);
+  console.log(req.method, req.url, body.slice(0, 400));
+  res.setHeader("Content-Type", "application/json");
+
+  // Las fotografías son multipart y contestan vacío.
+  if (req.url.includes("/fotografias/")) return res.end("{}");
+
+  const { respuestas = [] } = body.startsWith("{") ? JSON.parse(body) : {};
+
+  res.end(
+    JSON.stringify({
+      results: respuestas.map((r) => ({
+        ...(r.evaluacion_id ? { evaluacion_id: r.evaluacion_id } : {}),
+        ...(r.plantacion_id
+          ? { plantacion_id: r.plantacion_id, eval_id: r.eval_id }
+          : {}),
+        seccion: r.seccion,
+        // Una sección contesta rechazo a propósito: es la única forma de ver
+        // ese estado en pantalla antes de que Django exista.
+        ...(r.seccion === "comentarios"
+          ? { status: "error", code: "encuesta_cerrada" }
+          : { status: "ok" }),
+      })),
+    }),
+  );
+}).listen(8000, () => console.log("stub en http://localhost:8000"));
+```
+
+Lo que **no** hay que hacer es un modo falso dentro de la app. Eso es otra vez el
+`delay(3_000)` de `sync-store.ts`, y es código que miente y que acaba enviándose.
