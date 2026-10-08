@@ -65,6 +65,27 @@ export const CRIBA_MAX_CALIBRES =
   CRIBA_CALIBRES.length + CRIBA_EXTRA_CALIBRES.length;
 
 /**
+ * Cada calibre en **dieciseisavos**, que es la escala de verdad de los doce.
+ *
+ * Los nueve de siempre son 8/16 a 16/16, y los tres grandes caen en la misma
+ * escala pasando de la unidad: **1 1/8 es 18/16, 1 1/4 es 20/16 y 1 1/2 es
+ * 24/16**. Verlo así es lo que resuelve el hueco que tenía el contrato, que
+ * fijaba nueve calibres enteros y no sabía nombrar los extra: con el numerador,
+ * los doce caben en un solo entero, el servidor los ordena y los agrupa sin
+ * tener que saber cuál era «extra», y agregar otro mañana es otro numerador.
+ *
+ * Es la misma lectura que ya enseña la columna —por eso el 8 se pinta «8/16» y
+ * no «8»—, llevada al alambre. Su test comprueba que los números y las
+ * etiquetas dicen lo mismo, para que no puedan separarse en silencio.
+ */
+export const CRIBA_CALIBRE_SIXTEENTHS = [
+  ...CRIBA_CALIBRES,
+  18,
+  20,
+  24,
+] as const;
+
+/**
  * **Agregar no pide que el anterior esté completo**, al revés que Brix y
  * Rendimiento: aquí los nueve renglones nacen vacíos y dejar huecos es normal,
  * así que exigirlo solo en los extra sería una regla que no se parece a nada de

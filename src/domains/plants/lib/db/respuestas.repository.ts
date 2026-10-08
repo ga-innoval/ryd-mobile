@@ -199,36 +199,50 @@ export const getTratamientoProgress = async (
 /**
  * La cola del push, de lo más viejo a lo más nuevo: lo que más tiempo lleva
  * esperando es lo que más arriesga perderse.
+ *
+ * Con `tratamientoId` es la cola de uno solo, que es lo que manda el botón de
+ * la pantalla de captura; sin él, la de todos. **Un argumento opcional y no un
+ * lector aparte**: es la misma pregunta con el alcance cambiado, y de dos
+ * cadenas de SQL salen dos sitios donde equivocarse. El índice parcial
+ * `idx_respuestas_pending` sirve a las dos formas, porque lleva el dueño en la
+ * clave y dentro solo hay filas pendientes.
+ *
+ * Lo que **no** entra aquí es `rejected_closed`: una encuesta cerrada no se
+ * arregla reintentando, así que esa fila sale de la cola hasta que alguien la
+ * edite —y entonces `saveRespuesta` la devuelve a `pending` sola—.
  */
 export const getPendingRespuestas = async (
   db: SQLiteDatabase,
+  tratamientoId?: string,
 ): Promise<RespuestaRecord[]> => {
   const rows = await db.getAllAsync<RespuestaRow>(
-    "SELECT * FROM respuestas WHERE syncStatus = ? ORDER BY updatedAtLocal ASC",
-    [SyncStatus.pending],
+    `SELECT * FROM respuestas
+      WHERE syncStatus = ?${tratamientoId ? " AND tratamientoId = ?" : ""}
+      ORDER BY updatedAtLocal ASC`,
+    tratamientoId ? [SyncStatus.pending, tratamientoId] : [SyncStatus.pending],
   );
 
   return rows.map(toRecord);
 };
 
+/** La sección tal como se envió, que es contra lo que se compara al volver. */
+export type SentRespuestaKey = RespuestaKey & { updatedAtLocal: string };
+
 /**
- * Marca como sincronizada la sección **que se envió**, no la que hay ahora.
+ * El resultado del envío de una sección, escrito **solo sobre la fila que
+ * viajó**.
  *
- * Por eso pide el `updatedAtLocal` que viajó: si el evaluador editó la sección
- * mientras el push estaba en vuelo, la condición no encaja, no se actualiza
- * nada y la fila sigue pendiente. Sin esa comparación, ese cambio quedaría
- * marcado como sincronizado sin haber salido nunca de la tablet.
+ * Por eso pide el `updatedAtLocal` que se mandó y lo pone en el `WHERE`: si el
+ * evaluador editó la sección mientras el push estaba en vuelo, la condición no
+ * encaja, no se actualiza nada y la fila sigue pendiente. Sin esa comparación,
+ * ese cambio quedaría marcado como sincronizado sin haber salido nunca de la
+ * tablet.
  */
-export const markRespuestaSynced = async (
+const markRespuesta = async (
   db: SQLiteDatabase,
-  {
-    tratamientoId,
-    seccion,
-    updatedAtLocal,
-  }: RespuestaKey & {
-    updatedAtLocal: string;
-  },
-  syncedAt: string,
+  { tratamientoId, seccion, updatedAtLocal }: SentRespuestaKey,
+  syncStatus: SyncStatus,
+  syncedAt: string | null,
 ): Promise<void> => {
   await db.runAsync(
     `UPDATE respuestas
@@ -237,7 +251,7 @@ export const markRespuestaSynced = async (
         AND seccion = $seccion
         AND updatedAtLocal = $updatedAtLocal`,
     {
-      $syncStatus: SyncStatus.synced,
+      $syncStatus: syncStatus,
       $syncedAt: syncedAt,
       $tratamientoId: tratamientoId,
       $seccion: seccion,
@@ -245,3 +259,29 @@ export const markRespuestaSynced = async (
     },
   );
 };
+
+/** La sección llegó al servidor. */
+export const markRespuestaSynced = (
+  db: SQLiteDatabase,
+  key: SentRespuestaKey,
+  syncedAt: string,
+): Promise<void> => markRespuesta(db, key, SyncStatus.synced, syncedAt);
+
+/**
+ * El servidor rechazó la sección y reintentar no va a cambiarlo —la encuesta
+ * está cerrada—.
+ *
+ * **Sale de la cola pero `syncedAt` se queda en `NULL`**: no llegó a ningún
+ * sitio, y poner la fecha diría que sí. Es lo único que se persiste de un fallo:
+ * un error de red deja la fila en `pending` justamente para que el siguiente
+ * envío la recoja, y escribir aquí un `error` la sacaría de la cola para
+ * siempre.
+ *
+ * No es un callejón sin salida: `saveRespuesta` reescribe `pending` en cada
+ * guardado, así que si la encuesta se reabre y el evaluador toca la sección,
+ * vuelve a la cola sola.
+ */
+export const markRespuestaRejected = (
+  db: SQLiteDatabase,
+  key: SentRespuestaKey,
+): Promise<void> => markRespuesta(db, key, SyncStatus.rejected_closed, null);

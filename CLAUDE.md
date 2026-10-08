@@ -30,7 +30,7 @@ sincronización manual.
 - **Testing**: Jest + `@testing-library/react-native`, factories en
   `src/test-utils/factories/`
 
-## Estado actual del schema (v9) — leer antes de tocar la DB
+## Estado actual del schema (v10) — leer antes de tocar la DB
 
 `src/lib/db/migrations.ts` crea **seis tablas**:
 
@@ -59,11 +59,23 @@ capturedAt, syncStatus, syncedAt`), lo mismo para post-cosecha, con CASCADE
 
 - `postcosecha_respuestas` (`plantId, evalId, seccion, payload, syncStatus,
 updatedAtLocal, syncedAt, hasError, progress, empacada`), con PK compuesta
-  `(plantId, evalId, seccion)` y CASCADE contra `plants`. **Sin índices
-  todavía**: el autoíndice de la PK cubre por prefijo la única lectura caliente,
-  y el parcial de `hasError` y el de `syncStatus` entran el día que exista su
-  consulta. Su repositorio es `lib/db/postcosecha-respuestas.repository.ts` y el
-  porqué está en **Captura de post-cosecha**
+  `(plantId, evalId, seccion)` y CASCADE contra `plants`. El autoíndice de la PK
+  cubre por prefijo la lectura del formulario; el parcial de `hasError` sigue sin
+  hacer falta. Su repositorio es
+  `lib/db/postcosecha-respuestas.repository.ts` y el porqué está en **Captura de
+  post-cosecha**
+
+**La v10 añade los cuatro índices parciales de la cola del push**, uno por tabla
+de captura: `ON <tabla>(<dueño>) WHERE syncStatus = 'pending'`. **Parciales y con
+el dueño en la clave**, no sobre `syncStatus`, por lo mismo que el de `hasError`:
+un índice normal sobre una columna de dos valores no sirve de nada. Con el dueño
+dentro son **índices cubridores** de la consulta caliente del listado
+(`getPlantIdsWithPendingWork`, que pregunta por las cuatro tablas en cada
+lectura) y sirven igual al envío de un solo item. Ojo: el literal `'pending'`
+tiene que coincidir con `SyncStatus.pending` — si ese valor cambia, el índice
+deja de aplicarse **en silencio**. El `idx_respuestas_syncStatus` de la v2 se
+queda, solapando: es precisamente el índice de dos valores que no sirve, pero
+quitarlo es una decisión aparte.
 
 **NO existe todavía**: la VIEW `plantaciones_with_progress`. No escribas SELECT
 contra nada que no esté en la migración v9.
@@ -253,8 +265,18 @@ Lo que no es obvio:
 - **La cuadrícula identifica por `clientId`, no por posición.** Antes borraba por
   índice, lo cual obligaba a hacerlo en lote para que no se desplazaran; ahora lo
   marcado sobrevive a que la lista se refresque por detrás.
-- `File.createUploadTask(url, { uploadType: UploadType.MULTIPART, onProgress })`
-  cubre el contrato el día del push, sin `axios` ni `FormData` a mano.
+- **Para subirlas, `file.upload(url, opts)` y no `createUploadTask`.** Los dos
+  cubren el contrato sin `axios` ni `FormData` a mano, pero
+  `createUploadTask` **crea la tarea sin arrancarla** —hay que llamar a
+  `uploadAsync()`—, así que leído literal deja una subida que no ocurre nunca.
+  `upload` arranca sola; `createUploadTask` solo hace falta para cancelar o
+  inspeccionar estado. **Y la promesa resuelve también en un 4xx o un 5xx** («for
+  any completed response, including non-2xx status codes», dice su typing), así
+  que sin mirar `result.status` a mano cada fotografía se marcaría como
+  sincronizada contra un 500. Las opciones que pide el contrato:
+  `uploadType: UploadType.MULTIPART`, `fieldName: "imagen"`,
+  `parameters: { categoria, client_id }` y el `Authorization` **puesto a mano**,
+  porque esto no pasa por `apiClient` y por tanto tampoco por su reintento del 401.
 
 Pendiente y anotado: **borrar una foto ya sincronizada necesitará lápida** —el
 contrato borra por `client_id` y borrar la fila pierde el id que había que
@@ -265,8 +287,10 @@ llegar en HEIC, que el `ImageField` de Django solo acepta con `pillow-heif`.
 
 > **Qué hay de esto:** el guardado local funciona de punta a punta —migración
 > v3, `lib/db/respuestas.repository.ts`, el volcado al formulario y la barra de
-> guardado—. **Falta todo el push y todo el lado servidor**, y las fotografías
-> siguen sin persistir. El contrato completo —payload de cada sección,
+> guardado—, y las fotografías persisten en su propia tabla. **Del push existe la
+> capa de datos** (ver **El push** más abajo): la cola, los marcadores, los
+> mappers del alambre y la regla de elegibilidad. **Falta el transporte, la UI y
+> todo el lado servidor.** El contrato completo —payload de cada sección,
 > endpoints, códigos de error y modelos propuestos para Django— está en
 > [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md). Aquí solo van las
 > decisiones y su porqué, para no volver a discutirlas.
@@ -383,6 +407,72 @@ por eso puede desincronizarse; este es un derivado de la misma fila, escrito en
 la misma transacción por el único escritor. Esa columna todavía no puede nacer:
 **cuándo cuenta una sección como completa sigue sin definir** —Brix no tiene un
 número fijo de cortes—.
+
+### El push
+
+> **Qué hay:** la cola y sus marcadores en las cuatro tablas de captura, los dos
+> mappers del alambre (`respuesta-wire.ts`, `postcosecha-wire.ts`) y
+> `sync-eligibility.ts`, todo con tests. **Falta** el módulo de API, la
+> reconciliación, la mutation y la UI.
+
+El evaluador manda **un tratamiento o una post-cosecha a la vez**, desde la
+pantalla donde acaba de capturarlo; «sincronizar todo» va encima de las mismas
+piezas. Lo que no es obvio:
+
+- **Solo se usa el `batch`, nunca el `PUT` por sección.** En campo lo escaso es
+  la conexión, y seis `PUT` por tratamiento multiplican por seis el timeout de
+  10 s que es el único detector de «sin red» que hay. El contrato ya obliga a un
+  resultado por registro, que es lo que la reconciliación necesita, así que el
+  lote da el mismo avance parcial con una sola petición y un solo decodificador
+  de rechazos.
+- **El estado en vuelo no se escribe en SQLite.** La fila solo lleva `pending`,
+  `synced` o `rejected_closed`; `syncing` y `error` viven en la mutation de
+  TanStack Query, legibles con `useIsMutating` sobre su `mutationKey`. Una fila
+  marcada `syncing` cuando el sistema mata la app se queda así para siempre y
+  nadie la reintenta nunca — y que la app muera sin aviso es justo la razón de
+  que exista el autoguardado. Un fallo de red deja la fila `pending` a propósito:
+  eso es lo que hace que el siguiente envío la recoja sin reconciliar nada.
+- **Solo una lista cerrada de códigos saca una fila de la cola**
+  (`encuesta_cerrada`, hoy). Cualquier otro código, y cualquier `error` sin
+  código, se reintenta: al revés, un código nuevo del servidor enterraría
+  capturas en un estado del que nadie las saca. Y como `saveRespuesta` reescribe
+  siempre `pending`, editar una fila rechazada la devuelve a la cola sola, que es
+  el camino de vuelta correcto si la encuesta se reabre.
+- **El marcador pide el `updatedAtLocal` que viajó** y lo pone en el `WHERE`. Una
+  sección editada mientras el envío estaba en vuelo no encaja, no se actualiza y
+  sigue pendiente; sin esa comparación, ese cambio quedaría marcado como
+  sincronizado sin haber salido de la tablet. Las fotografías no lo necesitan: un
+  archivo no se edita, y su `clientId` es la llave.
+- **El alcance es un argumento opcional del mismo lector**, no un lector aparte:
+  es la misma pregunta con el alcance cambiado, y de dos cadenas de SQL salen dos
+  sitios donde equivocarse.
+- **Un dato imposible bloquea el envío del item entero** (`syncEligibility`), que
+  es lo que ya decía la sección de errores: guardar sí, dar por terminado no. Y
+  **«nada que mandar» gana a «bloqueado»**: un error sobre algo ya enviado no
+  impide nada, así que apagar el botón con un motivo dejaría al evaluador
+  buscando qué arreglar para una acción que no iba a hacer nada.
+- **El texto primero y las fotografías después, y es una dependencia de orden.**
+  El lote va por `apiClient`, que refresca el token en un 401; la subida de fotos
+  no pasa por ahí. Mandando el texto primero, las subidas salen con un token
+  fresco. Invertir los dos pasos rompe el refresco en silencio.
+- **El mapper es el único sitio donde se cruza la frontera del dato.** En SQLite
+  vive lo tecleado (`z.input`, `"14."` incluido); en el alambre, números y
+  `null`. Usa `safeParse`, y una sección que no encaja **no se manda y no se
+  toca** —se queda pendiente—: mandar `null`s donde no se pudo leer convertiría
+  un dato ilegible en uno vacío, que en el reporte es indistinguible de una
+  pregunta que nadie contestó.
+- **El calibre viaja como numerador sobre 16**, y eso resolvió el hueco que tenía
+  el contrato con los calibres grandes: los nueve de siempre son 8/16 a 16/16 y
+  los tres extra siguen en la misma escala —1 1/8 es 18/16, 1 1/4 es 20/16, 1 1/2
+  es 24/16—, así que caben en el mismo entero. Vive en
+  `CRIBA_CALIBRE_SIXTEENTHS`, y su test **lee la etiqueta y hace la cuenta** para
+  que los números y las etiquetas no puedan separarse en silencio. Dejar los
+  extra fuera no era perder tres filas: suman al peso de la muestra, que el
+  servidor deriva de lo que recibe, así que el dashboard habría dado un peso
+  distinto al de la tablet.
+- **Sin backend, el camino de éxito se prueba con el stub** del apéndice del
+  contrato: 40 líneas de `node:http` y `EXPO_PUBLIC_API_URL` apuntando ahí. Un
+  modo falso dentro de la app es otra vez el `delay(3_000)` de `sync-store.ts`.
 
 ### Lo que hay que construir en Django
 

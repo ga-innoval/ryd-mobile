@@ -162,3 +162,36 @@ export const getAllPostcosechaFotoFileNames = async (
 
   return new Set(rows.map((row) => row.fileName));
 };
+
+/**
+ * La cola de subida, de lo más viejo a lo más nuevo. Con `owner` es la de una
+ * sola evaluación; sin él, la de todas. Mismas reglas de orden que su hermana
+ * de tratamiento: `capturedAt` y el `rowid` de desempate.
+ */
+export const getPendingPostcosechaFotos = async (
+  db: SQLiteDatabase,
+  owner?: { plantId: string; evalId: string },
+): Promise<PostcosechaFotoRecord[]> => {
+  const rows = await db.getAllAsync<PostcosechaFotoRow>(
+    `SELECT * FROM postcosecha_fotos
+      WHERE syncStatus = ?${owner ? " AND plantId = ? AND evalId = ?" : ""}
+      ORDER BY capturedAt ASC, rowid ASC`,
+    owner
+      ? [SyncStatus.pending, owner.plantId, owner.evalId]
+      : [SyncStatus.pending],
+  );
+
+  return rows.map(toRecord);
+};
+
+/** El archivo llegó al servidor. Por `clientId`, que es la PK y el nombre. */
+export const markPostcosechaFotoSynced = async (
+  db: SQLiteDatabase,
+  clientId: string,
+  syncedAt: string,
+): Promise<void> => {
+  await db.runAsync(
+    "UPDATE postcosecha_fotos SET syncStatus = ?, syncedAt = ? WHERE clientId = ?",
+    [SyncStatus.synced, syncedAt, clientId],
+  );
+};

@@ -258,3 +258,97 @@ export const getPostcosechaEmpacadas = async (
 
   return new Set(rows.map((row) => postcosechaKey(row.plantId, row.evalId)));
 };
+
+/** De quién es una captura de post-cosecha: la plantación y cuál de las cuatro. */
+export type PostcosechaOwner = { plantId: string; evalId: string };
+
+/** La sección tal como se envió, que es contra lo que se compara al volver. */
+export type SentPostcosechaKey = PostcosechaOwner & {
+  seccion: PostcosechaSectionId;
+  updatedAtLocal: string;
+};
+
+/**
+ * La cola del push, de lo más viejo a lo más nuevo: lo que más tiempo lleva
+ * esperando es lo que más arriesga perderse.
+ *
+ * Con `owner` es la cola de una sola evaluación —lo que manda el botón de la
+ * pantalla—; sin él, la de todas. Un argumento opcional y no un lector aparte,
+ * igual que en `getPendingRespuestas`: es la misma pregunta con el alcance
+ * cambiado. El índice parcial `idx_postcosecha_respuestas_pending` sirve a las
+ * dos formas porque lleva el dueño en la clave.
+ *
+ * `rejected_closed` no entra: reintentar una encuesta cerrada no la abre, y
+ * `savePostcosechaRespuesta` devuelve la fila a `pending` sola en cuanto alguien
+ * la edite.
+ */
+export const getPendingPostcosechaRespuestas = async (
+  db: SQLiteDatabase,
+  owner?: PostcosechaOwner,
+): Promise<PostcosechaRespuestaRecord[]> => {
+  const rows = await db.getAllAsync<PostcosechaRespuestaRow>(
+    `SELECT * FROM postcosecha_respuestas
+      WHERE syncStatus = ?${owner ? " AND plantId = ? AND evalId = ?" : ""}
+      ORDER BY updatedAtLocal ASC`,
+    owner
+      ? [SyncStatus.pending, owner.plantId, owner.evalId]
+      : [SyncStatus.pending],
+  );
+
+  return rows.map(toRecord);
+};
+
+/**
+ * El resultado del envío de una sección, escrito **solo sobre la fila que
+ * viajó**.
+ *
+ * El `updatedAtLocal` en el `WHERE` es el mismo guardia que en tratamiento: una
+ * sección editada mientras el envío estaba en vuelo no encaja, no se actualiza y
+ * sigue pendiente. Aquí pesa más que allí, porque saltar entre las cuatro
+ * evaluaciones es `setParams` y la pantalla no se desmonta: es fácil seguir
+ * capturando mientras algo sube.
+ */
+const markPostcosechaRespuesta = async (
+  db: SQLiteDatabase,
+  { plantId, evalId, seccion, updatedAtLocal }: SentPostcosechaKey,
+  syncStatus: SyncStatus,
+  syncedAt: string | null,
+): Promise<void> => {
+  await db.runAsync(
+    `UPDATE postcosecha_respuestas
+        SET syncStatus = $syncStatus, syncedAt = $syncedAt
+      WHERE plantId = $plantId
+        AND evalId = $evalId
+        AND seccion = $seccion
+        AND updatedAtLocal = $updatedAtLocal`,
+    {
+      $syncStatus: syncStatus,
+      $syncedAt: syncedAt,
+      $plantId: plantId,
+      $evalId: evalId,
+      $seccion: seccion,
+      $updatedAtLocal: updatedAtLocal,
+    },
+  );
+};
+
+/** La sección llegó al servidor. */
+export const markPostcosechaRespuestaSynced = (
+  db: SQLiteDatabase,
+  key: SentPostcosechaKey,
+  syncedAt: string,
+): Promise<void> =>
+  markPostcosechaRespuesta(db, key, SyncStatus.synced, syncedAt);
+
+/**
+ * El servidor rechazó la sección y reintentar no va a cambiarlo.
+ *
+ * `syncedAt` se queda en `NULL`: no llegó a ningún sitio. Es el único fallo que
+ * se persiste —uno de red deja la fila en `pending` para que la recoja el
+ * siguiente envío—.
+ */
+export const markPostcosechaRespuestaRejected = (
+  db: SQLiteDatabase,
+  key: SentPostcosechaKey,
+): Promise<void> =>
+  markPostcosechaRespuesta(db, key, SyncStatus.rejected_closed, null);
