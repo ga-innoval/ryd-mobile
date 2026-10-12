@@ -1,7 +1,14 @@
 /**
- * Las extensiones que puede traer una fotografía del picker. `.heic` es la de
- * iOS al elegir de la galería, y conviene conservarla tal cual: el servidor la
- * necesita para decidir el mime de la subida multipart.
+ * Las extensiones que puede traer una fotografía del picker.
+ *
+ * `.heic` es la de iOS al elegir de la galería, y se conserva **para saber que
+ * hay que convertirla**, no para mandarla así. El servidor valida la imagen con
+ * Pillow, que no trae HEIC registrado, así que un `.heic` da 400 — y un 400 no
+ * es terminal, de modo que esa foto se reintentaría en cada envío para siempre.
+ * Quien suba tiene que convertir antes.
+ *
+ * (Antes este comentario decía que el servidor la necesitaba para decidir el
+ * mime. Era al revés.)
  */
 const KNOWN_EXTENSIONS = [".jpg", ".jpeg", ".png", ".heic", ".webp"];
 

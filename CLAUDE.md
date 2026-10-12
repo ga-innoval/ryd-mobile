@@ -280,8 +280,10 @@ Lo que no es obvio:
 
 Pendiente y anotado: **borrar una foto ya sincronizada necesitará lápida** —el
 contrato borra por `client_id` y borrar la fila pierde el id que había que
-mandar—, no hay tope ni política de retención, y una foto de galería en iOS puede
-llegar en HEIC, que el `ImageField` de Django solo acepta con `pillow-heif`.
+mandar—, no hay tope ni política de retención, y y **el HEIC lo convierte el
+cliente**: el servidor valida con Pillow, que no lo trae, así que un `.heic` da
+400 — y como 400 no es terminal, esa foto se reintentaría en cada envío para
+siempre.
 
 ## Guardado y sincronización de respuestas
 
@@ -410,10 +412,12 @@ número fijo de cortes—.
 
 ### El push
 
-> **Qué hay:** la cola y sus marcadores en las cuatro tablas de captura, los dos
-> mappers del alambre (`respuesta-wire.ts`, `postcosecha-wire.ts`) y
-> `sync-eligibility.ts`, todo con tests. **Falta** el módulo de API, la
-> reconciliación, la mutation y la UI.
+> **Qué hay:** el envío de texto funciona de punta a punta sin UI —la cola y sus
+> marcadores, los mappers del alambre, `sync-eligibility`, `sync-reconcile`,
+> `api/respuestas.api.ts` y `use-sync-item.ts`—, y el lado servidor **ya existe**
+> (`apps/ryd` en `altatech-api`; su contraparte está en
+> [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md)). **Falta** la
+> subida de fotografías, la UI de la cabecera y «sincronizar todo».
 
 El evaluador manda **un tratamiento o una post-cosecha a la vez**, desde la
 pantalla donde acaba de capturarlo; «sincronizar todo» va encima de las mismas
@@ -470,9 +474,27 @@ piezas. Lo que no es obvio:
   extra fuera no era perder tres filas: suman al peso de la muestra, que el
   servidor deriva de lo que recibe, así que el dashboard habría dado un peso
   distinto al de la tablet.
-- **Sin backend, el camino de éxito se prueba con el stub** del apéndice del
-  contrato: 40 líneas de `node:http` y `EXPO_PUBLIC_API_URL` apuntando ahí. Un
-  modo falso dentro de la app es otra vez el `delay(3_000)` de `sync-store.ts`.
+- **`syncedAt` sale del reloj del dispositivo**, al revés que el watermark del
+  pull, que usa el `server_time` del servidor para no depender de relojes
+  desajustados. Aquí sí vale, y por dos razones: la respuesta del lote **no trae
+  `server_time`**, y este dato es contabilidad local —«cuándo marqué esto como
+  enviado»— que nadie compara entre tablets.
+- **El veredicto no se escribe en una transacción.** Cada fila es independiente y
+  marcar tres de cinco es mejor que no marcar ninguna; si la app muere en medio,
+  lo marcado queda marcado y lo demás sigue pendiente. Reenviar lo ya enviado no
+  duplica, porque la llave es natural.
+- **La elegibilidad se comprueba dentro del envío, no solo en el botón.** Es la
+  regla y no una cortesía de la interfaz, y el día que «sincronizar todo» mande
+  cien plantaciones ese es el único sitio por el que pasan todas. Un envío
+  bloqueado no es un fallo: devuelve `blocked` y la pantalla lo cuenta con el
+  aviso rojo, diciendo qué hacer en vez de qué pasó.
+- **El contrato está probado contra el cuerpo real.** El test de
+  `use-sync-item` afirma el `WireRespuesta` exacto que sale, y es lo único que
+  caza un campo renombrado de este lado sin avisar al de Django.
+- **Sin backend el camino de éxito se prueba con el stub** del apéndice del
+  contrato: 40 líneas de `node:http` y `EXPO_PUBLIC_API_URL` apuntando ahí. Hoy
+  ya hay servidor, así que es solo el respaldo. Un modo falso dentro de la app es
+  otra vez el `delay(3_000)` de `sync-store.ts`.
 
 ### Lo que hay que construir en Django
 
@@ -976,6 +998,13 @@ renombró) y `temporada` en español.
 - **`useDebouncedValue`** ya existe en
   `src/domains/plants/hooks/use-debounced-value.ts` — usarlo para cualquier
   filtro de búsqueda antes de tocar SQLite/filtrado pesado.
+- **`jest.mock("ruta")` a secas REQUIERE el módulo real** para sacarle la forma
+  del automock, así que arrastra toda su cadena de imports. Mockear
+  `api/respuestas.api` así entra por `api-client` → `auth-store` → `storage` →
+  AsyncStorage y el test revienta pidiendo su mock nativo. Con **fábrica**
+  —`jest.mock(ruta, () => ({ fn: jest.fn() }))`— jest no lo requiere y la cadena
+  se corta. `auth-store.test.ts` usa la forma corta y funciona solo porque
+  `auth-client` no importa el store.
 - **Jest + paquetes ESM**: si aparece "Cannot use import statement outside a
   module", ver el skill `debug-jest-expo` y los comentarios de `jest.config.js`
   (la decisión es `moduleNameMapper` si el paquete trae build CJS,
