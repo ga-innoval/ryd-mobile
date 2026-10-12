@@ -352,3 +352,42 @@ export const markPostcosechaRespuestaRejected = (
   key: SentPostcosechaKey,
 ): Promise<void> =>
   markPostcosechaRespuesta(db, key, SyncStatus.rejected_closed, null);
+
+/** Hermano de `getTratamientoSyncState`, con el dueño de dos partes. */
+export const getPostcosechaSyncState = async (
+  db: SQLiteDatabase,
+  plantId: string,
+  evalId: string,
+): Promise<{ pending: number; hasError: boolean }> => {
+  const row = await db.getFirstAsync<{ pending: number; hasError: number }>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN syncStatus = $pending THEN 1 ELSE 0 END), 0) AS pending,
+       COALESCE(MAX(hasError), 0) AS hasError
+     FROM postcosecha_respuestas
+     WHERE plantId = $plantId AND evalId = $evalId`,
+    {
+      $pending: SyncStatus.pending,
+      $plantId: plantId,
+      $evalId: evalId,
+    },
+  );
+
+  return { pending: row?.pending ?? 0, hasError: (row?.hasError ?? 0) === 1 };
+};
+
+/** Hermano de `applyRespuestasPushOutcome`, con las mismas razones. */
+export const applyPostcosechaPushOutcome = async (
+  db: SQLiteDatabase,
+  outcome: {
+    synced: readonly SentPostcosechaKey[];
+    rejected: readonly SentPostcosechaKey[];
+  },
+  syncedAt: string,
+): Promise<void> => {
+  for (const key of outcome.synced) {
+    await markPostcosechaRespuestaSynced(db, key, syncedAt);
+  }
+  for (const key of outcome.rejected) {
+    await markPostcosechaRespuestaRejected(db, key);
+  }
+};

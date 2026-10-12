@@ -12,6 +12,7 @@ import {
 import { upsertTratamiento } from "../tratamientos.repository";
 import {
   getPendingRespuestas,
+  getTratamientoSyncState,
   markRespuestaRejected,
   markRespuestaSynced,
   saveRespuesta,
@@ -325,6 +326,79 @@ describe("la cola del push", () => {
 
       await deletePlant(db, "p1");
       expect(await getPlantIdsWithPendingWork(db)).toEqual(new Set());
+    });
+  });
+
+  describe("getTratamientoSyncState", () => {
+    const brixImposible = {
+      cortes: [{ readings: ["99", "", "", "", "", "", "", "", "", ""] }],
+    };
+
+    it("sin captura no hay nada pendiente ni nada que revisar", async () => {
+      expect(await getTratamientoSyncState(db, "t1")).toEqual({
+        pending: 0,
+        hasError: false,
+      });
+    });
+
+    it("cuenta las pendientes del tratamiento, no las del vecino", async () => {
+      await saveRespuesta(db, {
+        tratamientoId: "t1",
+        seccion: "comentarios",
+        payload: notas("de t1"),
+        updatedAtLocal: "2026-01-01T10:00:00.000Z",
+      });
+      await saveRespuesta(db, {
+        tratamientoId: "t2",
+        seccion: "comentarios",
+        payload: notas("de t2"),
+        updatedAtLocal: "2026-01-01T10:00:00.000Z",
+      });
+
+      expect(await getTratamientoSyncState(db, "t1")).toEqual({
+        pending: 1,
+        hasError: false,
+      });
+    });
+
+    it("una sola sección con un dato imposible marca el tratamiento", async () => {
+      await saveRespuesta(db, {
+        tratamientoId: "t1",
+        seccion: "comentarios",
+        payload: notas("esto está bien"),
+        updatedAtLocal: "2026-01-01T10:00:00.000Z",
+      });
+      await saveRespuesta(db, {
+        tratamientoId: "t1",
+        seccion: "brix",
+        payload: brixImposible,
+        updatedAtLocal: "2026-01-01T10:00:00.000Z",
+      });
+
+      expect(await getTratamientoSyncState(db, "t1")).toEqual({
+        pending: 2,
+        hasError: true,
+      });
+    });
+
+    // Lo que hace seguro el dato derivado: lo calcula el propio guardado, así
+    // que corregir la lectura limpia la marca sin que nadie se acuerde.
+    it("corregir la lectura quita la marca", async () => {
+      const key = {
+        tratamientoId: "t1",
+        seccion: "brix" as const,
+        updatedAtLocal: "2026-01-01T10:00:00.000Z",
+      };
+      await saveRespuesta(db, { ...key, payload: brixImposible });
+      expect((await getTratamientoSyncState(db, "t1")).hasError).toBe(true);
+
+      await saveRespuesta(db, {
+        ...key,
+        payload: {
+          cortes: [{ readings: ["18", "", "", "", "", "", "", "", "", ""] }],
+        },
+      });
+      expect((await getTratamientoSyncState(db, "t1")).hasError).toBe(false);
     });
   });
 });

@@ -287,11 +287,17 @@ una foto que el evaluador quitó de la tablet seguiría en el reporte.
 Las categorías son el catálogo de `src/domains/plants/lib/photo-categories.ts`,
 y su `id` es parte del contrato: cambiarlo no es un cambio de texto.
 
-**El servidor tiene que aceptar HEIC.** Una fotografía elegida de la galería en
-iOS llega en ese formato y el cliente la manda tal cual, con su extensión. El
-`ImageField` de Django lo rechaza salvo que el proyecto instale `pillow-heif`.
-Si se prefiere no tocar el servidor, hay que decirlo y el cliente la convierte
-antes de subirla.
+**HEIC: resuelto, y convierte el cliente.** El servidor valida con
+`serializers.ImageField()`, o sea con Pillow, que no trae HEIC registrado: un
+`.heic` da **400**. Y como 400 no es un código terminal, esa fotografía se
+reintentaría en cada envío para siempre. Así que el cliente **convierte antes de
+subir**, y conserva la extensión original solo para saber cuándo hace falta.
+
+**Encuesta cerrada en la subida: 409 con `{"code": "encuesta_cerrada"}`.** No
+estaba en este contrato —solo definía `code` para el `batch`— y el servidor lo
+añadió para que el cliente pueda marcar la fotografía terminal igual que marca
+una sección. **Aceptado**: es lo que hace falta, y el alternativo —un 400
+genérico— la dejaría reintentándose sin fin.
 
 ## Lo que el servidor guarda
 
@@ -495,6 +501,15 @@ negocio no cambia, y una tabla para ellos solo añade un `JOIN` a cada reporte.
   una fotografía: el `DELETE` por `client_id` existe aquí, pero borrar la fila
   local pierde el id que había que mandar. Hace falta una lápida y todavía no
   está decidido dónde vive.
+- **`status: "error"` sin `code` está sobrecargado, y un caso no se arregla
+  nunca.** El servidor lo devuelve para tres cosas distintas: un registro con
+  forma inválida, un dueño fuera de alcance y un fallo inesperado al guardar. Los
+  dos últimos pueden dejar de pasar —un pull trae el dueño, el fallo era
+  transitorio—, pero el primero no: ese registro se reintentaría en cada envío
+  para siempre. Los dos lados ya lo saben (`unpack.py` lo dice de los `numero`
+  repetidos). No debería ocurrir, porque el payload lo genera el cliente; la
+  salida, el día que ocurra, es un código terminal propio o un tope de
+  reintentos.
 - **Los códigos de rechazo son una lista cerrada, y hoy tiene un elemento.** El
   cliente solo saca una fila de la cola si el `code` está en su lista de
   terminales (hoy `encuesta_cerrada`); cualquier otro código, y cualquier

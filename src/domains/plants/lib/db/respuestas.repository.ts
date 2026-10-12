@@ -285,3 +285,58 @@ export const markRespuestaRejected = (
   db: SQLiteDatabase,
   key: SentRespuestaKey,
 ): Promise<void> => markRespuesta(db, key, SyncStatus.rejected_closed, null);
+
+/**
+ * Lo que decide si el botón de enviar se enciende: cuánto queda sin mandar y si
+ * hay algún dato imposible. Las dos preguntas en un solo viaje, porque se
+ * contestan siempre juntas (ver `syncEligibility`).
+ *
+ * `hasError` mira **todas** las filas y no solo las pendientes: la marca está
+ * guardada por el propio guardado, así que preguntarla no abre ningún payload.
+ */
+export type RespuestasSyncState = { pending: number; hasError: boolean };
+
+export const getTratamientoSyncState = async (
+  db: SQLiteDatabase,
+  tratamientoId: string,
+): Promise<RespuestasSyncState> => {
+  const row = await db.getFirstAsync<{ pending: number; hasError: number }>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN syncStatus = $pending THEN 1 ELSE 0 END), 0) AS pending,
+       COALESCE(MAX(hasError), 0) AS hasError
+     FROM respuestas
+     WHERE tratamientoId = $tratamientoId`,
+    { $pending: SyncStatus.pending, $tratamientoId: tratamientoId },
+  );
+
+  return { pending: row?.pending ?? 0, hasError: (row?.hasError ?? 0) === 1 };
+};
+
+/**
+ * Escribe el veredicto del envío.
+ *
+ * **`retry` no se toca**: esas filas ya están en `pending`, y dejarlas así es
+ * justo lo que hace que el siguiente envío las recoja sin reconciliar nada. Que
+ * el caso más común no tenga escritura es la razón de que esto sea un bucle
+ * aburrido y no una transacción.
+ *
+ * Sin `withTransactionAsync` a propósito: cada fila es independiente y marcar
+ * tres de cinco es mejor que no marcar ninguna. Si la app muere en medio, lo
+ * marcado queda marcado y lo demás sigue pendiente —y reenviar lo ya enviado no
+ * duplica, porque la llave es natural—.
+ */
+export const applyRespuestasPushOutcome = async (
+  db: SQLiteDatabase,
+  outcome: {
+    synced: readonly SentRespuestaKey[];
+    rejected: readonly SentRespuestaKey[];
+  },
+  syncedAt: string,
+): Promise<void> => {
+  for (const key of outcome.synced) {
+    await markRespuestaSynced(db, key, syncedAt);
+  }
+  for (const key of outcome.rejected) {
+    await markRespuestaRejected(db, key);
+  }
+};
