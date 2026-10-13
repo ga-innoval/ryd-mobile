@@ -1,4 +1,4 @@
-import { Directory, File, Paths } from "expo-file-system";
+import { Directory, File, Paths, UploadType } from "expo-file-system";
 
 /**
  * Los archivos de las fotografías de evidencia.
@@ -64,4 +64,44 @@ export function listPhotoFileNames(): string[] {
   return photosDirectory()
     .list()
     .map((entry) => entry.name);
+}
+
+/**
+ * Sube un archivo y devuelve lo que contestó el servidor, sin juzgarlo.
+ *
+ * Está aquí y no en `api/` para no romper el invariante de arriba: **el disco se
+ * toca en un solo módulo**, y leer el archivo para subirlo es tocar el disco.
+ * Quién decide si eso fue un envío es `uploadOutcome`, que es puro y tiene test.
+ *
+ * `upload` y **no `createUploadTask`**: el segundo «crea la tarea sin
+ * arrancarla» y hay que llamar a `uploadAsync()`, así que leído por encima deja
+ * una subida que no ocurre nunca. Solo hace falta para cancelar o inspeccionar
+ * estado, y aquí no se hace ninguna de las dos.
+ *
+ * **`null` si el archivo ya no está**, en vez de lanzar: lo normal es que el
+ * evaluador la haya borrado mientras subía, y una excepción tumbaría el resto de
+ * la tanda. El invariante de esta carpeta es «toda fila tiene archivo, algún
+ * archivo puede no tener fila», y este es el instante en que se puede romper.
+ */
+export async function uploadPhotoFile(
+  fileName: string,
+  url: string,
+  options: {
+    parameters: Record<string, string>;
+    headers: Record<string, string>;
+    mimeType: string;
+  },
+): Promise<{ status: number; body: string } | null> {
+  const file = new File(photosDirectory(), fileName);
+  if (!file.exists) return null;
+
+  const result = await file.upload(url, {
+    httpMethod: "POST",
+    uploadType: UploadType.MULTIPART,
+    // El nombre del campo es parte del contrato, como las categorías.
+    fieldName: "imagen",
+    ...options,
+  });
+
+  return { status: result.status, body: result.body };
 }

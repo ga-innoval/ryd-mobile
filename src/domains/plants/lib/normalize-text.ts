@@ -7,7 +7,4 @@
  * las palabras con `n` en vez de después, como haría el alfabeto español.
  */
 export const normalizeText = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+  value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");

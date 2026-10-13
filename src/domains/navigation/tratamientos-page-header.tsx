@@ -3,6 +3,8 @@ import { HeaderBase } from "./header-base";
 import {
   ClearEvaluationButton,
   SaveStatusIndicator,
+  SendEvaluationButton,
+  SyncStatusIndicator,
 } from "./evaluation-save-controls";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -12,8 +14,18 @@ import { Icon } from "@/components/ui/icon";
 import { ArrowLeft, LeafIcon, SaveIcon } from "lucide-react-native";
 import { useAppRouter } from "@/lib/use-app-router";
 import { useEvaluationSaveStore } from "@/domains/plants/store/evaluation-save-store";
+import { resolveSyncStatus } from "@/domains/plants/lib/sync-status";
+import { syncEligibility } from "@/domains/plants/lib/sync-eligibility";
+import {
+  useItemSendStatus,
+  useItemSyncState,
+} from "@/domains/plants/hooks/use-item-sync-state";
+import { Separator } from "@/components/ui/separator";
+import { SeparatorLine } from "@/components/ui/separator-line";
 
 interface TratamientosPageHeader {
+  /** Hace falta para preguntar qué le queda por enviar a este tratamiento. */
+  tratamientoId: string;
   tratamientoName?: string;
   plantName?: string;
   isLoading?: boolean;
@@ -39,6 +51,7 @@ function HeaderDataSkeleton() {
 }
 
 export function TratamientosPageHeader({
+  tratamientoId,
   tratamientoName,
   plantName,
   isLoading = false,
@@ -49,9 +62,32 @@ export function TratamientosPageHeader({
   // desde el primer frame, y hasta entonces no hay nada que guardar.
   const actions = useEvaluationSaveStore((state) => state.actions);
 
-  // Mientras escribe no se sale, no se limpia y no se vuelve a guardar: la
-  // cabecera entera espera a que la escritura termine.
+  // **Lo del envío lo lee la cabecera por su cuenta, sin pasar por el store.**
+  // El `QueryClientProvider` y el `SQLiteProvider` están por encima del
+  // navigator, así que puede consultar aunque se pinte fuera del árbol de la
+  // pantalla. El store lleva solo lo que de aquí no se ve.
+  const scope = { kind: "tratamiento" as const, tratamientoId };
+  const { data: syncState } = useItemSyncState(scope);
+  const sendStatus = useItemSendStatus(scope);
+
+  const syncIndicator = resolveSyncStatus({
+    send: sendStatus,
+    captured: syncState?.captured ?? 0,
+    pending: syncState?.pending ?? 0,
+    rejected: syncState?.rejected ?? 0,
+  });
+  const eligibility = syncEligibility({
+    pending: syncState?.pending ?? 0,
+    hasError: syncState?.hasError ?? false,
+  }).kind;
+
+  // **`busy` es solo la escritura local**, no el envío. Bloquear la cabecera
+  // entera mientras algo sube dejaría al evaluador atrapado hasta diez segundos
+  // —el `timeout` de `apiClient`— sin poder ni volver atrás, y en campo eso es
+  // peor que cualquier carrera. Volver y guardar siguen vivos durante el envío;
+  // limpiar no, porque borra justo lo que está viajando.
   const busy = status === "saving";
+  const sending = sendStatus === "sending";
   const disabled = busy || !actions;
 
   return (
@@ -88,12 +124,24 @@ export function TratamientosPageHeader({
           de los nombres: lo que se mira antes de tocar «Guardar» es si hace
           falta tocarlo. */}
       <View className="flex-row items-center gap-4">
-        <SaveStatusIndicator status={status} />
+        {/* Su propio par, con el mismo `gap-2` que el `SyncBlock` de la
+            pantalla principal: el estado pegado al botón que lo cambia, igual
+            que arriba el de guardado va pegado al suyo. */}
+        <View className="flex-row items-center gap-2">
+          <SyncStatusIndicator status={syncIndicator} />
+          <SendEvaluationButton
+            onPress={actions?.send}
+            eligibility={eligibility}
+            sending={sending}
+          />
+        </View>
+        <SeparatorLine />
 
+        <SaveStatusIndicator status={status} />
         <View className="flex-row gap-2">
           <ClearEvaluationButton
             onConfirm={actions?.clear}
-            disabled={disabled}
+            disabled={disabled || sending}
             description="Se borrarán todas las respuestas de este tratamiento y sus fotografías. No se podrán recuperar."
           />
           <IconButton

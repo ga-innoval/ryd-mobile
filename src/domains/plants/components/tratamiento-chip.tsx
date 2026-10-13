@@ -87,7 +87,7 @@ export function TratamientoChip({
           : isComplete(progress)
             ? {
                 icon: CircleCheckIcon,
-                className: "text-leaf",
+                className: "text-foreground",
                 fill: ROW_BACKGROUND,
               }
             : undefined

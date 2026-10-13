@@ -233,12 +233,12 @@ El reparto por capas no es estilo, es lo que mantiene los tests en pie: **el
 repositorio no puede importar `expo-file-system`** o dejarían de arrancar contra
 `createInMemoryDb`.
 
-| Dónde                                  | Qué                                     |
-| -------------------------------------- | --------------------------------------- |
-| `lib/db/respuesta-fotos.repository.ts` | filas, cero disco                       |
-| `lib/photo-files.ts`                   | el único que importa `expo-file-system` |
-| `lib/photo-file-name.ts`               | derivar el nombre, puro y con test      |
-| `hooks/use-respuesta-fotos.ts`         | el pegamento y las mutations            |
+| Dónde                                  | Qué                                                      |
+| -------------------------------------- | -------------------------------------------------------- |
+| `lib/db/respuesta-fotos.repository.ts` | filas, cero disco                                        |
+| `lib/photo-files.ts`                   | el único que importa `expo-file-system`, subida incluida |
+| `lib/photo-file-name.ts`               | derivar el nombre, puro y con test                       |
+| `hooks/use-respuesta-fotos.ts`         | el pegamento y las mutations                             |
 
 Lo que no es obvio:
 
@@ -265,6 +265,10 @@ Lo que no es obvio:
 - **La cuadrícula identifica por `clientId`, no por posición.** Antes borraba por
   índice, lo cual obligaba a hacerlo en lote para que no se desplazaran; ahora lo
   marcado sobrevive a que la lista se refresque por detrás.
+- **La subida vive en `photo-files.ts`** y no en `api/`, para no romper lo de
+  arriba: leer el archivo para subirlo es tocar el disco. Quién decide si eso fue
+  un envío es `lib/upload-outcome.ts`, que es puro; quién arma la URL y los
+  campos, `api/foto-upload.api.ts`.
 - **Para subirlas, `file.upload(url, opts)` y no `createUploadTask`.** Los dos
   cubren el contrato sin `axios` ni `FormData` a mano, pero
   `createUploadTask` **crea la tarea sin arrancarla** —hay que llamar a
@@ -280,10 +284,10 @@ Lo que no es obvio:
 
 Pendiente y anotado: **borrar una foto ya sincronizada necesitará lápida** —el
 contrato borra por `client_id` y borrar la fila pierde el id que había que
-mandar—, no hay tope ni política de retención, y y **el HEIC lo convierte el
-cliente**: el servidor valida con Pillow, que no lo trae, así que un `.heic` da
-400 — y como 400 no es terminal, esa foto se reintentaría en cada envío para
-siempre.
+mandar—, no hay tope ni política de retención, y y **el HEIC lo acepta el servidor**, no
+lo convierte el cliente: se manda el original con su `mimeType`. Hasta que Django
+instale `pillow-heif` un `.heic` da 400, y como 400 no es terminal esa foto se
+reintenta en cada envío — así que eso bloquea las fotografías en iPad.
 
 ## Guardado y sincronización de respuestas
 
@@ -412,12 +416,11 @@ número fijo de cortes—.
 
 ### El push
 
-> **Qué hay:** el envío de texto funciona de punta a punta sin UI —la cola y sus
-> marcadores, los mappers del alambre, `sync-eligibility`, `sync-reconcile`,
-> `api/respuestas.api.ts` y `use-sync-item.ts`—, y el lado servidor **ya existe**
-> (`apps/ryd` en `altatech-api`; su contraparte está en
-> [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md)). **Falta** la
-> subida de fotografías, la UI de la cabecera y «sincronizar todo».
+> **Qué hay:** el envío de un item funciona de punta a punta —texto y
+> fotografías— con su botón y su indicador en las dos cabeceras de captura, y el
+> lado servidor ya existe (`apps/ryd` en `altatech-api`; su contraparte está en
+> [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md)). **Falta
+> «sincronizar todo»** y la lápida de lo borrado ya sincronizado.
 
 El evaluador manda **un tratamiento o una post-cosecha a la vez**, desde la
 pantalla donde acaba de capturarlo; «sincronizar todo» va encima de las mismas
@@ -491,6 +494,61 @@ piezas. Lo que no es obvio:
 - **El contrato está probado contra el cuerpo real.** El test de
   `use-sync-item` afirma el `WireRespuesta` exacto que sale, y es lo único que
   caza un campo renombrado de este lado sin avisar al de Django.
+- **El botón de enviar guarda antes de mandar.** El autoguardado espera dos
+  segundos de silencio, así que un envío que lea la cola directamente se deja
+  fuera lo último tecleado: el evaluador pulsa, lee «Enviado», y esa frase no
+  salió. Por eso `send` vive en `EvaluationSaveActions` —solo el autoguardado ve
+  el formulario— y si la escritura falla **no se manda**.
+- **El estado del envío no pasa por el store, la cabecera lo lee.**
+  `SQLiteProvider` y `QueryClientProvider` están por encima del `<Slot/>`
+  (`src/app/_layout.tsx`), así que la cabecera puede consultar la caché de
+  mutations y SQLite aunque se pinte fuera del árbol de la pantalla. Eso fija la
+  regla de admisión del store de una vez: **lleva lo que la cabecera no puede
+  ver**, y por eso el error de captura sigue fuera y el envío también. Lo
+  componen `useItemSyncState` / `useItemSendStatus` y, en una sola línea,
+  `resolveCaptureStatus`.
+- **Dos indicadores, uno por botón, y se probó al revés.** Primero fueron uno
+  solo encadenando las dos cosas —«Guardando…» → «Guardado» → «Pendiente de
+  enviar» → …—; en la tablet no funcionó. Parecen una tubería pero contestan
+  preguntas distintas —«¿está escrito aquí?» y «¿está allá?»— y **se solapan**,
+  porque se puede teclear mientras algo sube. Ahora el de guardado va pegado a
+  guardar y limpiar, y el de sincronización a su botón, con **las mismas palabras
+  y colores que el `SyncBlock`** de la pantalla principal y el mismo `SyncButton`
+  —el refresco que gira—, para que sincronizar signifique lo mismo en los dos
+  sitios.
+- **La precedencia del indicador de sincronización tiene tests**
+  (`resolveSyncStatus`): lo que pasa ahora gana a lo que pasó, `rejected` gana a
+  `pending` porque es lo único que el evaluador no puede resolver solo, y
+  `pending` gana a `synced` porque la mutation se queda en `success` durante
+  minutos y si no, un «Sincronizado» sobreviviría a que capturara algo nuevo.
+  **Sin nada capturado calla**, igual que el de guardado: decir «Sincronizado»
+  sobre una evaluación en blanco sonaría a que algo salió.
+- **`busy` sigue siendo solo la escritura local.** Volver y guardar no se apagan
+  mientras algo sube: bloquear la cabecera dejaría al evaluador atrapado hasta
+  diez segundos —el `timeout` de `apiClient`— sin poder ni salir. Limpiar sí se
+  apaga, porque borra justo lo que viaja.
+- **Las fotografías van después del texto, en serie, y marcando de a una.** En
+  serie porque el cuello de botella es la subida y siete multipart a la vez sobre
+  una conexión de campo hacen las siete lentas y las siete más propensas a agotar
+  el `timeout`. Marcando de a una porque si la app muere en el archivo cinco de
+  siete, los cuatro primeros quedan marcados y el siguiente envío manda solo el
+  resto. Una que falla **no detiene a las demás ni desmarca el texto**: son
+  ciclos de vida distintos, que es la razón de que el contrato pida una petición
+  por archivo.
+- **El conteo del item suma secciones y fotografías.** El evaluador no distingue
+  entre las dos tablas, y contar solo secciones haría que un tratamiento con
+  fotos en disco dijera «Enviado» sin serlo. Es la razón por la que las
+  fotografías entraron en esta misma rebanada y no en la siguiente.
+- **Un `await file.upload()` que no revienta NO significa que el servidor
+  aceptara la foto**: la promesa resuelve «for any completed response, including
+  non-2xx status codes». Sin mirar `result.status` a mano, cada fotografía se
+  marcaría como enviada contra un 500. El veredicto vive en `uploadOutcome`,
+  puro y con test, en vez de en un `if` dentro del bucle.
+- **Las claves y los lectores viven aparte del transporte**
+  (`use-item-sync-state.ts` frente a `use-sync-item.ts`). No es orden: las
+  mutations de guardado necesitan la clave para invalidarla, y si la importaran
+  del módulo que trae `api-client` arrastrarían axios y el store de sesión a sus
+  tests —que es exactamente lo que pasó al intentarlo—.
 - **Sin backend el camino de éxito se prueba con el stub** del apéndice del
   contrato: 40 líneas de `node:http` y `EXPO_PUBLIC_API_URL` apuntando ahí. Hoy
   ya hay servidor, así que es solo el respaldo. Un modo falso dentro de la app es

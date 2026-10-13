@@ -11,6 +11,7 @@ import type {
   EvaluationSectionId,
 } from "../lib/evaluation-schema";
 import { PLANTS_QUERY_KEY } from "./use-plants";
+import { SYNC_STATE_QUERY_KEY } from "./use-item-sync-state";
 
 // Cuelga de `["plants"]` como el resto: así la invalidación que dispara una
 // descarga alcanza también a lo capturado.
@@ -121,6 +122,13 @@ export function useClearRespuestas(tratamientoId: string) {
         queryKey: PLANTS_QUERY_KEY,
         exact: true,
       });
+      // Cada escritura devuelve su sección a `pending`, así que el conteo de
+      // «qué falta por enviar» cambia. Por prefijo y no por alcance exacto: solo
+      // hay una pantalla de captura abierta a la vez, y así no hay que pasarle
+      // el dueño a estas mutations. Y **tiene que ser una clave distinta de
+      // `PLANTS_QUERY_KEY`**, porque el `exact` de arriba está ahí a propósito
+      // para no releer el formulario abierto cada dos segundos.
+      queryClient.invalidateQueries({ queryKey: SYNC_STATE_QUERY_KEY });
     },
     onError: (error) => {
       toast.error({
@@ -143,6 +151,13 @@ export function useSaveRespuestas(tratamientoId: string) {
         queryKey: PLANTS_QUERY_KEY,
         exact: true,
       });
+      // Cada escritura devuelve su sección a `pending`, así que el conteo de
+      // «qué falta por enviar» cambia. Por prefijo y no por alcance exacto: solo
+      // hay una pantalla de captura abierta a la vez, y así no hay que pasarle
+      // el dueño a estas mutations. Y **tiene que ser una clave distinta de
+      // `PLANTS_QUERY_KEY`**, porque el `exact` de arriba está ahí a propósito
+      // para no releer el formulario abierto cada dos segundos.
+      queryClient.invalidateQueries({ queryKey: SYNC_STATE_QUERY_KEY });
     },
     onError: (error) => {
       toast.error({

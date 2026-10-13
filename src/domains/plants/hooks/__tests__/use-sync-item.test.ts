@@ -8,6 +8,7 @@ import { upsertPlant } from "../../lib/db/plants.repository";
 import { upsertTratamiento } from "../../lib/db/tratamientos.repository";
 import {
   getPendingRespuestas,
+  getTratamientoSyncState,
   saveRespuesta,
 } from "../../lib/db/respuestas.repository";
 import {
@@ -24,6 +25,11 @@ import {
   pushPostcosechaBatch,
   pushRespuestasBatch,
 } from "../../api/respuestas.api";
+import { uploadFoto } from "../../api/foto-upload.api";
+import {
+  getPendingFotos,
+  insertFoto,
+} from "../../lib/db/respuesta-fotos.repository";
 
 // Con fábrica y no `jest.mock(path)` a secas: el automock **requiere** el módulo
 // real para sacarle la forma, y por ahí entra `api-client` → `auth-store` →
@@ -34,12 +40,20 @@ jest.mock("../../api/respuestas.api", () => ({
   pushPostcosechaBatch: jest.fn(),
 }));
 
+// La subida de fotos es el único módulo nuevo que lee disco, así que se mockea
+// por el mismo reparto que mantiene los repositorios probables contra SQLite.
+jest.mock("../../api/foto-upload.api", () => ({
+  uploadFoto: jest.fn(),
+  uploadPostcosechaFoto: jest.fn(),
+}));
+
 const mockPush = pushRespuestasBatch as jest.MockedFunction<
   typeof pushRespuestasBatch
 >;
 const mockPushPc = pushPostcosechaBatch as jest.MockedFunction<
   typeof pushPostcosechaBatch
 >;
+const mockUpload = uploadFoto as jest.MockedFunction<typeof uploadFoto>;
 
 const buildRecord = (overrides: Partial<PlantRecord> = {}): PlantRecord => {
   const { tratamientos: _t, progress: _p, ...record } = buildPlant(overrides);
@@ -99,6 +113,7 @@ describe("el envío de un item", () => {
       ]);
       expect(report).toEqual({
         enviadas: 1,
+        fotos: 0,
         rechazadas: 0,
         pendientes: 0,
         blocked: false,
@@ -226,6 +241,7 @@ describe("el envío de un item", () => {
       expect(mockPush).not.toHaveBeenCalled();
       expect(report).toEqual({
         enviadas: 0,
+        fotos: 0,
         rechazadas: 0,
         pendientes: 0,
         blocked: false,
@@ -275,6 +291,126 @@ describe("el envío de un item", () => {
       // La hermana no se tocó.
       const pendientes = await getPendingPostcosechaRespuestas(db);
       expect(pendientes.map((r) => r.evalId)).toEqual(["30plastico"]);
+    });
+  });
+
+  describe("fotografías", () => {
+    const foto = (clientId: string, capturedAt: string) =>
+      insertFoto(db, {
+        clientId,
+        tratamientoId: "t1",
+        categoria: "racimo",
+        fileName: `${clientId}.jpg`,
+        capturedAt,
+      });
+
+    const tresFotos = async () => {
+      await foto("f1", "2026-01-01T10:00:00.000Z");
+      await foto("f2", "2026-01-01T10:00:01.000Z");
+      await foto("f3", "2026-01-01T10:00:02.000Z");
+    };
+
+    it("sube una por archivo, en orden, y marca cada una", async () => {
+      await tresFotos();
+      mockUpload.mockResolvedValue({ kind: "ok" });
+
+      const report = await pushTratamientoRespuestas(db, "t1");
+
+      expect(mockUpload).toHaveBeenCalledTimes(3);
+      expect(mockUpload.mock.calls.map(([f]) => f.clientId)).toEqual([
+        "f1",
+        "f2",
+        "f3",
+      ]);
+      expect(report).toMatchObject({ enviadas: 0, fotos: 3, pendientes: 0 });
+      expect(await getPendingFotos(db, "t1")).toHaveLength(0);
+    });
+
+    // Lo que el contrato pide con una petición por archivo: la que falla no
+    // bloquea a las demás ni desmarca el texto.
+    it("una que falla no detiene a las demás ni desmarca el texto", async () => {
+      await saveRespuesta(db, {
+        tratamientoId: "t1",
+        seccion: "comentarios",
+        payload: notas("el texto"),
+        updatedAtLocal: AYER,
+      });
+      mockPush.mockResolvedValue({
+        results: [
+          { evaluacion_id: "t1", seccion: "comentarios", status: "ok" },
+        ],
+      });
+      await tresFotos();
+      mockUpload
+        .mockResolvedValueOnce({ kind: "ok" })
+        .mockResolvedValueOnce({ kind: "failed" })
+        .mockResolvedValueOnce({ kind: "ok" });
+
+      const report = await pushTratamientoRespuestas(db, "t1");
+
+      expect(report).toMatchObject({ enviadas: 1, fotos: 2, pendientes: 1 });
+      // El texto salió y se queda fuera de la cola.
+      expect(await getPendingRespuestas(db, "t1")).toHaveLength(0);
+      // Solo la que falló sigue esperando, así que el próximo envío manda una.
+      expect((await getPendingFotos(db, "t1")).map((f) => f.clientId)).toEqual([
+        "f2",
+      ]);
+    });
+
+    it("una rechazada sale de la cola en vez de reintentarse para siempre", async () => {
+      await foto("f1", "2026-01-01T10:00:00.000Z");
+      mockUpload.mockResolvedValue({ kind: "rejected" });
+
+      const report = await pushTratamientoRespuestas(db, "t1");
+
+      expect(report).toMatchObject({ fotos: 0, rechazadas: 1, pendientes: 0 });
+      expect(await getPendingFotos(db, "t1")).toHaveLength(0);
+    });
+
+    // El archivo pudo borrarse mientras subía. Cuenta como fallo y no revienta
+    // la tanda.
+    it("un archivo que ya no está cuenta como pendiente", async () => {
+      await tresFotos();
+      mockUpload
+        .mockResolvedValueOnce({ kind: "missing" })
+        .mockResolvedValue({ kind: "ok" });
+
+      const report = await pushTratamientoRespuestas(db, "t1");
+
+      expect(report).toMatchObject({ fotos: 2, pendientes: 1 });
+    });
+
+    // Sin esto el indicador mentiría: diría «Enviado» con fotos en disco.
+    it("una foto pendiente mantiene el item sin enviar", async () => {
+      await saveRespuesta(db, {
+        tratamientoId: "t1",
+        seccion: "comentarios",
+        payload: notas("el texto"),
+        updatedAtLocal: AYER,
+      });
+      mockPush.mockResolvedValue({
+        results: [
+          { evaluacion_id: "t1", seccion: "comentarios", status: "ok" },
+        ],
+      });
+      await foto("f1", "2026-01-01T10:00:00.000Z");
+      mockUpload.mockResolvedValue({ kind: "failed" });
+
+      await pushTratamientoRespuestas(db, "t1");
+
+      expect(await getTratamientoSyncState(db, "t1")).toMatchObject({
+        pending: 1,
+      });
+    });
+
+    it("sin secciones que mandar sube las fotos igual, sin petición vacía", async () => {
+      await foto("f1", "2026-01-01T10:00:00.000Z");
+      mockUpload.mockResolvedValue({ kind: "ok" });
+
+      const report = await pushTratamientoRespuestas(db, "t1");
+
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(report).toMatchObject({ fotos: 1 });
     });
   });
 });

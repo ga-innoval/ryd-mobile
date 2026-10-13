@@ -22,7 +22,10 @@ describe("sortPlants", () => {
     // Años de cuatro dígitos no distinguen ambos comportamientos ("2020" <
     // "2021" igual que 2020 < 2021), así que se usan valores de distinta
     // longitud: como texto, "1000" iría antes que "999".
-    const data = plants({ id: "corto", anio: 999 }, { id: "largo", anio: 1000 });
+    const data = plants(
+      { id: "corto", anio: 999 },
+      { id: "largo", anio: 1000 },
+    );
 
     expect(sortPlants(data, "anio").map((p) => p.id)).toEqual([
       "corto",

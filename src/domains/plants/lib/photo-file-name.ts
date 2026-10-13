@@ -1,16 +1,15 @@
 /**
  * Las extensiones que puede traer una fotografía del picker.
  *
- * `.heic` es la de iOS al elegir de la galería, y se conserva **para saber que
- * hay que convertirla**, no para mandarla así. El servidor valida la imagen con
- * Pillow, que no trae HEIC registrado, así que un `.heic` da 400 — y un 400 no
- * es terminal, de modo que esa foto se reintentaría en cada envío para siempre.
- * Quien suba tiene que convertir antes.
+ * `.heic` es la de iOS al elegir de la galería, y conviene conservarla tal cual:
+ * **es de donde sale el `mimeType` de la subida multipart** (`photo-mime.ts`), y
+ * el servidor lo necesita para guardar el archivo. Se decidió que convierta el
+ * servidor —con `pillow-heif`— y no el cliente, así que aquí no se toca.
  *
- * (Antes este comentario decía que el servidor la necesitaba para decidir el
- * mime. Era al revés.)
+ * Ojo: mientras ese paquete no esté instalado en Django, un `.heic` da 400 y la
+ * foto se reintenta en cada envío. Está anotado en el contrato.
  */
-const KNOWN_EXTENSIONS = [".jpg", ".jpeg", ".png", ".heic", ".webp"];
+export const KNOWN_EXTENSIONS = [".jpg", ".jpeg", ".png", ".heic", ".webp"];
 
 const FALLBACK_EXTENSION = ".jpg";
 

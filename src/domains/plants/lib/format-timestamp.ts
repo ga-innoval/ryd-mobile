@@ -1,8 +1,4 @@
-import {
-  format,
-  differenceInYears,
-  formatDistanceToNowStrict,
-} from "date-fns";
+import { format, differenceInYears, formatDistanceToNowStrict } from "date-fns";
 import { es } from "date-fns/locale";
 
 export const formatTimestamp = (lastSyncedAt: number) => {

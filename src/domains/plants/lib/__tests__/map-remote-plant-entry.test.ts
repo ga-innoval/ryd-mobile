@@ -16,14 +16,21 @@ const buildRemoteTrat = (overrides: Partial<RemoteTrat> = {}): RemoteTrat => ({
   ...overrides,
 });
 
-const buildRemotePlant = (overrides: Partial<RemotePlant> = {}): RemotePlant => ({
+const buildRemotePlant = (
+  overrides: Partial<RemotePlant> = {},
+): RemotePlant => ({
   id: "plant-1",
   variedad: {
     id: "var-1",
     name: "1004-Freedom",
     code: "1004",
     color: "tinto",
-    programa: { id: "prog-1", name: "Temprano", is_active: true, ...TIMESTAMPS },
+    programa: {
+      id: "prog-1",
+      name: "Temprano",
+      is_active: true,
+      ...TIMESTAMPS,
+    },
     is_active: true,
     ...TIMESTAMPS,
   },
@@ -42,7 +49,10 @@ describe("mapRemotePlantEntry", () => {
     const entry = mapRemotePlantEntry(
       buildRemotePlant({
         id: "plant-9",
-        tratamientos: [buildRemoteTrat({ id: "t1" }), buildRemoteTrat({ id: "t2" })],
+        tratamientos: [
+          buildRemoteTrat({ id: "t1" }),
+          buildRemoteTrat({ id: "t2" }),
+        ],
       }),
     );
 
