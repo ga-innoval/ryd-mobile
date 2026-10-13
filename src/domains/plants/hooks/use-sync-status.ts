@@ -1,6 +1,8 @@
 import { useIsMutating } from "@tanstack/react-query";
 import { haptics } from "@/lib/haptics";
 import { getSyncStatus } from "../lib/get-sync-status";
+import { isNetworkError } from "../lib/is-network-error";
+import { useSyncProgressStore } from "../store/sync-progress-store";
 import { useSyncStore } from "../store/sync-store";
 import { usePlants } from "./use-plants";
 import { SYNC_ALL_MUTATION_KEY, useSyncAllMutation } from "./use-sync-all";
@@ -19,7 +21,12 @@ import { SYNC_ALL_MUTATION_KEY, useSyncAllMutation } from "./use-sync-all";
  */
 export function useSyncStatus() {
   const lastSyncedAt = useSyncStore((s) => s.lastSyncedAt);
-  const mutation = useSyncAllMutation();
+  const start = useSyncProgressStore((s) => s.start);
+  const advance = useSyncProgressStore((s) => s.advance);
+  const finish = useSyncProgressStore((s) => s.finish);
+  const fail = useSyncProgressStore((s) => s.fail);
+
+  const mutation = useSyncAllMutation(advance);
   const isSyncing = useIsMutating({ mutationKey: SYNC_ALL_MUTATION_KEY }) > 0;
 
   const { data: plants } = usePlants();
@@ -27,17 +34,25 @@ export function useSyncStatus() {
 
   const setLastSyncedAt = useSyncStore((s) => s.setLastSyncedAt);
 
-  // La marca de tiempo se escribe desde aquí y no desde el `onSuccess` de la
-  // mutation, para que el módulo del envío no tenga que importar el store: ese
-  // persiste en AsyncStorage y arrastrarlo haría que `pushAll` no se pudiera
-  // probar sin su mock nativo.
+  // La marca de tiempo y el avance se escriben desde aquí y no desde el
+  // `onSuccess` de la mutation, para que el módulo del envío no tenga que
+  // importar ningún store: esos persisten en AsyncStorage y arrastrarlos haría
+  // que `pushAll` no se pudiera probar sin su mock nativo.
   const triggerSync = () => {
     haptics.tap();
+    start();
+
     mutation.mutate(undefined, {
-      // El reloj del dispositivo: la respuesta del lote no trae `server_time`,
-      // al revés que la descarga. Es contabilidad local y nadie la compara
-      // entre tablets.
-      onSuccess: () => setLastSyncedAt(Date.now()),
+      onSuccess: (report) => {
+        finish(report);
+        // El reloj del dispositivo: la respuesta del lote no trae
+        // `server_time`, al revés que la descarga. Es contabilidad local y
+        // nadie la compara entre tablets.
+        setLastSyncedAt(Date.now());
+      },
+      // Sin red la tanda se corta en la primera plantación; con cualquier otro
+      // fallo sigue, así que lo que haya quedado es lo que alcanzó a salir.
+      onError: (error) => fail(isNetworkError(error)),
     });
   };
 

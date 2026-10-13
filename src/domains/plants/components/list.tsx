@@ -10,12 +10,7 @@ import { ScrollView, View } from "react-native";
 import { FlashList, FlashListProps, FlashListRef } from "@shopify/flash-list";
 import { useAppRouter } from "@/lib/use-app-router";
 import { BoxIcon, LeafIcon, LucideIcon } from "lucide-react-native";
-import {
-  type PlantWithMatch,
-  type FieldMatch,
-  type MatchableField,
-  type Plant,
-} from "../types";
+import { type PlantWithMatch, type FieldMatch, type Plant } from "../types";
 import { cn } from "@/lib/utils";
 
 import { EVALS_POST_COSECHA } from "../lib/evals-post-cosecha";
@@ -27,39 +22,7 @@ import { HighlightedText } from "@/components/highlighted-text";
 import { Separator } from "@/components/ui/separator";
 import { TratamientoChip } from "./tratamiento-chip";
 import { PostcosechaChip } from "./postcosecha-chip";
-
-const DATA_FIELD_CONFIG: {
-  label: string;
-  key: MatchableField;
-  valueCn: string;
-}[] = [
-  { label: "Campo", key: "campo", valueCn: "capitalize" },
-  { label: "Cuadro", key: "cuadro", valueCn: "uppercase" },
-  { label: "Programa", key: "programa", valueCn: "uppercase" },
-  { label: "Patrón", key: "portainjerto", valueCn: "capitalize" },
-  { label: "Año", key: "anio", valueCn: "" },
-];
-
-const DataField = ({
-  label,
-  value,
-  match,
-  valueCn,
-}: {
-  label: string;
-  value: string | number;
-  match?: FieldMatch;
-  valueCn: string;
-}) => (
-  <View className="flex-row gap-2 items-center">
-    <Text variant="muted">{label}</Text>
-    <HighlightedText
-      className={cn("font-medium", valueCn)}
-      text={String(value).toLocaleLowerCase()}
-      match={match}
-    />
-  </View>
-);
+import { PlantDataFields } from "./plant-data-fields";
 
 type CardSectionVariant = "outlined" | "secondary";
 
@@ -165,17 +128,7 @@ const CardHeader = ({ item, match }: { item: Plant; match?: FieldMatch }) => {
             </Badge>
           )}
         </View>
-        <View className="flex-row flex-wrap gap-4">
-          {DATA_FIELD_CONFIG.map(({ label, key, valueCn }) => (
-            <DataField
-              key={key}
-              label={label}
-              value={item[key]}
-              valueCn={valueCn}
-              match={match?.field === key ? match : undefined}
-            />
-          ))}
-        </View>
+        <PlantDataFields plant={item} match={match} />
       </View>
     </View>
   );

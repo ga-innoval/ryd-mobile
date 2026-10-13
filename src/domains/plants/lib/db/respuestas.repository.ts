@@ -170,18 +170,23 @@ export const getTratamientoIdsWithErrors = async (
  * la tarjeta señala **cuál** de los chips hay que mandar, y de ahí sale si la
  * plantación entera tiene algo pendiente.
  *
- * `rejected_closed` no cuenta: no hay nada que reintentar hasta que un
- * administrador reabra la encuesta, y marcarlo como pendiente dejaría el icono
- * encendido para siempre sin que nadie pudiera apagarlo.
+ * **«Sin sincronizar» aquí es todo lo que no esté `synced`, lo rechazado
+ * incluido.** Son dos preguntas distintas sobre la misma fila y conviene no
+ * confundirlas: *«¿se puede reintentar?»* —solo `pending`, que es lo que entra
+ * en la cola del envío para no reintentar sin fin— y *«¿lo tiene el
+ * servidor?»*, que es esta, y es la que contestan los chips, el guard de la
+ * poda y el aviso de sincronización. Si el chip no marcara lo rechazado, el
+ * aviso diría «lo que falta sigue marcado en su tarjeta» sobre una tarjeta sin
+ * marcar.
  */
 export const getTratamientoIdsWithPendingSync = async (
   db: SQLiteDatabase,
 ): Promise<Set<string>> => {
   const rows = await db.getAllAsync<{ tratamientoId: string }>(
-    `SELECT tratamientoId FROM respuestas WHERE syncStatus = ?
+    `SELECT tratamientoId FROM respuestas WHERE syncStatus <> ?
       UNION
-     SELECT tratamientoId FROM respuesta_fotos WHERE syncStatus = ?`,
-    [SyncStatus.pending, SyncStatus.pending],
+     SELECT tratamientoId FROM respuesta_fotos WHERE syncStatus <> ?`,
+    [SyncStatus.synced, SyncStatus.synced],
   );
 
   return new Set(rows.map((row) => row.tratamientoId));

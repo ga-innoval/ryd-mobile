@@ -267,16 +267,17 @@ export const getPostcosechaEmpacadas = async (
  * Las evaluaciones de post-cosecha con algo sin mandar, por `postcosechaKey`.
  *
  * Hermana de `getTratamientoIdsWithPendingSync`, con las mismas razones: mira
- * sus dos tablas, devuelve claves y no un booleano, y deja fuera lo rechazado.
+ * sus dos tablas, devuelve claves y no un booleano, y cuenta como sin
+ * sincronizar todo lo que el servidor no tenga, lo rechazado incluido.
  */
 export const getPostcosechaIdsWithPendingSync = async (
   db: SQLiteDatabase,
 ): Promise<Set<string>> => {
   const rows = await db.getAllAsync<{ plantId: string; evalId: string }>(
-    `SELECT plantId, evalId FROM postcosecha_respuestas WHERE syncStatus = ?
+    `SELECT plantId, evalId FROM postcosecha_respuestas WHERE syncStatus <> ?
       UNION
-     SELECT plantId, evalId FROM postcosecha_fotos WHERE syncStatus = ?`,
-    [SyncStatus.pending, SyncStatus.pending],
+     SELECT plantId, evalId FROM postcosecha_fotos WHERE syncStatus <> ?`,
+    [SyncStatus.synced, SyncStatus.synced],
   );
 
   return new Set(rows.map((row) => postcosechaKey(row.plantId, row.evalId)));

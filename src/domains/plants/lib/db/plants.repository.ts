@@ -32,6 +32,21 @@ export const getPlantById = async (
 };
 
 /**
+ * Las plantaciones por su `id`, para poder rotularlas sin volver a consultar.
+ *
+ * Sin juntar sus tratamientos, al revés que `getAllPlants`: quien la usa —el
+ * diálogo de sincronización— solo necesita los datos del encabezado, y aquella
+ * hace además una segunda consulta y un cruce en JS.
+ */
+export const getPlantsById = async (
+  db: SQLiteDatabase,
+): Promise<Map<string, PlantRecord>> => {
+  const rows = await db.getAllAsync<PlantRecord>("SELECT * FROM plants");
+
+  return new Map(rows.map((row) => [row.id, row]));
+};
+
+/**
  * Si a la plantación le queda algo que el servidor todavía no tiene, de
  * cualquiera de sus cuatro tablas.
  *
