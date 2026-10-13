@@ -417,10 +417,12 @@ número fijo de cortes—.
 ### El push
 
 > **Qué hay:** la sincronización funciona de punta a punta —texto y
-> fotografías—, por captura desde su pantalla y entera desde la principal, y el
-> lado servidor ya existe (`apps/ryd` en `altatech-api`; su contraparte está en
-> [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md)). **Falta** el
-> guard de borrado (`isSafeToDelete`) y la lápida de lo borrado ya sincronizado.
+> fotografías—, por captura desde su pantalla y entera desde la principal, y la
+> poda de la descarga ya no destruye trabajo sin mandar. El lado servidor existe
+> (`apps/ryd` en `altatech-api`; su contraparte está en
+> [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md)). **Falta** la
+> lápida de lo borrado ya sincronizado, y que `rejected_closed` llegue al
+> indicador de la pantalla principal.
 
 El evaluador manda **un tratamiento o una post-cosecha a la vez**, desde la
 pantalla donde acaba de capturarlo; «sincronizar todo» va encima de las mismas
@@ -565,6 +567,21 @@ piezas. Lo que no es obvio:
   `SyncBlock` tiene su estado pintado, pero el conteo que recibe es el de lo
   pendiente, y lo rechazado no está pendiente. Hoy un rechazo se ve en la
   pantalla de esa captura y en el aviso del envío que lo produjo.
+- **La poda de la descarga no borra lo que no se ha mandado.** Lo protegen
+  `hasUnsyncedWorkForPlant` y `hasUnsyncedWorkForTratamiento`, y «sin
+  sincronizar» aquí es **todo lo que no esté `synced`, `rejected_closed`
+  incluido**: esa fila es precisamente la que espera a que un administrador
+  reabra la encuesta, y borrarla sería tirar el dato que el rechazo prometía
+  conservar. (Al revés que en la cola del envío, donde lo rechazado no entra para
+  no reintentarse sin fin — son dos preguntas distintas sobre la misma fila.)
+  Se conserva **sin marca ni aviso**: es estrictamente mejor que perder el dato y
+  no obliga a decidir cómo se ve una fila retenida, que sigue sin decidirse.
+- **En tratamientos no había guard ninguno**, y es el camino que de verdad se
+  recorre: dar de baja un tratamiento es mucho más rutinario que dar de baja una
+  plantación entera. Sus dos caminos de borrado —el `NOT IN` por ausencia y el
+  de los dados de baja— pasan ahora por el mismo predicado. El `NOT IN` busca
+  primero y borra después para poder preguntar fila a fila; no es caro porque lo
+  normal es que no devuelva nada.
 - **Las claves y los lectores viven aparte del transporte**
   (`use-item-sync-state.ts` frente a `use-sync-item.ts`). No es orden: las
   mutations de guardado necesitan la clave para invalidarla, y si la importaran

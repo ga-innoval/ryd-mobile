@@ -6,13 +6,14 @@ import { buildTratamiento } from "@/test-utils/factories/tratamiento.factory";
 import { SyncStatus, type PlantRecord } from "../../../types";
 import {
   deletePlant,
-  getPlantIdsWithPendingWork,
+  hasUnsyncedWorkForPlant,
   upsertPlant,
 } from "../plants.repository";
 import { upsertTratamiento } from "../tratamientos.repository";
 import {
   getPendingRespuestas,
   getTratamientoSyncState,
+  hasUnsyncedWorkForTratamiento,
   markRespuestaRejected,
   markRespuestaSynced,
   saveRespuesta,
@@ -260,32 +261,33 @@ describe("la cola del push", () => {
     });
   });
 
-  describe("getPlantIdsWithPendingWork", () => {
-    it("sin captura, ninguna plantación tiene nada que mandar", async () => {
-      expect(await getPlantIdsWithPendingWork(db)).toEqual(new Set());
+  describe("hasUnsyncedWorkForPlant", () => {
+    it("sin captura, no hay nada que proteger", async () => {
+      expect(await hasUnsyncedWorkForPlant(db, "p1")).toBe(false);
     });
 
-    // Las cuatro tablas cuentan, porque el evaluador no distingue entre ellas:
-    // lo que pregunta es si le falta mandar algo de esa plantación.
-    it("cuenta las cuatro tablas y llega al plantId por el tratamiento", async () => {
+    // Las cuatro tablas cuentan: la CASCADE de la plantación se las lleva todas,
+    // así que cualquiera de ellas con trabajo sin mandar impide el borrado.
+    it("mira las cuatro tablas y llega al plantId por el tratamiento", async () => {
       await saveRespuesta(db, {
         tratamientoId: "t1",
         seccion: "comentarios",
         payload: notas("de t1"),
         updatedAtLocal: "2026-01-01T10:00:00.000Z",
       });
-      expect(await getPlantIdsWithPendingWork(db)).toEqual(new Set(["p1"]));
 
-      await insertFoto(db, {
-        clientId: "f1",
-        tratamientoId: "t2",
-        categoria: "racimo",
-        fileName: "f1.jpg",
+      expect(await hasUnsyncedWorkForPlant(db, "p1")).toBe(true);
+      expect(await hasUnsyncedWorkForPlant(db, "p2")).toBe(false);
+
+      await insertPostcosechaFoto(db, {
+        clientId: "pf1",
+        plantId: "p2",
+        evalId: "15caja",
+        categoria: "racimos",
+        fileName: "pf1.jpg",
         capturedAt: "2026-01-01T10:00:00.000Z",
       });
-      expect(await getPlantIdsWithPendingWork(db)).toEqual(
-        new Set(["p1", "p2"]),
-      );
+      expect(await hasUnsyncedWorkForPlant(db, "p2")).toBe(true);
     });
 
     it("deja de contar lo que ya se envió", async () => {
@@ -297,12 +299,14 @@ describe("la cola del push", () => {
       await saveRespuesta(db, { ...key, payload: notas("algo") });
       await markRespuestaSynced(db, key, "2026-01-01T10:00:01.000Z");
 
-      expect(await getPlantIdsWithPendingWork(db)).toEqual(new Set());
+      expect(await hasUnsyncedWorkForPlant(db, "p1")).toBe(false);
     });
 
-    // Una encuesta cerrada no se arregla reintentando, así que contarla dejaría
-    // la tarjeta en «Pendiente» para siempre sin que nadie pudiera quitarlo.
-    it("una sección rechazada no cuenta como pendiente", async () => {
+    // **Lo rechazado es lo que más hay que proteger**: el servidor lo rechazó
+    // *porque* la encuesta está cerrada, y está esperando a que la reabran. Al
+    // revés que en la cola —donde no entra, para no reintentarse sin fin—, aquí
+    // sí cuenta.
+    it("una sección rechazada impide el borrado", async () => {
       const key = {
         tratamientoId: "t1",
         seccion: "comentarios" as const,
@@ -311,10 +315,13 @@ describe("la cola del push", () => {
       await saveRespuesta(db, { ...key, payload: notas("algo") });
       await markRespuestaRejected(db, key);
 
-      expect(await getPlantIdsWithPendingWork(db)).toEqual(new Set());
+      expect(await getPendingRespuestas(db, "t1")).toHaveLength(0);
+      expect(await hasUnsyncedWorkForPlant(db, "p1")).toBe(true);
     });
 
-    it("la CASCADE se lleva la cola de la plantación borrada", async () => {
+    // El borrado directo no pregunta —quien pregunta es la poda de la
+    // descarga—, así que esto sigue comprobando que la CASCADE se lleva la cola.
+    it("borrar la plantación se lleva su cola por CASCADE", async () => {
       await savePostcosechaRespuesta(db, {
         plantId: "p1",
         evalId: "15caja",
@@ -322,10 +329,26 @@ describe("la cola del push", () => {
         payload: notas("algo"),
         updatedAtLocal: "2026-01-01T10:00:00.000Z",
       });
-      expect(await getPlantIdsWithPendingWork(db)).toEqual(new Set(["p1"]));
+      expect(await hasUnsyncedWorkForPlant(db, "p1")).toBe(true);
 
       await deletePlant(db, "p1");
-      expect(await getPlantIdsWithPendingWork(db)).toEqual(new Set());
+      expect(await hasUnsyncedWorkForPlant(db, "p1")).toBe(false);
+      expect(await getPendingPostcosechaRespuestas(db)).toHaveLength(0);
+    });
+  });
+
+  describe("hasUnsyncedWorkForTratamiento", () => {
+    it("distingue entre hermanos de la misma plantación", async () => {
+      await insertFoto(db, {
+        clientId: "f1",
+        tratamientoId: "t1",
+        categoria: "racimo",
+        fileName: "f1.jpg",
+        capturedAt: "2026-01-01T10:00:00.000Z",
+      });
+
+      expect(await hasUnsyncedWorkForTratamiento(db, "t1")).toBe(true);
+      expect(await hasUnsyncedWorkForTratamiento(db, "t2")).toBe(false);
     });
   });
 
@@ -386,7 +409,6 @@ describe("la cola del push", () => {
         hasError: true,
       });
     });
-
 
     // `captured` es lo que distingue «ya se mandó todo» de «no hay nada»: sin
     // él, una captura en blanco diría «Sincronizado» de entrada.

@@ -9,6 +9,17 @@ import {
   type PlantSyncEntry,
 } from "../../../types";
 import { getAllPlants, syncPlantsBatch } from "../plants.repository";
+import { markRespuestaSynced, saveRespuesta } from "../respuestas.repository";
+import { createComentarios } from "../../comentarios";
+
+/** Deja capturada —y sin mandar— una sección de ese tratamiento. */
+const capturarSinMandar = (db: SQLiteDatabase, tratamientoId: string) =>
+  saveRespuesta(db, {
+    tratamientoId,
+    seccion: "comentarios",
+    payload: { ...createComentarios(), positivos: "trabajo de campo" },
+    updatedAtLocal: "2026-01-01T10:00:00.000Z",
+  });
 
 const buildRecord = (overrides: Partial<PlantRecord> = {}): PlantRecord => {
   const { tratamientos: _t, progress: _p, ...record } = buildPlant(overrides);
@@ -167,21 +178,35 @@ describe("syncPlantsBatch", () => {
     expect(await db.getAllAsync("SELECT * FROM tratamientos")).toHaveLength(0);
   });
 
+  // El guard de verdad: antes miraba `syncStatus` de la propia plantación, que
+  // el mapper del pull escribe siempre como `synced`, así que nunca impedía
+  // nada. Ahora mira si quedó captura sin mandar — que es lo que la CASCADE
+  // destruiría y no se puede repetir.
   it("conserva la plantación desactivada que tiene trabajo local sin sincronizar", async () => {
-    await syncPlantsBatch(db, [
-      buildEntry({
-        plant: buildRecord({ id: "p1", syncStatus: SyncStatus.pending }),
-      }),
-    ]);
+    await syncPlantsBatch(db, [buildEntry()]);
+    await capturarSinMandar(db, "t-p1");
 
-    await syncPlantsBatch(db, [
-      buildEntry({
-        plant: buildRecord({ id: "p1", syncStatus: SyncStatus.pending }),
-        isActive: false,
-      }),
-    ]);
+    await syncPlantsBatch(db, [buildEntry({ isActive: false })]);
 
     expect(await getAllPlants(db)).toHaveLength(1);
+  });
+
+  it("y la borra en cuanto esa captura llegó al servidor", async () => {
+    await syncPlantsBatch(db, [buildEntry()]);
+    await capturarSinMandar(db, "t-p1");
+    await markRespuestaSynced(
+      db,
+      {
+        tratamientoId: "t-p1",
+        seccion: "comentarios",
+        updatedAtLocal: "2026-01-01T10:00:00.000Z",
+      },
+      "2026-01-01T10:00:01.000Z",
+    );
+
+    await syncPlantsBatch(db, [buildEntry({ isActive: false })]);
+
+    expect(await getAllPlants(db)).toHaveLength(0);
   });
 });
 
@@ -227,6 +252,61 @@ describe("syncPlantsBatch: solo plantaciones con tratamientos", () => {
 
     expect(await getAllPlants(db)).toHaveLength(0);
     expect(await db.getAllAsync("SELECT * FROM tratamientos")).toHaveLength(0);
+  });
+
+  // Aquí **no había guard ninguno**, y es el camino que de verdad se recorre:
+  // dar de baja un tratamiento es mucho más rutinario que dar de baja una
+  // plantación entera, y la CASCADE se lleva sus respuestas y sus fotografías.
+  it("conserva el tratamiento dado de baja que tiene captura sin mandar", async () => {
+    await syncPlantsBatch(db, [
+      {
+        plant: buildRecord({ id: "p1" }),
+        tratamientos: [
+          buildTratamiento({ id: "t1", plantId: "p1" }),
+          buildTratamiento({ id: "t2", plantId: "p1" }),
+        ],
+        isActive: true,
+      },
+    ]);
+    await capturarSinMandar(db, "t2");
+
+    await syncPlantsBatch(db, [
+      {
+        plant: buildRecord({ id: "p1" }),
+        tratamientos: [
+          buildTratamiento({ id: "t1", plantId: "p1" }),
+          buildTratamiento({ id: "t2", plantId: "p1", isActive: false }),
+        ],
+        isActive: true,
+      },
+    ]);
+
+    expect((await tratamientosOf(db, "p1")).map((t) => t.id)).toContain("t2");
+  });
+
+  it("conserva el tratamiento borrado en remoto que tiene captura sin mandar", async () => {
+    await syncPlantsBatch(db, [
+      {
+        plant: buildRecord({ id: "p1" }),
+        tratamientos: [
+          buildTratamiento({ id: "t1", plantId: "p1" }),
+          buildTratamiento({ id: "t2", plantId: "p1" }),
+        ],
+        isActive: true,
+      },
+    ]);
+    await capturarSinMandar(db, "t2");
+
+    // Llega como ausencia: la fila ya no existe en el servidor.
+    await syncPlantsBatch(db, [
+      {
+        plant: buildRecord({ id: "p1" }),
+        tratamientos: [buildTratamiento({ id: "t1", plantId: "p1" })],
+        isActive: true,
+      },
+    ]);
+
+    expect((await tratamientosOf(db, "p1")).map((t) => t.id)).toContain("t2");
   });
 
   it("poda el tratamiento borrado físicamente, que llega como ausencia", async () => {

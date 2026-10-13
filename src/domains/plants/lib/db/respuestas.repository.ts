@@ -188,6 +188,38 @@ export const getTratamientoIdsWithPendingSync = async (
 };
 
 /**
+ * Si al tratamiento le queda algo que el servidor todavía no tiene.
+ *
+ * **Lo que protege de la poda de la descarga.** El pull borra los tratamientos
+ * dados de baja en remoto, y la CASCADE se lleva sus respuestas y sus
+ * fotografías: sin esta pregunta, dar de baja un tratamiento destruye trabajo de
+ * campo que nunca salió de la tablet.
+ *
+ * **«Sin sincronizar» es todo lo que no esté `synced`, no solo lo `pending`.**
+ * Una fila `rejected_closed` es precisamente la que más hay que proteger: el
+ * servidor la rechazó *porque* el tratamiento está inactivo, y está esperando a
+ * que un administrador lo reabra. Borrarla entonces sería tirar justo el dato
+ * que el rechazo prometía conservar.
+ */
+export const hasUnsyncedWorkForTratamiento = async (
+  db: SQLiteDatabase,
+  tratamientoId: string,
+): Promise<boolean> => {
+  const row = await db.getFirstAsync<{ pendiente: number }>(
+    `SELECT EXISTS(
+       SELECT 1 FROM respuestas
+        WHERE tratamientoId = $id AND syncStatus <> $synced
+       UNION ALL
+       SELECT 1 FROM respuesta_fotos
+        WHERE tratamientoId = $id AND syncStatus <> $synced
+     ) AS pendiente`,
+    { $id: tratamientoId, $synced: SyncStatus.synced },
+  );
+
+  return (row?.pendiente ?? 0) === 1;
+};
+
+/**
  * Cuánto lleva capturado cada tratamiento, de 0 a 1.
  *
  * Suma en SQL y divide entre las secciones que reparten, así que las que no
