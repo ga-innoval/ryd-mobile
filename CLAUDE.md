@@ -575,9 +575,9 @@ piezas. Lo que no es obvio:
   AsyncStorage y arrastrarlo dejaría `pushAll` sin poder probarse. Mismo reparto
   que los repositorios sin `expo-file-system`.
 - **El conteo de la cabecera principal sale de `usePlants`**, no de una consulta
-  propia: esa query ya trae `pendingSync` por plantación —el mismo dato que
-  enciende el chip de la tarjeta—, y una consulta aparte sería un cuarto sitio
-  donde preguntar lo mismo, y uno que podría contestar distinto.
+  propia: esa query ya trae `pendingSync` por plantación —el mismo dato que filtra
+  «Pendientes»—, y una consulta aparte sería un tercer sitio donde preguntar lo
+  mismo, y uno que podría contestar distinto.
 - **«Sin sincronizar» significa dos cosas distintas y conviene no mezclarlas.**
   _«¿Se puede reintentar?»_ es solo `pending`, y es lo que entra en la cola del
   envío —lo rechazado fuera, para no reintentarlo sin fin—. _«¿Lo tiene el
@@ -696,8 +696,11 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
     `progress`, que estaba clavado a `0` en `index.tsx`. **«Pendientes» ya
     funciona**: mira `pendingSync`, derivado de las cuatro tablas de captura, y
     no `plants.syncStatus` —el estado del pull, que `upsertPlant` reescribe en
-    cada descarga y que tenía ese filtro y el chip de la tarjeta clavados en cero
-    desde que se escribieron—.
+    cada descarga y que lo tenía clavado en cero desde que se escribió—.
+    **La tarjeta no lleva chip de «pendiente de sincronizar»**: lo decía sin
+    decir cuál, y eso ya lo dice el icono de cada chip de captura, que además
+    señala el que falta. `pendingSync` se queda para el filtro y para el conteo
+    de la cabecera, que sí necesitan una respuesta por plantación.
   - **Dónde se ve**: en la pantalla de captura, una barra fina a ancho completo
     al pie del bloque de la cabecera, y en el chip de cada tratamiento del
     listado. La barra **no se esconde al scrollear** aunque los datos de la

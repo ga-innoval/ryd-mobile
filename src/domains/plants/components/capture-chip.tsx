@@ -122,7 +122,7 @@ export function CaptureChip({
               as={CloudSyncIcon}
               size={20}
               strokeWidth={2}
-              className="text-foreground"
+              className="text-orange-500"
               fill={fill}
             />
           )}

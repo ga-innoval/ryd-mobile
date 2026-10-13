@@ -117,16 +117,6 @@ const CardHeader = ({ item, match }: { item: Plant; match?: FieldMatch }) => {
               {`${formatProgress(item.progress)} %`}
             </Text>
           </Badge>
-          {/* Queda captura sin mandar, de cualquiera de sus cuatro tablas.
-              Mira el derivado y no `syncStatus`, que es el estado del pull y se
-              reescribe en cada descarga — por eso este chip llevaba meses
-              escrito, probado y sin aparecer nunca. El mismo ámbar que usan el
-              `SyncBlock` y la cabecera de captura. */}
-          {item.pendingSync && (
-            <Badge className="bg-warn-background border-warn/20 gap-1">
-              <Text className="text-warn font-medium">Sinc. pendiente</Text>
-            </Badge>
-          )}
         </View>
         <PlantDataFields plant={item} match={match} />
       </View>
