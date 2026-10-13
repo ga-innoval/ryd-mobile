@@ -76,13 +76,6 @@ describe("<PlantCard />", () => {
     expect(getByText("0 %")).toBeOnTheScreen();
   });
 
-  it("renders sync chip", async () => {
-    const item = buildPlant();
-    const { getByText } = await render(<PlantCard item={item} />);
-
-    expect(getByText("Sinc. pendiente")).toBeOnTheScreen();
-  });
-
   // La señal por chip dice **cuál** falta por mandar, que es lo que el chip de
   // la tarjeta no puede decir. Se comprueba por la etiqueta y no por el icono
   // porque es lo mismo que oiría un lector de pantalla.
@@ -107,15 +100,5 @@ describe("<PlantCard />", () => {
       getByLabelText("30 días Caja, pendiente de sincronizar"),
     ).toBeOnTheScreen();
     expect(getByLabelText("15 días Caja")).toBeOnTheScreen();
-  });
-
-  // El caso que antes no podía existir: el chip miraba `syncStatus`, que el
-  // mapper del pull escribe siempre como `synced`, así que no aparecía nunca.
-  // Ahora mira lo que de verdad queda sin mandar, y eso puede ser nada.
-  it("hides the sync chip when nothing is left to send", async () => {
-    const item = buildPlant({ pendingSync: false });
-    const { queryByText } = await render(<PlantCard item={item} />);
-
-    expect(queryByText("Sinc. pendiente")).toBeNull();
   });
 });

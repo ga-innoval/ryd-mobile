@@ -145,8 +145,13 @@ export interface Plant extends Omit<PlantWithTratamientos, "tratamientos"> {
    */
   tratamientosPending: string[];
   postcosechaPending: string[];
-  /** Si alguna de las dos listas trae algo. Es lo que enciende el chip de la
-   *  tarjeta, que avisa sin decir de cuál. */
+  /**
+   * Si alguna de las dos listas trae algo.
+   *
+   * **No se enseña en la tarjeta**: ahí lo dice el icono de cada chip, que
+   * además señala cuál. Esto es para lo que necesita una respuesta por
+   * plantación — el filtro «Pendientes» y el conteo de la cabecera.
+   */
   pendingSync: boolean;
 }
 

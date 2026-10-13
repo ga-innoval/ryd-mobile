@@ -14,8 +14,8 @@ import { SYNC_ALL_MUTATION_KEY, useSyncAllMutation } from "./use-sync-all";
  * `mutation.isPending`, para que todas las instancias de este hook coincidan.
  *
  * **El conteo sale de `usePlants` y no de una consulta propia.** Esa query ya
- * trae `pendingSync` por plantación —el mismo dato que enciende el chip de la
- * tarjeta—, ya está cargada en esta pantalla y la invalida todo lo que cambia la
+ * trae `pendingSync` por plantación —el mismo dato que filtra «Pendientes»—, ya
+ * está cargada en esta pantalla y la invalida todo lo que cambia la
  * captura. Una consulta aparte sería un cuarto sitio donde preguntar lo mismo, y
  * uno que podría contestar distinto.
  */
