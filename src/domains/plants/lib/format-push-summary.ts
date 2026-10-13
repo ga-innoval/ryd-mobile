@@ -60,3 +60,28 @@ export const formatPushSummary = ({
 
   return partes.join(" ");
 };
+
+/** Lo que deja un «sincronizar todo». */
+export type PushAllReport = Omit<PushReport, "blocked"> & {
+  /** Capturas que no se intentaron porque traen un dato imposible. */
+  bloqueadas: number;
+};
+
+/**
+ * El resumen de «sincronizar todo».
+ *
+ * **Tiene que decir cuántas se quedaron fuera y por qué.** Un error bloquea su
+ * captura entera y las demás viajan igual; sin esa frase, el evaluador se va del
+ * campo creyendo que mandó todo y nadie le dice nunca que a dos plantaciones les
+ * falta revisar un dato.
+ */
+export const formatSyncAllSummary = (report: PushAllReport): string => {
+  const base = formatPushSummary(report);
+  if (report.bloqueadas === 0) return base;
+
+  return `${base} ${report.bloqueadas} ${
+    report.bloqueadas === 1
+      ? "captura se quedó fuera"
+      : "capturas se quedaron fuera"
+  }: hay un dato por revisar.`;
+};

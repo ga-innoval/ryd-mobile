@@ -416,11 +416,11 @@ número fijo de cortes—.
 
 ### El push
 
-> **Qué hay:** el envío de un item funciona de punta a punta —texto y
-> fotografías— con su botón y su indicador en las dos cabeceras de captura, y el
+> **Qué hay:** la sincronización funciona de punta a punta —texto y
+> fotografías—, por captura desde su pantalla y entera desde la principal, y el
 > lado servidor ya existe (`apps/ryd` en `altatech-api`; su contraparte está en
-> [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md)). **Falta
-> «sincronizar todo»** y la lápida de lo borrado ya sincronizado.
+> [`docs/contrato-respuestas.md`](docs/contrato-respuestas.md)). **Falta** el
+> guard de borrado (`isSafeToDelete`) y la lápida de lo borrado ya sincronizado.
 
 El evaluador manda **un tratamiento o una post-cosecha a la vez**, desde la
 pantalla donde acaba de capturarlo; «sincronizar todo» va encima de las mismas
@@ -544,6 +544,27 @@ piezas. Lo que no es obvio:
   non-2xx status codes». Sin mirar `result.status` a mano, cada fotografía se
   marcaría como enviada contra un 500. El veredicto vive en `uploadOutcome`,
   puro y con test, en vez de en un `if` dentro del bucle.
+- **«Sincronizar todo» es un lote por encuesta, no uno por captura.** Veinte
+  plantaciones de cuatro tratamientos serían ochenta peticiones, y el contrato ya
+  devuelve un resultado por registro, así que un lote grande da el mismo avance
+  parcial. Lo que trae un dato imposible **se queda fuera entero** —secciones y
+  fotografías— y las demás viajan igual: un error en una plantación no puede
+  impedir que lleguen las otras diecinueve. El aviso dice cuántas se quedaron
+  fuera y por qué, o el evaluador se va del campo creyendo que mandó todo.
+- **`sync-store` ya no es el stub.** Lleva solo la marca de tiempo, persistida,
+  como `download-store`; el ciclo de vida se lee de la caché de mutations. Y
+  **ese módulo no importa el store a propósito**: la marca la escribe
+  `useSyncStatus` con un `onSuccess` al `mutate`, porque el store persiste en
+  AsyncStorage y arrastrarlo dejaría `pushAll` sin poder probarse. Mismo reparto
+  que los repositorios sin `expo-file-system`.
+- **El conteo de la cabecera principal sale de `usePlants`**, no de una consulta
+  propia: esa query ya trae `pendingSync` por plantación —el mismo dato que
+  enciende el chip de la tarjeta—, y una consulta aparte sería un cuarto sitio
+  donde preguntar lo mismo, y uno que podría contestar distinto.
+- **`rejected_closed` todavía no llega al indicador de la pantalla principal.**
+  `SyncBlock` tiene su estado pintado, pero el conteo que recibe es el de lo
+  pendiente, y lo rechazado no está pendiente. Hoy un rechazo se ve en la
+  pantalla de esa captura y en el aviso del envío que lo produjo.
 - **Las claves y los lectores viven aparte del transporte**
   (`use-item-sync-state.ts` frente a `use-sync-item.ts`). No es orden: las
   mutations de guardado necesitan la clave para invalidarla, y si la importaran

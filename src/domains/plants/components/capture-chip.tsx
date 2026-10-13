@@ -1,11 +1,6 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import {
-  CloudSync,
-  CloudSyncIcon,
-  RefreshCwIcon,
-  type LucideIcon,
-} from "lucide-react-native";
+import { CloudSyncIcon, type LucideIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import { cn } from "@/lib/utils";

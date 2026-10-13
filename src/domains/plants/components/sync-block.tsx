@@ -47,7 +47,7 @@ const SYNC_STATUS_CONFIG: Record<SyncStatus, SyncStatusConfig> = {
     dotClassName: "bg-orange-400",
     showDot: true,
     animated: true,
-    label: "Sincronización pendiente",
+    label: "Sinc. pendiente",
   },
   [SyncStatus.rejected_closed]: {
     dotClassName: "bg-destructive",
@@ -57,7 +57,7 @@ const SYNC_STATUS_CONFIG: Record<SyncStatus, SyncStatusConfig> = {
 };
 
 export function SyncBlock({ disabled }: SyncBlockProps) {
-  const { status, lastSyncedAt, triggerSync } = useSyncStatus();
+  const { status, pendingCount, lastSyncedAt, triggerSync } = useSyncStatus();
   const { label: lastSyncedAtLabel, refresh: refreshLastSyncedAtLabel } =
     useRelativeTimeLabel(
       lastSyncedAt,
@@ -107,10 +107,14 @@ export function SyncBlock({ disabled }: SyncBlockProps) {
         </View>
       )}
 
+      {/* Apagado sin nada que mandar, igual que el botón de cada pantalla de
+          captura: pulsarlo entonces solo dejaría un aviso diciendo que no salió
+          nada. Lo bloqueado por un dato imposible **sí** cuenta como pendiente,
+          así que el botón sigue encendido y el aviso explica por qué no salió. */}
       <SyncButton
         loading={isSyncing}
         onPress={triggerSync}
-        disabled={disabled}
+        disabled={disabled || pendingCount === 0}
       />
     </View>
   );

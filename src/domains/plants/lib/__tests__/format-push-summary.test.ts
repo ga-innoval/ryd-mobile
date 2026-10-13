@@ -1,4 +1,7 @@
-import { formatPushSummary } from "../format-push-summary";
+import {
+  formatPushSummary,
+  formatSyncAllSummary,
+} from "../format-push-summary";
 
 const resumen = (overrides = {}) =>
   formatPushSummary({
@@ -50,6 +53,33 @@ describe("formatPushSummary", () => {
   it("junta las tres cosas cuando pasan las tres", () => {
     expect(resumen({ enviadas: 1, rechazadas: 1, pendientes: 1 })).toBe(
       "Se envió 1 sección. 1 quedó rechazada: la encuesta está cerrada. 1 quedó sin enviar.",
+    );
+  });
+});
+
+describe("formatSyncAllSummary", () => {
+  const todo = (overrides = {}) =>
+    formatSyncAllSummary({
+      enviadas: 0,
+      fotos: 0,
+      rechazadas: 0,
+      pendientes: 0,
+      bloqueadas: 0,
+      ...overrides,
+    });
+
+  it("sin nada bloqueado es el mismo resumen de siempre", () => {
+    expect(todo({ enviadas: 3 })).toBe("Se enviaron 3 secciones.");
+  });
+
+  // Sin esta frase el evaluador se va del campo creyendo que mandó todo, y
+  // nadie le dice nunca que a dos plantaciones les falta revisar un dato.
+  it("dice cuántas se quedaron fuera y por qué", () => {
+    expect(todo({ enviadas: 5, bloqueadas: 1 })).toBe(
+      "Se enviaron 5 secciones. 1 captura se quedó fuera: hay un dato por revisar.",
+    );
+    expect(todo({ enviadas: 5, bloqueadas: 2 })).toBe(
+      "Se enviaron 5 secciones. 2 capturas se quedaron fuera: hay un dato por revisar.",
     );
   });
 });

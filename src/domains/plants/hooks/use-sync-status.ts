@@ -1,21 +1,55 @@
-import { SyncStatus } from "../types";
+import { useIsMutating } from "@tanstack/react-query";
+import { haptics } from "@/lib/haptics";
+import { getSyncStatus } from "../lib/get-sync-status";
 import { useSyncStore } from "../store/sync-store";
+import { usePlants } from "./use-plants";
+import { SYNC_ALL_MUTATION_KEY, useSyncAllMutation } from "./use-sync-all";
 
+/**
+ * Lo que enseña el bloque de sincronización de la pantalla principal.
+ *
+ * Hermano de `useDownloadPlants`: el ciclo de vida se lee de la caché y no de
+ * `mutation.isPending`, para que todas las instancias de este hook coincidan.
+ *
+ * **El conteo sale de `usePlants` y no de una consulta propia.** Esa query ya
+ * trae `pendingSync` por plantación —el mismo dato que enciende el chip de la
+ * tarjeta—, ya está cargada en esta pantalla y la invalida todo lo que cambia la
+ * captura. Una consulta aparte sería un cuarto sitio donde preguntar lo mismo, y
+ * uno que podría contestar distinto.
+ */
 export function useSyncStatus() {
-  const { isSyncing, lastSyncedAt, lastSyncError, triggerSync } =
-    useSyncStore();
+  const lastSyncedAt = useSyncStore((s) => s.lastSyncedAt);
+  const mutation = useSyncAllMutation();
+  const isSyncing = useIsMutating({ mutationKey: SYNC_ALL_MUTATION_KEY }) > 0;
 
-  // TODO: cuando exista la tabla `respuestas`, este conteo sale de SQLite
-  // (respuestas con sync_status = 'pending'), vía su propia query.
-  const pendingCount = 0;
+  const { data: plants } = usePlants();
+  const pendingCount = plants?.filter((plant) => plant.pendingSync).length ?? 0;
 
-  const getStatus = (): SyncStatus => {
-    if (isSyncing) return SyncStatus.syncing;
-    if (lastSyncError) return SyncStatus.error;
-    if (pendingCount > 0) return SyncStatus.pending;
-    if (!lastSyncedAt) return SyncStatus.unsynced;
-    return SyncStatus.synced;
+  const setLastSyncedAt = useSyncStore((s) => s.setLastSyncedAt);
+
+  // La marca de tiempo se escribe desde aquí y no desde el `onSuccess` de la
+  // mutation, para que el módulo del envío no tenga que importar el store: ese
+  // persiste en AsyncStorage y arrastrarlo haría que `pushAll` no se pudiera
+  // probar sin su mock nativo.
+  const triggerSync = () => {
+    haptics.tap();
+    mutation.mutate(undefined, {
+      // El reloj del dispositivo: la respuesta del lote no trae `server_time`,
+      // al revés que la descarga. Es contabilidad local y nadie la compara
+      // entre tablets.
+      onSuccess: () => setLastSyncedAt(Date.now()),
+    });
   };
 
-  return { status: getStatus(), pendingCount, lastSyncedAt, triggerSync };
+  return {
+    status: getSyncStatus({
+      isSyncing,
+      hasError: mutation.isError,
+      pendingCount,
+      lastSyncedAt,
+    }),
+    pendingCount,
+    lastSyncedAt,
+    triggerSync,
+  };
 }
