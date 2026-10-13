@@ -15,7 +15,6 @@ import {
   type FieldMatch,
   type MatchableField,
   type Plant,
-  SyncStatus,
 } from "../types";
 import { cn } from "@/lib/utils";
 
@@ -155,10 +154,14 @@ const CardHeader = ({ item, match }: { item: Plant; match?: FieldMatch }) => {
               {`${formatProgress(item.progress)} %`}
             </Text>
           </Badge>
-          {item.syncStatus === SyncStatus.pending && (
-            <Badge className="bg-orange-300/20 border-orange-300 gap-1">
-              <View className="rounded-full bg-orange-400 h-1.5 w-1.5" />
-              <Text className="text-orange-600 font-medium">Pendiente</Text>
+          {/* Queda captura sin mandar, de cualquiera de sus cuatro tablas.
+              Mira el derivado y no `syncStatus`, que es el estado del pull y se
+              reescribe en cada descarga — por eso este chip llevaba meses
+              escrito, probado y sin aparecer nunca. El mismo ámbar que usan el
+              `SyncBlock` y la cabecera de captura. */}
+          {item.pendingSync && (
+            <Badge className="bg-warn-background border-warn/20 gap-1">
+              <Text className="text-warn font-medium">Sinc. pendiente</Text>
             </Badge>
           )}
         </View>
@@ -212,6 +215,7 @@ export const PlantCard = memo(function PlantCard({
                 key={trat.id}
                 tratamiento={trat}
                 hasError={item.tratamientosWithError.includes(trat.id)}
+                pendingSync={item.tratamientosPending.includes(trat.id)}
                 progress={trat.progress}
                 onPress={() =>
                   router.push({
@@ -240,6 +244,7 @@ export const PlantCard = memo(function PlantCard({
                 progress={item.postcosecha[evaluacion.id] ?? 0}
                 hasError={item.postcosechaWithError.includes(evaluacion.id)}
                 empacada={item.postcosechaEmpacada.includes(evaluacion.id)}
+                pendingSync={item.postcosechaPending.includes(evaluacion.id)}
                 onPress={() =>
                   router.push({
                     pathname: "/postcosecha/[id]",

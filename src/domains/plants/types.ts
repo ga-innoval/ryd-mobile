@@ -130,6 +130,24 @@ export interface Plant extends Omit<PlantWithTratamientos, "tratamientos"> {
    * sin terminar.
    */
   postcosechaEmpacada: string[];
+  /**
+   * Los tratamientos con algo capturado que todavía no ha salido de la tablet,
+   * y lo mismo para las evaluaciones de post-cosecha, por su `id` del catálogo.
+   *
+   * **No sale de `syncStatus`**, que es el estado de la plantación en el *pull*
+   * y lo reescribe `upsertPlant` en cada descarga: colgar de él la captura
+   * pendiente la perdería a la primera sincronización de plantaciones. Esto se
+   * deriva al leer, como `tratamientosWithError`.
+   *
+   * Listas y no booleanos por lo mismo que los errores: la tarjeta señala
+   * **cuál** hay que mandar, y de ahí sale si la plantación entera tiene algo
+   * pendiente (`pendingSync`).
+   */
+  tratamientosPending: string[];
+  postcosechaPending: string[];
+  /** Si alguna de las dos listas trae algo. Es lo que enciende el chip de la
+   *  tarjeta, que avisa sin decir de cuál. */
+  pendingSync: boolean;
 }
 
 export type MatchableField =

@@ -20,7 +20,6 @@ import {
   useItemSendStatus,
   useItemSyncState,
 } from "@/domains/plants/hooks/use-item-sync-state";
-import { Separator } from "@/components/ui/separator";
 import { SeparatorLine } from "@/components/ui/separator-line";
 
 interface TratamientosPageHeader {

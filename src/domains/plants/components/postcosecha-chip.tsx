@@ -24,6 +24,8 @@ type PostcosechaChipProps = {
   hasError?: boolean;
   /** La caja ya tiene fecha de empaque: entró, aunque falte evaluarla. */
   empacada?: boolean;
+  /** Le falta algo por mandar al servidor: secciones, fotografías o ambas. */
+  pendingSync?: boolean;
 };
 
 /**
@@ -46,6 +48,7 @@ export function PostcosechaChip({
   progress = 0,
   hasError = false,
   empacada = false,
+  pendingSync = false,
 }: PostcosechaChipProps) {
   if (variant === "card") {
     // El de empaque solo mientras falte algo: para llegar al 100 % hay que
@@ -57,6 +60,8 @@ export function PostcosechaChip({
     return (
       <CaptureChip
         onPress={onPress}
+        fill={ROW_BACKGROUND}
+        pendingSync={pendingSync}
         testID={`post-cosecha-${evaluacion.id}`}
         progress={progress}
         fillClassName={hasError ? "bg-destructive/15" : "bg-leaf/20"}
@@ -67,23 +72,25 @@ export function PostcosechaChip({
             ? {
                 icon: CircleXIcon,
                 className: "text-destructive",
-                fill: ROW_BACKGROUND,
               }
             : completa
               ? {
                   icon: CircleCheckIcon,
                   className: "text-foreground",
-                  fill: ROW_BACKGROUND,
                 }
               : conEmpaque
                 ? {
                     icon: PackageIcon,
                     className: "text-foreground",
-                    fill: ROW_BACKGROUND,
                   }
                 : undefined
         }
-        accessibilityLabel={`${evaluacion.title} ${evaluacion.subtitle}`}
+        // El icono de la esquina no lo ve un lector de pantalla, así que lo que
+        // dice va en la etiqueta: sin esto, «pendiente de sincronizar» sería una
+        // señal solo para quien la ve.
+        accessibilityLabel={`${evaluacion.title} ${evaluacion.subtitle}${
+          pendingSync ? ", pendiente de sincronizar" : ""
+        }`}
       >
         <Text numberOfLines={1} className="font-medium">
           {evaluacion.title}

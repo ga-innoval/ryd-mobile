@@ -1,22 +1,15 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import type { LucideIcon } from "lucide-react-native";
+import { RefreshCwIcon, type LucideIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import { cn } from "@/lib/utils";
 
-/** La señal de la esquina: qué icono, de qué color y sobre qué fondo. */
+/** La señal de la esquina: qué icono y de qué color. */
 export type CaptureChipBadge = {
   icon: LucideIcon;
   /** El color del trazo, por clase. */
   className: string;
-  /**
-   * El relleno del círculo, en hex. **Es el fondo del renglón**, no un color
-   * propio: la señal se monta sobre la esquina y sin relleno se le vería el
-   * borde del chip cruzado por detrás. Desde JS no hay forma de leer
-   * `tailwind.config`, así que va en hex.
-   */
-  fill: string;
 };
 
 type CaptureChipProps = {
@@ -26,6 +19,20 @@ type CaptureChipProps = {
   /** El color del relleno, que cada captura decide. */
   fillClassName?: string;
   badge?: CaptureChipBadge;
+  /**
+   * Le falta algo por mandar al servidor. Va **a la izquierda** de la señal
+   * principal y no la sustituye: son dos preguntas distintas —«¿está terminado y
+   * bien?» y «¿salió de la tablet?»— y meterla como un cuarto caso de `badge`
+   * taparía el check justo en el chip que ya está completo, que es cuando más
+   * ganas hay de mandarlo.
+   */
+  pendingSync?: boolean;
+  /**
+   * El fondo del renglón, en hex. **No es decoración**: las señales se montan
+   * sobre la esquina del chip y sin relleno se les vería el borde cruzado por
+   * detrás. Desde JS no hay forma de leer `tailwind.config`, así que va en hex.
+   */
+  fill: string;
   /** Para el borde o el fondo, cuando una captura quiera marcarse. */
   className?: string;
   accessibilityLabel?: string;
@@ -52,6 +59,8 @@ export function CaptureChip({
   progress = 0,
   fillClassName,
   badge,
+  pendingSync = false,
+  fill,
   className,
   accessibilityLabel,
   testID,
@@ -100,15 +109,32 @@ export function CaptureChip({
 
       {children}
 
-      {badge && (
-        <View pointerEvents="none" className="absolute -right-1.5 -top-1.5">
-          <Icon
-            as={badge.icon}
-            size={20}
-            strokeWidth={1.8}
-            fill={badge.fill}
-            className={badge.className}
-          />
+      {/* Las dos señales en una fila, la de sincronización primero: así la
+          principal se queda siempre en la esquina y la otra crece hacia dentro,
+          en vez de que el chip cambie de silueta según cuántas haya. */}
+      {(badge || pendingSync) && (
+        <View
+          pointerEvents="none"
+          className="absolute -right-1.5 -top-2 flex-row items-center gap-1"
+        >
+          {pendingSync && (
+            <Icon
+              as={RefreshCwIcon}
+              size={18}
+              strokeWidth={2.4}
+              className="text-warn"
+              fill={fill}
+            />
+          )}
+          {badge && (
+            <Icon
+              as={badge.icon}
+              size={20}
+              strokeWidth={1.8}
+              fill={fill}
+              className={badge.className}
+            />
+          )}
         </View>
       )}
     </PressableScale>

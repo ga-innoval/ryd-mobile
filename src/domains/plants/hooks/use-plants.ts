@@ -4,11 +4,13 @@ import { getAllPlants } from "../lib/db/plants.repository";
 import { plantProgress } from "../lib/evaluation-progress";
 import {
   getTratamientoIdsWithErrors,
+  getTratamientoIdsWithPendingSync,
   getTratamientoProgress,
 } from "../lib/db/respuestas.repository";
 import {
   getPostcosechaEmpacadas,
   getPostcosechaIdsWithErrors,
+  getPostcosechaIdsWithPendingSync,
   getPostcosechaProgress,
 } from "../lib/db/postcosecha-respuestas.repository";
 import { postcosechaKey } from "../lib/postcosecha-progress";
@@ -42,6 +44,8 @@ export function usePlants() {
         postcosecha,
         postcosechaErrors,
         empacadas,
+        pendientes,
+        postcosechaPendientes,
       ] = await Promise.all([
         getAllPlants(db),
         getTratamientoIdsWithErrors(db),
@@ -49,6 +53,8 @@ export function usePlants() {
         getPostcosechaProgress(db),
         getPostcosechaIdsWithErrors(db),
         getPostcosechaEmpacadas(db),
+        getTratamientoIdsWithPendingSync(db),
+        getPostcosechaIdsWithPendingSync(db),
       ]);
 
       return plants.map((plant) => {
@@ -63,6 +69,13 @@ export function usePlants() {
             postcosecha.get(postcosechaKey(plant.id, item.id)) ?? 0,
           ]),
         );
+
+        const pendientesDeEste = tratamientos
+          .filter((tratamiento) => pendientes.has(tratamiento.id))
+          .map((tratamiento) => tratamiento.id);
+        const postcosechaPendientesDeEsta = EVALS_POST_COSECHA.filter((item) =>
+          postcosechaPendientes.has(postcosechaKey(plant.id, item.id)),
+        ).map((item) => item.id);
 
         return {
           ...plant,
@@ -84,6 +97,15 @@ export function usePlants() {
           postcosechaEmpacada: EVALS_POST_COSECHA.filter((item) =>
             empacadas.has(postcosechaKey(plant.id, item.id)),
           ).map((item) => item.id),
+          tratamientosPending: pendientesDeEste,
+          postcosechaPending: postcosechaPendientesDeEsta,
+          // Derivado de las dos listas y no de una consulta aparte: una
+          // plantación tiene algo que mandar exactamente cuando lo tiene alguno
+          // de sus chips. (Dejará de ser cierto el día que la poda conserve un
+          // tratamiento inactivo con captura sin sincronizar — hoy los borra.)
+          pendingSync:
+            pendientesDeEste.length > 0 ||
+            postcosechaPendientesDeEsta.length > 0,
         };
       });
     },

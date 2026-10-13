@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { SyncStatus, type PlantWithMatch } from "../types";
+import type { PlantWithMatch } from "../types";
 import { FilterValues } from "../types";
 
 const FILTER_PREDICATES: Record<
@@ -9,8 +9,9 @@ const FILTER_PREDICATES: Record<
   [FilterValues.todas]: () => true,
   [FilterValues.sinIniciar]: (item) => item.plantItem.progress === 0,
   [FilterValues.iniciadas]: (item) => item.plantItem.progress > 0,
-  [FilterValues.pendientes]: (item) =>
-    item.plantItem.syncStatus === SyncStatus.pending,
+  // Lo que le falta por mandar al servidor, no el estado del pull: ese lo
+  // reescribe `upsertPlant` en cada descarga y tenía este filtro clavado en 0.
+  [FilterValues.pendientes]: (item) => item.plantItem.pendingSync,
 };
 
 export function usePlantsFilter(data: PlantWithMatch[]) {

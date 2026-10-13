@@ -20,6 +20,7 @@ import {
   useItemSendStatus,
   useItemSyncState,
 } from "@/domains/plants/hooks/use-item-sync-state";
+import { SeparatorLine } from "@/components/ui/separator-line";
 
 type PostcosechaPageHeaderProps = {
   /** La plantación y cuál de las cuatro: hace falta para preguntar qué le queda
@@ -133,6 +134,19 @@ export function PostcosechaPageHeader({
           de los nombres: lo que se mira antes de tocar «Guardar» es si hace
           falta tocarlo. */}
       <View className="flex-row items-center gap-4">
+        {/* Su propio par, con el mismo `gap-2` que el `SyncBlock` de la
+            pantalla principal: el estado pegado al botón que lo cambia, igual
+            que arriba el de guardado va pegado al suyo. */}
+        <View className="flex-row items-center gap-2">
+          <SyncStatusIndicator status={syncIndicator} />
+          <SendEvaluationButton
+            onPress={actions?.send}
+            eligibility={eligibility}
+            sending={sending}
+          />
+        </View>
+        <SeparatorLine />
+
         <SaveStatusIndicator status={status} />
 
         <View className="flex-row gap-2">
@@ -153,18 +167,6 @@ export function PostcosechaPageHeader({
           >
             <Icon as={SaveIcon} size={16} className="text-white" />
           </IconButton>
-        </View>
-
-        {/* Su propio par, con el mismo `gap-2` que el `SyncBlock` de la
-            pantalla principal: el estado pegado al botón que lo cambia, igual
-            que arriba el de guardado va pegado al suyo. */}
-        <View className="flex-row items-center gap-2">
-          <SyncStatusIndicator status={syncIndicator} />
-          <SendEvaluationButton
-            onPress={actions?.send}
-            eligibility={eligibility}
-            sending={sending}
-          />
         </View>
       </View>
     </HeaderBase>

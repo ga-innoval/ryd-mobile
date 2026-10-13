@@ -19,6 +19,9 @@ export const buildPlant = (overrides = {}) => ({
   postcosecha: {},
   postcosechaWithError: [],
   postcosechaEmpacada: [],
-  syncStatus: SyncStatus.pending,
+  syncStatus: SyncStatus.synced,
+  tratamientosPending: ["trat-1"],
+  postcosechaPending: [],
+  pendingSync: true,
   ...overrides,
 });
