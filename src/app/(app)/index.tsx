@@ -15,6 +15,7 @@ import { ListEmptyState } from "@/domains/plants/components/list-empty-state";
 import { List } from "@/domains/plants/components/list";
 import { ListSearchBar } from "@/domains/plants/components/list-searchbar";
 import { ScrollToTopButton } from "@/domains/plants/components/scroll-to-top-button";
+import { SyncDialog } from "@/domains/plants/components/sync-dialog";
 import { ListHeader } from "@/domains/plants/components/list-header";
 
 const EMPTY_PLANTS: Plant[] = [];
@@ -150,6 +151,10 @@ export default function Index() {
       />
 
       <ScrollToTopButton onPress={scrollToTop} style={buttonAnimatedStyle} />
+
+      {/* Modal mientras sincroniza, con su propio botón para apartarlo sin
+          detener la tanda. */}
+      <SyncDialog />
     </View>
   );
 }

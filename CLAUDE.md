@@ -546,13 +546,28 @@ piezas. Lo que no es obvio:
   non-2xx status codes». Sin mirar `result.status` a mano, cada fotografía se
   marcaría como enviada contra un 500. El veredicto vive en `uploadOutcome`,
   puro y con test, en vez de en un `if` dentro del bucle.
-- **«Sincronizar todo» es un lote por encuesta, no uno por captura.** Veinte
-  plantaciones de cuatro tratamientos serían ochenta peticiones, y el contrato ya
-  devuelve un resultado por registro, así que un lote grande da el mismo avance
-  parcial. Lo que trae un dato imposible **se queda fuera entero** —secciones y
-  fotografías— y las demás viajan igual: un error en una plantación no puede
-  impedir que lleguen las otras diecinueve. El aviso dice cuántas se quedaron
-  fuera y por qué, o el evaluador se va del campo creyendo que mandó todo.
+- **«Sincronizar todo» va plantación por plantación**, aunque signifique más
+  peticiones: es lo que hace cierto el «plantación 3 de 10» de su aviso, y acota
+  el daño de un corte de red. Dentro de cada una **sí** se agrupa: sus seis
+  secciones van en un lote, no en seis peticiones. Lo que trae un dato imposible
+  se queda fuera entero —secciones y fotografías— y las demás plantaciones viajan
+  igual. **Sin red se corta la tanda**: seguir con las nueve restantes serían
+  noventa segundos de `timeout` para acabar igual, y quien llama lo distingue con
+  `isNetworkError` —el fallo ya lo dice, sin instalar `netinfo`—.
+- **Que una plantación cuente como sincronizada lo decide SQLite**, no la suma de
+  lo que devolvieron los envíos: `pushAll` le pregunta a
+  `hasUnsyncedWorkForPlant`, la misma pregunta que contestan el chip de la
+  tarjeta y el guard de la poda. Así el aviso no puede decir «10 de 10» sobre una
+  tarjeta que sigue marcada.
+- **El avance en vivo sí merece un store** (`sync-progress-store`), al revés que
+  el resto del estado de sincronización: TanStack Query no tiene canal de
+  progreso —una mutation está en vuelo o no—, así que por cuál plantación va no
+  se puede leer de ningún otro sitio. Sin persistir, y **cerrar el aviso no borra
+  el avance, lo esconde** con una bandera: mientras se desvanece sigue pintando
+  lo último que decía, y borrarlo lo dejaría vacío a mitad de la animación. Esa
+  bandera es lo que evita copiar el contenido anterior en el componente, con un
+  `setState` dentro de un efecto o leyendo un ref al pintar — las dos cosas las
+  prohíbe ESLint, con razón.
 - **`sync-store` ya no es el stub.** Lleva solo la marca de tiempo, persistida,
   como `download-store`; el ciclo de vida se lee de la caché de mutations. Y
   **ese módulo no importa el store a propósito**: la marca la escribe
@@ -563,10 +578,42 @@ piezas. Lo que no es obvio:
   propia: esa query ya trae `pendingSync` por plantación —el mismo dato que
   enciende el chip de la tarjeta—, y una consulta aparte sería un cuarto sitio
   donde preguntar lo mismo, y uno que podría contestar distinto.
-- **`rejected_closed` todavía no llega al indicador de la pantalla principal.**
-  `SyncBlock` tiene su estado pintado, pero el conteo que recibe es el de lo
-  pendiente, y lo rechazado no está pendiente. Hoy un rechazo se ve en la
-  pantalla de esa captura y en el aviso del envío que lo produjo.
+- **«Sin sincronizar» significa dos cosas distintas y conviene no mezclarlas.**
+  _«¿Se puede reintentar?»_ es solo `pending`, y es lo que entra en la cola del
+  envío —lo rechazado fuera, para no reintentarlo sin fin—. _«¿Lo tiene el
+  servidor?»_ es todo lo que no esté `synced`, lo rechazado incluido, y es lo que
+  contestan los chips de la tarjeta, el guard de la poda y el recuento del aviso.
+  Si el chip no marcara lo rechazado, el aviso diría «lo que falta sigue marcado
+  en su tarjeta» sobre una tarjeta sin marcar.
+- **«Sincronizar todo» se sigue en un diálogo, no en un aviso flotante.** La
+  tanda dura lo que dure y hay que poder seguirla plantación por plantación; en
+  una tarjeta al pie, la lista competía con el listado que tenía debajo. **Salir
+  no detiene nada**, y por eso el botón dice «Seguir en segundo plano» mientras
+  sincroniza y «Cerrar» cuando ya no hay nada en marcha: la tanda es de la
+  mutation, no de la pantalla, así que apartarla no la cancela — lo que pase
+  después se ve en el indicador de la cabecera y en los chips. Y **no se cierra
+  solo al terminar**: el resultado es lo que hay que leer antes de guardar la
+  tablet, y un diálogo que se va se lleva esa noticia con él.
+- **La lista es un renglón por plantación** (`SyncUnit`), y cada uno es **el
+  encabezado de su tarjeta en pequeño**: el nombre y los cinco datos —campo,
+  cuadro, programa, patrón y año—, que es lo que de verdad la identifica, porque
+  una variedad se repite entre cuadros y «518» por sí solo no dice cuál es. Esa
+  fila la comparten el listado y el diálogo (`PlantDataFields`), para que no
+  acaben contando cosas distintas. Se probó con dos renglones por plantación,
+  separando texto de fotografías, y se hacía el doble de larga para decir lo
+  mismo. **Nace entera**, con lo que falta en gris, para que no crezca renglón a
+  renglón mientras sincroniza, y **la que está en curso se resalta con el
+  fondo**: en una lista de nombres parecidos el ojo encuentra antes la franja que
+  la letra. Lo bloqueado por un dato imposible sale en ella en ámbar en vez de
+  desaparecer — era el hueco que dejaba `rejected_closed` sin ver.
+- **Los renglones no enseñan porcentaje, solo en qué van.** Las secciones de una
+  plantación viajan en un solo lote, así que su avance solo podría saltar de 0 a
+  100: un número que solo toma dos valores finge una precisión que no existe.
+  Partir el lote para poder contarlo sería multiplicar las peticiones de cada
+  plantación, que es justo lo que se evita por la conexión en campo.
+- **La lista va por plantación y no baja a la captura.** Con dos tratamientos y
+  uno con un dato imposible, lo limpio se manda y quien señala al otro es el chip
+  de su tarjeta.
 - **La poda de la descarga no borra lo que no se ha mandado.** Lo protegen
   `hasUnsyncedWorkForPlant` y `hasUnsyncedWorkForTratamiento`, y «sin
   sincronizar» aquí es **todo lo que no esté `synced`, `rejected_closed`
@@ -1078,7 +1125,13 @@ renombró) y `temporada` en español.
   `useEffect` + `withTiming`).
 - **No superpongas Reanimated y NativeWind sobre el mismo componente.** El
   estilo animado va en un `Animated.View` **envolvente** y el `className` en el
-  hijo. Envolver con `createAnimatedComponent` un componente que ya usa
+  hijo. **Lo mismo vale para el posicionamiento de un flotante**: un
+  `Animated.View` con `style` animado y `className="absolute bottom-10 …"` pierde
+  las clases y el elemento se queda sin anclar — el aviso de sincronización
+  crecía hacia abajo por esto. Por eso los tres flotantes de la app —volver
+  arriba, ir al error y el aviso— llevan su posición dentro del array de `style`
+  (`style={[appearStyle, { position: "absolute", bottom: 24 }]}`) y no en
+  clases. Envolver con `createAnimatedComponent` un componente que ya usa
   `cssInterop` hace que ambos se disputen la prop `style`: pasó con `Icon`
   —que usa `nativeStyleToProp` para derivar `size` del className— y el icono
   desaparecía al descansar en un ángulo distinto de 0. Se ve solo cuando la

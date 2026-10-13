@@ -160,3 +160,22 @@ export const getAllTratamientos = async (
 
   return rows.map(toRecord);
 };
+
+/**
+ * De qué plantación es cada tratamiento.
+ *
+ * **Sin filtrar por `isActive`**, al revés que `getAllTratamientos`: esto lo usa
+ * la sincronización para agrupar por plantación lo que falta por mandar, y un
+ * tratamiento dado de baja que conserva captura sin sincronizar —justo lo que el
+ * guard de la poda protege— tiene que seguir cayendo en su plantación. Si no, su
+ * trabajo quedaría huérfano y no se mandaría nunca.
+ */
+export const getTratamientoPlantIds = async (
+  db: SQLiteDatabase,
+): Promise<Map<string, string>> => {
+  const rows = await db.getAllAsync<{ id: string; plantId: string }>(
+    "SELECT id, plantId FROM tratamientos",
+  );
+
+  return new Map(rows.map((row) => [row.id, row.plantId]));
+};
