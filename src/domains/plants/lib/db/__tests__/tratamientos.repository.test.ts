@@ -31,35 +31,53 @@ describe("getTratamientosByPlantId", () => {
     await upsertTratamiento(db, buildTratamiento({ id: "a", plantId: "p1" }));
     await upsertTratamiento(db, buildTratamiento({ id: "b", plantId: "p2" }));
 
-    expect(
-      (await getTratamientosByPlantId(db, "p1")).map((t) => t.id),
-    ).toEqual(["a"]);
+    expect((await getTratamientosByPlantId(db, "p1")).map((t) => t.id)).toEqual(
+      ["a"],
+    );
   });
 
   it("excluye los dados de baja", async () => {
-    await upsertTratamiento(db, buildTratamiento({ id: "vivo", plantId: "p1" }));
+    await upsertTratamiento(
+      db,
+      buildTratamiento({ id: "vivo", plantId: "p1" }),
+    );
     await upsertTratamiento(
       db,
       buildTratamiento({ id: "baja", plantId: "p1", isActive: false }),
     );
 
-    expect(
-      (await getTratamientosByPlantId(db, "p1")).map((t) => t.id),
-    ).toEqual(["vivo"]);
+    expect((await getTratamientosByPlantId(db, "p1")).map((t) => t.id)).toEqual(
+      ["vivo"],
+    );
   });
 
   it("ordena por temporada descendente y luego por nombre", async () => {
     await upsertTratamiento(
       db,
-      buildTratamiento({ id: "a", plantId: "p1", name: "Zeta", temporada: 2025 }),
+      buildTratamiento({
+        id: "a",
+        plantId: "p1",
+        name: "Zeta",
+        temporada: 2025,
+      }),
     );
     await upsertTratamiento(
       db,
-      buildTratamiento({ id: "b", plantId: "p1", name: "Beta", temporada: 2026 }),
+      buildTratamiento({
+        id: "b",
+        plantId: "p1",
+        name: "Beta",
+        temporada: 2026,
+      }),
     );
     await upsertTratamiento(
       db,
-      buildTratamiento({ id: "c", plantId: "p1", name: "Alfa", temporada: 2026 }),
+      buildTratamiento({
+        id: "c",
+        plantId: "p1",
+        name: "Alfa",
+        temporada: 2026,
+      }),
     );
 
     expect(

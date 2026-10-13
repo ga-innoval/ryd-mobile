@@ -32,52 +32,45 @@ export const getPlantById = async (
 };
 
 /**
- * Las plantaciones con algo capturado que todavía no ha salido de la tablet.
+ * Si a la plantación le queda algo que el servidor todavía no tiene, de
+ * cualquiera de sus cuatro tablas.
  *
- * Mira las **cuatro** tablas de captura, porque el evaluador no distingue entre
- * ellas: lo que pregunta es «¿me falta mandar algo de esta plantación?». Las dos
- * de tratamiento pasan por `tratamientos` para llegar al `plantId`; las dos de
- * post-cosecha ya lo llevan.
+ * **Lo que protege de la poda de la descarga.** Al desactivarse en remoto, la
+ * plantación se borra y la CASCADE arrasa con sus tratamientos, sus respuestas y
+ * sus fotografías — las cuatro tablas cuelgan de aquí.
  *
- * Es SQL contra `syncStatus` y no abre un solo payload, igual que
- * `getTratamientoIdsWithErrors`: el listado lo pregunta de todas las
- * plantaciones a la vez. Los índices parciales de la v10 son los que lo hacen
- * barato — dentro de ellos solo hay filas pendientes.
+ * «Sin sincronizar» es todo lo que no esté `synced`, `rejected_closed` incluido:
+ * esa fila está esperando a que un administrador reabra la encuesta, y borrarla
+ * sería tirar justo el dato que el rechazo prometía conservar.
  *
- * Vive aquí y no en los repositorios de captura porque la respuesta está
- * **llaveada por plantación**, y porque es lo que `isSafeToDelete` necesita el
- * día que deje de ser un guard de adorno.
- *
- * `rejected_closed` no cuenta como pendiente: no hay nada que reintentar hasta
- * que la encuesta se reabra, y contarlo dejaría la tarjeta en «Pendiente» para
- * siempre sin que nadie pudiera quitarlo.
+ * Una pregunta por plantación y no el conjunto de todas, al revés que los
+ * lectores del listado: esto se pregunta solo de las que se van a borrar, que
+ * son las pocas que el pull trajo inutilizables.
  */
-export const getPlantIdsWithPendingWork = async (
+export const hasUnsyncedWorkForPlant = async (
   db: SQLiteDatabase,
-): Promise<Set<string>> => {
-  const rows = await db.getAllAsync<{ plantId: string }>(
-    `SELECT t.plantId AS plantId
-       FROM respuestas r
-       JOIN tratamientos t ON t.id = r.tratamientoId
-      WHERE r.syncStatus = ?
-      UNION
-     SELECT t.plantId AS plantId
-       FROM respuesta_fotos f
-       JOIN tratamientos t ON t.id = f.tratamientoId
-      WHERE f.syncStatus = ?
-      UNION
-     SELECT plantId FROM postcosecha_respuestas WHERE syncStatus = ?
-      UNION
-     SELECT plantId FROM postcosecha_fotos WHERE syncStatus = ?`,
-    [
-      SyncStatus.pending,
-      SyncStatus.pending,
-      SyncStatus.pending,
-      SyncStatus.pending,
-    ],
+  plantId: string,
+): Promise<boolean> => {
+  const row = await db.getFirstAsync<{ pendiente: number }>(
+    `SELECT EXISTS(
+       SELECT 1 FROM respuestas r
+         JOIN tratamientos t ON t.id = r.tratamientoId
+        WHERE t.plantId = $id AND r.syncStatus <> $synced
+       UNION ALL
+       SELECT 1 FROM respuesta_fotos f
+         JOIN tratamientos t ON t.id = f.tratamientoId
+        WHERE t.plantId = $id AND f.syncStatus <> $synced
+       UNION ALL
+       SELECT 1 FROM postcosecha_respuestas
+        WHERE plantId = $id AND syncStatus <> $synced
+       UNION ALL
+       SELECT 1 FROM postcosecha_fotos
+        WHERE plantId = $id AND syncStatus <> $synced
+     ) AS pendiente`,
+    { $id: plantId, $synced: SyncStatus.synced },
   );
 
-  return new Set(rows.map((row) => row.plantId));
+  return (row?.pendiente ?? 0) === 1;
 };
 
 /**
@@ -123,18 +116,23 @@ export const deletePlant = async (
 };
 
 /**
- * Solo se borra lo que está completamente sincronizado. Si quedó captura
- * local, la plantación se conserva: el remoto rechaza actualizaciones mientras
+ * Solo se borra lo que no deja trabajo sin mandar. Si quedó captura local, la
+ * plantación se conserva: el remoto rechaza actualizaciones mientras
  * `is_active = false`, así que debe sobrevivir hasta que la reactiven (al
  * reactivarla cambia `updated_at` y vuelve en el pull).
  *
- * TODO(respuestas): cuando exista la tabla, esto debe mirar las respuestas sin
- * sincronizar de la plantación. Hoy `mapRemotePlant` siempre escribe `synced`,
- * así que este guard nunca impide un borrado — y es correcto, porque todavía
- * no hay captura local que proteger.
+ * **Hasta ahora era un guard de adorno**: miraba `syncStatus`, que es el estado
+ * de la plantación en el *pull* y que `mapRemotePlant` escribe siempre como
+ * `synced`, así que nunca impedía nada. Daba igual mientras no hubiera captura
+ * local; con la sincronización en marcha pasan días entre capturar y mandar, y
+ * un borrado aquí es trabajo de campo que no se puede repetir.
+ *
+ * Conservar sin más, sin marca ni aviso: es estrictamente mejor que perder el
+ * dato y no necesita decidir cómo se vería una plantación retenida. Esa decisión
+ * sigue abierta.
  */
-const isSafeToDelete = (local: PlantRecord | null) =>
-  local === null || local.syncStatus === SyncStatus.synced;
+const isSafeToDelete = async (db: SQLiteDatabase, plantId: string) =>
+  !(await hasUnsyncedWorkForPlant(db, plantId));
 
 /**
  * Una plantación sin tratamientos activos no se puede usar en la app.
@@ -165,7 +163,7 @@ export const syncPlantsBatch = async (
       }
 
       // Desactivada o sin tratamientos usables: el desenlace es el mismo.
-      if (isSafeToDelete(await getPlantById(db, entry.plant.id))) {
+      if (await isSafeToDelete(db, entry.plant.id)) {
         await deletePlant(db, entry.plant.id);
       }
     }

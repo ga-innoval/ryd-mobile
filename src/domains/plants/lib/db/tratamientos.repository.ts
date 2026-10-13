@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import type { TratamientoRecord } from "../../types";
+import { hasUnsyncedWorkForTratamiento } from "./respuestas.repository";
 
 // La fila tal como vive en SQLite: no hay BOOLEAN, los booleanos son 0/1.
 type TratamientoRow = Omit<TratamientoRecord, "isActive"> & {
@@ -67,11 +68,20 @@ export const deleteTratamiento = async (
  * No hace falta reconciliar por ausencia: el backend manda la lista completa
  * incluyendo los dados de baja, con `isActive: false` como lápida explícita.
  *
- * TODO(respuestas): cuando exista la tabla, un inactivo con respuestas sin
- * sincronizar debe conservarse (marcado) en vez de podarse — el remoto no
- * acepta actualizaciones mientras esté inactivo. Hoy no hay nada que retener.
- * Ese mismo día hay que revisar la CASCADE de esta tabla: borrar un
- * tratamiento con respuestas capturadas las destruiría.
+ * **Un tratamiento con trabajo sin mandar no se poda**, ni por ausencia ni por
+ * baja. El remoto no acepta actualizaciones mientras esté inactivo, así que la
+ * fila tiene que sobrevivir hasta que lo reactiven; y la CASCADE de esta tabla
+ * se lleva sus respuestas y sus fotografías, que es trabajo de campo que no se
+ * puede repetir.
+ *
+ * **Hasta ahora aquí no había guard ninguno** —en plantaciones al menos existía,
+ * aunque fuera de adorno—, y este es el camino que de verdad se recorre: dar de
+ * baja un tratamiento es mucho más rutinario que dar de baja una plantación
+ * entera.
+ *
+ * Se conserva sin marca ni aviso: es estrictamente mejor que perder el dato y no
+ * obliga a decidir cómo se ve un tratamiento retenido. Esa decisión sigue
+ * abierta.
  */
 export const syncPlantTratamientos = async (
   db: SQLiteDatabase,
@@ -88,18 +98,36 @@ export const syncPlantTratamientos = async (
     ? ` AND id NOT IN (${ids.map(() => "?").join(",")})`
     : "";
 
-  await db.runAsync(`DELETE FROM tratamientos WHERE plantId = ?${notIn}`, [
-    plantId,
-    ...ids,
-  ]);
+  // Se buscan primero y se borran después, en vez de un `DELETE` directo, para
+  // poder preguntar fila a fila si hay algo sin mandar. No es caro: lo normal es
+  // que esta consulta no devuelva nada —el servidor manda la lista completa, con
+  // los dados de baja incluidos—, así que el caso corriente no pregunta nada.
+  const huerfanos = await db.getAllAsync<{ id: string }>(
+    `SELECT id FROM tratamientos WHERE plantId = ?${notIn}`,
+    [plantId, ...ids],
+  );
+
+  for (const { id } of huerfanos) {
+    await deleteTratamientoIfSynced(db, id);
+  }
 
   for (const tratamiento of tratamientos) {
     if (tratamiento.isActive) {
       await upsertTratamiento(db, tratamiento);
     } else {
-      await deleteTratamiento(db, tratamiento.id);
+      await deleteTratamientoIfSynced(db, tratamiento.id);
     }
   }
+};
+
+/** Borra solo si el servidor ya tiene todo lo que ese tratamiento capturó. */
+const deleteTratamientoIfSynced = async (
+  db: SQLiteDatabase,
+  id: string,
+): Promise<void> => {
+  if (await hasUnsyncedWorkForTratamiento(db, id)) return;
+
+  await deleteTratamiento(db, id);
 };
 
 /**
