@@ -58,6 +58,9 @@ import type { SaveStatus } from "@/domains/plants/store/evaluation-save-store";
 const STATUS_VIEW: Partial<
   Record<SaveStatus, { text: string; dotCn?: string }>
 > = {
+  // Sin `idle`: mientras SQLite no conteste qué hay capturado, decir cualquier
+  // cosa sería arriesgarse a desmentirla un instante después.
+  empty: { text: "Sin datos", dotCn: "bg-primary-foreground/40" },
   pending: { text: "Guardando…" },
   saving: { text: "Guardando…" },
   saved: { text: "Guardado", dotCn: "bg-leaf" },

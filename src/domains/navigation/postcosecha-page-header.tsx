@@ -134,6 +134,27 @@ export function PostcosechaPageHeader({
           de los nombres: lo que se mira antes de tocar «Guardar» es si hace
           falta tocarlo. */}
       <View className="flex-row items-center gap-4">
+        <SaveStatusIndicator status={status} />
+        <View className="flex-row gap-2">
+          {/* Nombra la evaluación: las cuatro se ven casi iguales y con los
+              chips es fácil estar en la que no es. */}
+          {/* <ClearEvaluationButton
+            onConfirm={actions?.clear}
+            disabled={disabled || sending}
+            description={`Se borrarán todas las respuestas de esta evaluación${
+              evalName ? ` (${evalName})` : ""
+            } y sus fotografías. No se podrán recuperar.`}
+          /> */}
+          <IconButton
+            onPress={actions?.save}
+            disabled={disabled}
+            role="button"
+            aria-label="Guardar"
+          >
+            <Icon as={SaveIcon} size={16} className="text-white" />
+          </IconButton>
+        </View>
+        <SeparatorLine />
         {/* Su propio par, con el mismo `gap-2` que el `SyncBlock` de la
             pantalla principal: el estado pegado al botón que lo cambia, igual
             que arriba el de guardado va pegado al suyo. */}
@@ -144,29 +165,6 @@ export function PostcosechaPageHeader({
             eligibility={eligibility}
             sending={sending}
           />
-        </View>
-        <SeparatorLine />
-
-        <SaveStatusIndicator status={status} />
-
-        <View className="flex-row gap-2">
-          {/* Nombra la evaluación: las cuatro se ven casi iguales y con los
-              chips es fácil estar en la que no es. */}
-          <ClearEvaluationButton
-            onConfirm={actions?.clear}
-            disabled={disabled || sending}
-            description={`Se borrarán todas las respuestas de esta evaluación${
-              evalName ? ` (${evalName})` : ""
-            } y sus fotografías. No se podrán recuperar.`}
-          />
-          <IconButton
-            onPress={actions?.save}
-            disabled={disabled}
-            role="button"
-            aria-label="Guardar"
-          >
-            <Icon as={SaveIcon} size={16} className="text-white" />
-          </IconButton>
         </View>
       </View>
     </HeaderBase>

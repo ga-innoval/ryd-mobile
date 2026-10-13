@@ -60,6 +60,10 @@ const AUTOSAVE_QUIET_MS = 2_000;
  */
 const MANUAL_FEEDBACK_MS = 700;
 
+/** Una evaluación en blanco, para saber si hay algo capturado. Al margen del
+ *  render: los defaults son siempre los mismos. */
+const EVALUACION_VACIA = snapshotEvaluation(buildEvaluationDefaults());
+
 /**
  * El guardado de la evaluación: automático por sección, y a mano desde los
  * botones de la cabecera.
@@ -293,6 +297,17 @@ export function EvaluationAutosave({
   // Los errores de captura **no entran aquí**: esto dice si el trabajo está
   // escrito, y meterlos tapaba el "Guardando…" justo cuando había algo
   // pendiente. De eso habla el botón flotante de la pantalla.
+  // **Qué dice la cabecera cuando no hay nada que anunciar.**
+  //
+  // `idle` dura solo lo que SQLite tarda en contestar: ahí no se dice nada
+  // porque cualquier cosa podría desmentirse al siguiente render. Ya con
+  // respuesta, la pregunta es si hay algo capturado — y eso se mira contra el
+  // formulario y no contra las filas guardadas, porque así limpiar deja
+  // «Sin datos» en el acto en vez de esperar a que la consulta se refresque.
+  const sinCapturar =
+    changedSecciones(values, EVALUACION_VACIA).length === 0 &&
+    (fotos?.length ?? 0) === 0;
+
   const status: SaveStatus =
     isPending || confirming
       ? "saving"
@@ -300,9 +315,11 @@ export function EvaluationAutosave({
         ? "error"
         : pending.length > 0
           ? "pending"
-          : written
-            ? "saved"
-            : "idle";
+          : !saved
+            ? "idle"
+            : sinCapturar
+              ? "empty"
+              : "saved";
 
   useEffect(() => {
     setStatus(status);

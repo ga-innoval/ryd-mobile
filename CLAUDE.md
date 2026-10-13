@@ -362,8 +362,15 @@ guardado en la cabecera», con un ajuste probado en tablet: **«hay cambios» y
 girando. Escribir en SQLite dura milisegundos, así que un indicador atado solo a
 la escritura no llegaba a dibujarse; juntos, la rueda gira desde el primer cambio
 y se queda hasta que termina. Eso deja fuera el «Cambios por guardar» del
-diseño, que avisaba de un problema que se arregla solo. Quedan tres: nada al
-abrir, "Guardando…", "Guardado" en verde, y rojo si falla. La distinción interna
+diseño, que avisaba de un problema que se arregla solo. **El indicador no calla nunca**: una evaluación en
+blanco dice «Sin datos». Se probó al revés —que solo apareciera tras guardar— y
+dejaba al evaluador sin saber si la pantalla lo estaba vigilando. Lo único que no
+se enseña es el instante en que **todavía no se sabe** qué hay capturado, que
+dura lo que SQLite tarde en contestar: ahí cualquier cosa podría desmentirse al
+siguiente render. Y «hay algo capturado» se mira **contra el formulario**, no
+contra las filas guardadas, porque así limpiar deja «Sin datos» en el acto en vez
+de esperar a que la consulta se refresque. Quedan cuatro: "Sin datos",
+"Guardando…", "Guardado" en verde, y rojo si falla. La distinción interna
 sigue viva porque decide qué se bloquea: solo la escritura de verdad apaga
 volver, descartar y guardar.
 
