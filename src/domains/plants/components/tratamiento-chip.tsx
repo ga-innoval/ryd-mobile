@@ -23,6 +23,8 @@ type TratamientoChipProps = {
   /** Su captura tiene un dato imposible: la señal de la esquina lo dice sin
    *  abrirlo. */
   hasError?: boolean;
+  /** Le falta algo por mandar al servidor: secciones, fotografías o ambas. */
+  pendingSync?: boolean;
   /** Lo capturado, de 0 a 1. Solo lo enseña la variante `card` —llenándose—; en
    *  la cabecera el avance ya está a la vista en las propias secciones. */
   progress?: number;
@@ -43,6 +45,7 @@ export function TratamientoChip({
   variant = "card",
   isActive = false,
   hasError = false,
+  pendingSync = false,
   progress = 0,
 }: TratamientoChipProps) {
   if (variant === "header") {
@@ -70,6 +73,8 @@ export function TratamientoChip({
   return (
     <CaptureChip
       onPress={onPress}
+      fill={ROW_BACKGROUND}
+      pendingSync={pendingSync}
       progress={progress}
       // Con un dato imposible el chip ya está en rojo; un relleno verde encima
       // lo dejaría de dos colores sin querer decir nada nuevo.
@@ -82,17 +87,22 @@ export function TratamientoChip({
           ? {
               icon: CircleXIcon,
               className: "text-destructive",
-              fill: ROW_BACKGROUND,
             }
           : isComplete(progress)
             ? {
                 icon: CircleCheckIcon,
                 className: "text-foreground",
-                fill: ROW_BACKGROUND,
               }
             : undefined
       }
-      accessibilityLabel={tratamiento.name}
+      // El icono de la esquina no lo ve un lector de pantalla, así que lo que
+      // dice va en la etiqueta: sin esto, «pendiente de sincronizar» sería una
+      // señal solo para quien la ve.
+      accessibilityLabel={
+        pendingSync
+          ? `${tratamiento.name}, pendiente de sincronizar`
+          : tratamiento.name
+      }
     >
       <Text
         numberOfLines={1}

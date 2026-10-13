@@ -159,6 +159,35 @@ export const getTratamientoIdsWithErrors = async (
 };
 
 /**
+ * Los tratamientos con algo capturado que todavía no ha salido de la tablet.
+ *
+ * Mira **sus dos tablas**, secciones y fotografías, porque el evaluador no
+ * distingue entre ellas: lo que pregunta el chip es si a ese tratamiento le
+ * falta mandar algo. Los dos `SELECT` caen dentro de los índices parciales de la
+ * v10, que solo contienen filas pendientes, así que esto no recorre la tabla.
+ *
+ * Ids y no un booleano por plantación, por lo mismo que `getTratamientoIdsWithErrors`:
+ * la tarjeta señala **cuál** de los chips hay que mandar, y de ahí sale si la
+ * plantación entera tiene algo pendiente.
+ *
+ * `rejected_closed` no cuenta: no hay nada que reintentar hasta que un
+ * administrador reabra la encuesta, y marcarlo como pendiente dejaría el icono
+ * encendido para siempre sin que nadie pudiera apagarlo.
+ */
+export const getTratamientoIdsWithPendingSync = async (
+  db: SQLiteDatabase,
+): Promise<Set<string>> => {
+  const rows = await db.getAllAsync<{ tratamientoId: string }>(
+    `SELECT tratamientoId FROM respuestas WHERE syncStatus = ?
+      UNION
+     SELECT tratamientoId FROM respuesta_fotos WHERE syncStatus = ?`,
+    [SyncStatus.pending, SyncStatus.pending],
+  );
+
+  return new Set(rows.map((row) => row.tratamientoId));
+};
+
+/**
  * Cuánto lleva capturado cada tratamiento, de 0 a 1.
  *
  * Suma en SQL y divide entre las secciones que reparten, así que las que no

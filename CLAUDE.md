@@ -608,8 +608,11 @@ Lo que el servidor tiene que hacer, con el detalle en el contrato:
     los filtros «Sin iniciar» / «Iniciadas»—. Antes enseñaba esa palabra; el
     número resume la plantación entera —los dos bloques, ver el 50/50 aquí
     abajo— y cuánto lleva cada captura ya lo dice su propia tarjeta. El filtro por estatus nunca tuvo lógica rota: miraba
-    `progress`, que estaba clavado a `0` en `index.tsx`. «Pendientes» sigue
-    esperando a la sincronización.
+    `progress`, que estaba clavado a `0` en `index.tsx`. **«Pendientes» ya
+    funciona**: mira `pendingSync`, derivado de las cuatro tablas de captura, y
+    no `plants.syncStatus` —el estado del pull, que `upsertPlant` reescribe en
+    cada descarga y que tenía ese filtro y el chip de la tarjeta clavados en cero
+    desde que se escribieron—.
   - **Dónde se ve**: en la pantalla de captura, una barra fina a ancho completo
     al pie del bloque de la cabecera, y en el chip de cada tratamiento del
     listado. La barra **no se esconde al scrollear** aunque los datos de la
@@ -808,9 +811,18 @@ Lo que no es obvio:
 - **Limpiar borra una evaluación, no las cuatro**, y sí se lleva sus
   fotografías. Por eso el texto del diálogo la nombra: con los chips es fácil
   estar en la que no es.
-- **La esquina de la tarjeta enseña una sola señal, y en este orden**: la equis
-  roja si hay un dato imposible, el check si está al 100 %, y el icono de
-  empaque si la caja ya tiene fecha. El de empaque desaparece al completarse
+- **La esquina de la tarjeta tiene dos sitios.** El principal enseña **una sola**
+  señal, y en este orden: la equis roja si hay un dato imposible, el check si
+  está al 100 %, y el icono de empaque si la caja ya tiene fecha. A su izquierda,
+  en su propio sitio, el refresco ámbar de **pendiente de sincronizar**
+  (`CaptureChip.pendingSync`). Son dos sitios y no un cuarto caso del primero
+  porque contestan preguntas distintas —«¿está terminado y bien?» y «¿salió de la
+  tablet?»—: como cuarto caso taparía el check justo en el chip ya completo, que
+  es cuando más ganas hay de mandarlo. Lo que dicen los dos va también en el
+  `accessibilityLabel` del chip, porque un icono no lo lee nadie.
+  **El fondo del renglón (`fill`) es prop del chip y no de la señal**: las dos lo
+  necesitan para que no se les vea el borde cruzado por detrás, y el refresco
+  además lleva un disco de ese color porque no es una figura cerrada. El de empaque desaparece al completarse
   porque para llegar al 100 % hay que haberla capturado — serían dos iconos
   diciendo lo mismo. Las tres salen de columnas (`hasError`, `progress`,
   `empacada`) escritas al guardar, así que el listado no abre ningún payload.

@@ -263,6 +263,25 @@ export const getPostcosechaEmpacadas = async (
   return new Set(rows.map((row) => postcosechaKey(row.plantId, row.evalId)));
 };
 
+/**
+ * Las evaluaciones de post-cosecha con algo sin mandar, por `postcosechaKey`.
+ *
+ * Hermana de `getTratamientoIdsWithPendingSync`, con las mismas razones: mira
+ * sus dos tablas, devuelve claves y no un booleano, y deja fuera lo rechazado.
+ */
+export const getPostcosechaIdsWithPendingSync = async (
+  db: SQLiteDatabase,
+): Promise<Set<string>> => {
+  const rows = await db.getAllAsync<{ plantId: string; evalId: string }>(
+    `SELECT plantId, evalId FROM postcosecha_respuestas WHERE syncStatus = ?
+      UNION
+     SELECT plantId, evalId FROM postcosecha_fotos WHERE syncStatus = ?`,
+    [SyncStatus.pending, SyncStatus.pending],
+  );
+
+  return new Set(rows.map((row) => postcosechaKey(row.plantId, row.evalId)));
+};
+
 /** De quién es una captura de post-cosecha: la plantación y cuál de las cuatro. */
 export type PostcosechaOwner = { plantId: string; evalId: string };
 
