@@ -9,6 +9,7 @@ import {
   pushRespuestasBatch,
 } from "../api/respuestas.api";
 import type { WirePostcosechaRespuesta, WireRespuesta } from "../api/types";
+import type { RespuestaRecord } from "../types";
 import {
   getPendingPostcosechaFotos,
   markPostcosechaFotoRejected,
@@ -18,6 +19,7 @@ import {
   applyPostcosechaPushOutcome,
   getPendingPostcosechaRespuestas,
   getPostcosechaSyncState,
+  type PostcosechaRespuestaRecord,
   type SentPostcosechaKey,
 } from "../lib/db/postcosecha-respuestas.repository";
 import {
@@ -75,7 +77,7 @@ type FotosReport = { enviadas: number; rechazadas: number; pendientes: number };
  * vida distintos, que es exactamente la razón de que el contrato pida una
  * petición por archivo.
  */
-const subirFotos = async <F extends { clientId: string }>(
+export const subirFotos = async <F extends { clientId: string }>(
   fotos: readonly F[],
   upload: (foto: F) => Promise<UploadOutcome>,
   markSynced: (clientId: string) => Promise<void>,
@@ -111,7 +113,7 @@ const subirFotos = async <F extends { clientId: string }>(
  * este dato es contabilidad local («cuándo marqué esto como enviado»), no algo
  * que se compare entre tablets.
  */
-const ahora = () => new Date().toISOString();
+export const ahora = () => new Date().toISOString();
 
 /**
  * Manda las secciones pendientes de un tratamiento.
@@ -120,27 +122,29 @@ const ahora = () => new Date().toISOString();
  * API mockeado, sin montar React. Es el mismo reparto que
  * `saveRespuestaSecciones`.
  */
-export const pushTratamientoRespuestas = async (
-  db: SQLiteDatabase,
-  tratamientoId: string,
-): Promise<PushReport> => {
-  // Un dato imposible bloquea el item entero, no solo su sección. Va aquí y no
-  // solo en el botón porque es la regla, no una cortesía de la interfaz: el día
-  // que «sincronizar todo» mande cien plantaciones, este es el único sitio por
-  // el que pasan todas.
-  const eligibility = syncEligibility(
-    await getTratamientoSyncState(db, tratamientoId),
-  );
-  if (eligibility.kind === "blocked") {
-    return { ...EMPTY_REPORT, blocked: true };
-  }
+/** Lo que un lote deja: cuántas llegaron, cuántas se rechazaron y cuántas no. */
+export type RowsReport = {
+  enviadas: number;
+  rechazadas: number;
+  pendientes: number;
+};
 
-  const pendientes = await getPendingRespuestas(db, tratamientoId);
+/**
+ * Manda **las filas que se le den**, sin preguntarse de quién son.
+ *
+ * Partido así porque es exactamente lo que comparten enviar un tratamiento y
+ * enviar todo: lo único que cambia es qué filas entran en la lista. Un lote por
+ * llamada, nunca una petición por sección — en campo lo escaso es la conexión.
+ */
+export const pushRespuestaRows = async (
+  db: SQLiteDatabase,
+  filas: readonly RespuestaRecord[],
+): Promise<RowsReport & { ilegibles: number }> => {
   const items: WireRespuesta[] = [];
   const sent: SentRespuestaKey[] = [];
   let ilegibles = 0;
 
-  for (const fila of pendientes) {
+  for (const fila of filas) {
     const payload = toRespuestaWirePayload(fila.seccion, fila.payload);
 
     // Una sección que no encaja con su esquema **no se manda y no se toca**: se
@@ -165,65 +169,35 @@ export const pushTratamientoRespuestas = async (
     });
   }
 
-  // **El texto primero y las fotografías después, y es una dependencia de orden,
-  // no una preferencia.** El lote va por `apiClient`, que refresca el token en un
-  // 401; la subida de fotos no pasa por ahí y lleva el bearer a mano. Mandando el
-  // texto primero, las subidas salen con un token fresco. Invertir los dos pasos
-  // rompe el refresco en silencio.
-  //
-  // Y sin secciones que mandar no se toca la red: pulsar enviar con el texto
-  // enviado y una foto pendiente tiene que subir la foto, no hacer una petición
-  // vacía primero.
-  const secciones = { enviadas: 0, rechazadas: 0, pendientes: 0 };
-
-  if (items.length > 0) {
-    const { results } = await pushRespuestasBatch(items);
-    const outcome = reconcileRespuestas(sent, results);
-    await applyRespuestasPushOutcome(db, outcome, ahora());
-
-    secciones.enviadas = outcome.synced.length;
-    secciones.rechazadas = outcome.rejected.length;
-    secciones.pendientes = outcome.retry.length;
+  // Sin nada que mandar no se toca la red: pulsar enviar con el texto ya enviado
+  // y una foto pendiente tiene que subir la foto, no hacer una petición vacía
+  // antes.
+  if (items.length === 0) {
+    return { enviadas: 0, rechazadas: 0, pendientes: 0, ilegibles };
   }
 
-  const fotos = await subirFotos(
-    await getPendingFotos(db, tratamientoId),
-    uploadFoto,
-    (clientId) => markFotoSynced(db, clientId, ahora()),
-    (clientId) => markFotoRejected(db, clientId),
-  );
+  const { results } = await pushRespuestasBatch(items);
+  const outcome = reconcileRespuestas(sent, results);
+  await applyRespuestasPushOutcome(db, outcome, ahora());
 
   return {
-    enviadas: secciones.enviadas,
-    fotos: fotos.enviadas,
-    rechazadas: secciones.rechazadas + fotos.rechazadas,
-    pendientes: secciones.pendientes + fotos.pendientes + ilegibles,
-    blocked: false,
+    enviadas: outcome.synced.length,
+    rechazadas: outcome.rejected.length,
+    pendientes: outcome.retry.length,
+    ilegibles,
   };
 };
 
-/** Lo mismo para una de las cuatro evaluaciones de post-cosecha. */
-export const pushPostcosechaRespuestas = async (
+/** El mismo núcleo para post-cosecha, con su llave de tres partes. */
+export const pushPostcosechaRows = async (
   db: SQLiteDatabase,
-  plantId: string,
-  evalId: string,
-): Promise<PushReport> => {
-  const eligibility = syncEligibility(
-    await getPostcosechaSyncState(db, plantId, evalId),
-  );
-  if (eligibility.kind === "blocked") {
-    return { ...EMPTY_REPORT, blocked: true };
-  }
-
-  const pendientes = await getPendingPostcosechaRespuestas(db, {
-    plantId,
-    evalId,
-  });
+  filas: readonly PostcosechaRespuestaRecord[],
+): Promise<RowsReport & { ilegibles: number }> => {
   const items: WirePostcosechaRespuesta[] = [];
   const sent: SentPostcosechaKey[] = [];
   let ilegibles = 0;
 
-  for (const fila of pendientes) {
+  for (const fila of filas) {
     const payload = toPostcosechaWirePayload(fila.seccion, fila.payload);
     if (payload === null) {
       ilegibles += 1;
@@ -245,17 +219,80 @@ export const pushPostcosechaRespuestas = async (
     });
   }
 
-  const secciones = { enviadas: 0, rechazadas: 0, pendientes: 0 };
-
-  if (items.length > 0) {
-    const { results } = await pushPostcosechaBatch(items);
-    const outcome = reconcilePostcosecha(sent, results);
-    await applyPostcosechaPushOutcome(db, outcome, ahora());
-
-    secciones.enviadas = outcome.synced.length;
-    secciones.rechazadas = outcome.rejected.length;
-    secciones.pendientes = outcome.retry.length;
+  if (items.length === 0) {
+    return { enviadas: 0, rechazadas: 0, pendientes: 0, ilegibles };
   }
+
+  const { results } = await pushPostcosechaBatch(items);
+  const outcome = reconcilePostcosecha(sent, results);
+  await applyPostcosechaPushOutcome(db, outcome, ahora());
+
+  return {
+    enviadas: outcome.synced.length,
+    rechazadas: outcome.rejected.length,
+    pendientes: outcome.retry.length,
+    ilegibles,
+  };
+};
+
+export const pushTratamientoRespuestas = async (
+  db: SQLiteDatabase,
+  tratamientoId: string,
+): Promise<PushReport> => {
+  // Un dato imposible bloquea el item entero, no solo su sección. Va aquí y no
+  // solo en el botón porque es la regla, no una cortesía de la interfaz: el día
+  // que «sincronizar todo» mande cien plantaciones, este es el único sitio por
+  // el que pasan todas.
+  const eligibility = syncEligibility(
+    await getTratamientoSyncState(db, tratamientoId),
+  );
+  if (eligibility.kind === "blocked") {
+    return { ...EMPTY_REPORT, blocked: true };
+  }
+
+  // **El texto primero y las fotografías después, y es una dependencia de orden,
+  // no una preferencia.** El lote va por `apiClient`, que refresca el token en un
+  // 401; la subida de fotos no pasa por ahí y lleva el bearer a mano. Mandando el
+  // texto primero, las subidas salen con un token fresco. Invertir los dos pasos
+  // rompe el refresco en silencio.
+  const secciones = await pushRespuestaRows(
+    db,
+    await getPendingRespuestas(db, tratamientoId),
+  );
+
+  const fotos = await subirFotos(
+    await getPendingFotos(db, tratamientoId),
+    uploadFoto,
+    (clientId) => markFotoSynced(db, clientId, ahora()),
+    (clientId) => markFotoRejected(db, clientId),
+  );
+
+  return {
+    enviadas: secciones.enviadas,
+    fotos: fotos.enviadas,
+    rechazadas: secciones.rechazadas + fotos.rechazadas,
+    pendientes: secciones.pendientes + secciones.ilegibles + fotos.pendientes,
+    blocked: false,
+  };
+};
+
+/** Lo mismo para una de las cuatro evaluaciones de post-cosecha. */
+export const pushPostcosechaRespuestas = async (
+  db: SQLiteDatabase,
+  plantId: string,
+  evalId: string,
+): Promise<PushReport> => {
+  const eligibility = syncEligibility(
+    await getPostcosechaSyncState(db, plantId, evalId),
+  );
+  if (eligibility.kind === "blocked") {
+    return { ...EMPTY_REPORT, blocked: true };
+  }
+
+  const secciones = await pushPostcosechaRows(
+    db,
+    await getPendingPostcosechaRespuestas(db, { plantId, evalId }),
+  );
 
   const fotos = await subirFotos(
     await getPendingPostcosechaFotos(db, { plantId, evalId }),
@@ -268,7 +305,7 @@ export const pushPostcosechaRespuestas = async (
     enviadas: secciones.enviadas,
     fotos: fotos.enviadas,
     rechazadas: secciones.rechazadas + fotos.rechazadas,
-    pendientes: secciones.pendientes + fotos.pendientes + ilegibles,
+    pendientes: secciones.pendientes + secciones.ilegibles + fotos.pendientes,
     blocked: false,
   };
 };
