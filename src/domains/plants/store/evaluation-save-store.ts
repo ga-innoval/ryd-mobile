@@ -3,8 +3,11 @@ import { create } from "zustand";
 /**
  * En qué punto está el guardado de la evaluación abierta.
  *
- * `idle` es una evaluación que nadie ha tocado todavía: ahí la cabecera no dice
- * nada, porque no hay noticia que dar.
+ * **`idle` es «todavía no se sabe»**, no «no hay nada»: dura lo que tarda SQLite
+ * en contestar qué hay capturado, y ahí la cabecera calla porque cualquier cosa
+ * que dijera podría ser mentira un instante después. Lo que de verdad está vacío
+ * es `empty`, y ese sí se enseña: un indicador que aparece solo cuando ya
+ * guardaste deja al evaluador sin saber si la pantalla lo está vigilando.
  *
  * `pending` —hay cambios y el temporizador corre— y `saving` —ya escribiendo—
  * se distinguen aquí pero **se enseñan igual**, los dos como "Guardando…". La
@@ -27,7 +30,8 @@ import { create } from "zustand";
  * cabecera no puede ver**. Quien lo componga todo en una sola línea es
  * `resolveCaptureStatus`.
  */
-export type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
+export type SaveStatus =
+  "idle" | "empty" | "pending" | "saving" | "saved" | "error";
 
 /** Lo que hacen los dos botones de la cabecera. */
 export type EvaluationSaveActions = {

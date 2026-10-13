@@ -41,6 +41,10 @@ import {
 const AUTOSAVE_QUIET_MS = 2_000;
 const MANUAL_FEEDBACK_MS = 700;
 
+/** Una evaluación en blanco, para saber si hay algo capturado. Al margen del
+ *  render: los defaults son siempre los mismos. */
+const POSTCOSECHA_VACIA = snapshotPostcosecha(buildPostcosechaDefaults());
+
 /**
  * El guardado de una evaluación de post-cosecha: automático por sección, y a
  * mano desde los botones de la cabecera.
@@ -289,6 +293,17 @@ export function PostcosechaAutosave({
   // El fallo de escritura va antes que lo pendiente a propósito: tras un fallo
   // los cambios siguen sin guardar, y decir "Cambios por guardar" escondería que
   // la escritura ya se intentó y no salió.
+  // **Qué dice la cabecera cuando no hay nada que anunciar.**
+  //
+  // `idle` dura solo lo que SQLite tarda en contestar: ahí no se dice nada
+  // porque cualquier cosa podría desmentirse al siguiente render. Ya con
+  // respuesta, la pregunta es si hay algo capturado — y eso se mira contra el
+  // formulario y no contra las filas guardadas, porque así limpiar deja
+  // «Sin datos» en el acto en vez de esperar a que la consulta se refresque.
+  const sinCapturar =
+    changedSeccionesPostcosecha(values, POSTCOSECHA_VACIA).length === 0 &&
+    (fotos?.length ?? 0) === 0;
+
   const status: SaveStatus =
     isPending || confirming
       ? "saving"
@@ -296,9 +311,11 @@ export function PostcosechaAutosave({
         ? "error"
         : pending.length > 0
           ? "pending"
-          : written
-            ? "saved"
-            : "idle";
+          : !saved
+            ? "idle"
+            : sinCapturar
+              ? "empty"
+              : "saved";
 
   useEffect(() => {
     setStatus(status);
