@@ -3,17 +3,28 @@ import { useSQLiteContext } from "expo-sqlite";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
 import { haptics } from "@/lib/haptics";
+import { uploadFoto, uploadPostcosechaFoto } from "../api/foto-upload.api";
 import {
   pushPostcosechaBatch,
   pushRespuestasBatch,
 } from "../api/respuestas.api";
 import type { WirePostcosechaRespuesta, WireRespuesta } from "../api/types";
 import {
+  getPendingPostcosechaFotos,
+  markPostcosechaFotoRejected,
+  markPostcosechaFotoSynced,
+} from "../lib/db/postcosecha-fotos.repository";
+import {
   applyPostcosechaPushOutcome,
   getPendingPostcosechaRespuestas,
   getPostcosechaSyncState,
   type SentPostcosechaKey,
 } from "../lib/db/postcosecha-respuestas.repository";
+import {
+  getPendingFotos,
+  markFotoRejected,
+  markFotoSynced,
+} from "../lib/db/respuesta-fotos.repository";
 import {
   applyRespuestasPushOutcome,
   getPendingRespuestas,
@@ -28,45 +39,69 @@ import {
 import { syncEligibility } from "../lib/sync-eligibility";
 import { toPostcosechaWirePayload } from "../lib/postcosecha-wire";
 import { toRespuestaWirePayload } from "../lib/respuesta-wire";
+import type { UploadOutcome } from "../lib/upload-outcome";
 import { PLANTS_QUERY_KEY } from "./use-plants";
-
-/**
- * Enviar lo capturado de **un** tratamiento o de **una** post-cosecha, desde la
- * pantalla donde se acaba de capturar.
- *
- * Qué alcance se manda. Sincronizar todo usará las mismas piezas con la cola sin
- * filtrar, así que la unión discriminada se queda aunque hoy tenga dos ramas.
- */
-export type SyncScope =
-  | { kind: "tratamiento"; tratamientoId: string }
-  | { kind: "postcosecha"; plantId: string; evalId: string };
-
-/**
- * Permite leer el estado en vuelo desde la caché (`useIsMutating`) en vez de
- * que cada consumidor monte su propio observer — el mismo truco de
- * `PLANTS_DOWNLOAD_MUTATION_KEY`.
- *
- * **Es también el motivo de que `syncing` no se escriba en SQLite**: una fila
- * marcada así cuando el sistema mata la app se queda ahí para siempre y nadie
- * la reintenta. Aquí el estado muere con el proceso, que es lo correcto.
- */
-export const SYNC_ITEM_MUTATION_KEY = ["plants", "sync", "item"];
-
-/** La clave de «cuánto le queda por enviar a este item» (ver `useItemSyncState`). */
-export const SYNC_STATE_QUERY_KEY = [...PLANTS_QUERY_KEY, "sync-state"];
-
-export const syncStateQueryKey = (scope: SyncScope) => [
-  ...SYNC_STATE_QUERY_KEY,
-  scope.kind === "tratamiento"
-    ? scope.tratamientoId
-    : `${scope.plantId}:${scope.evalId}`,
-];
+import {
+  syncItemMutationKey,
+  syncStateQueryKey,
+  type SyncScope,
+} from "./use-item-sync-state";
 
 const EMPTY_REPORT: PushReport = {
   enviadas: 0,
+  fotos: 0,
   rechazadas: 0,
   pendientes: 0,
   blocked: false,
+};
+
+type FotosReport = { enviadas: number; rechazadas: number; pendientes: number };
+
+/**
+ * Sube las fotografías pendientes **una a una, en serie**, y marca cada una en
+ * cuanto el servidor contesta.
+ *
+ * Dos decisiones que están aquí y no se ven en el bucle:
+ *
+ * - **En serie y no en paralelo.** El cuello de botella es la subida, así que
+ *   siete multipart a la vez sobre una conexión de campo hacen las siete lentas
+ *   y las siete más propensas a agotar el `timeout`.
+ * - **Marcando de a una.** Si la app muere a mitad, lo que ya subió queda
+ *   marcado y el siguiente envío reintenta solo el resto. Con una sola escritura
+ *   al final, una muerte en el archivo cinco de siete tiraría los cuatro
+ *   primeros.
+ *
+ * **Una que falle no detiene a las demás ni desmarca el texto**: son ciclos de
+ * vida distintos, que es exactamente la razón de que el contrato pida una
+ * petición por archivo.
+ */
+const subirFotos = async <F extends { clientId: string }>(
+  fotos: readonly F[],
+  upload: (foto: F) => Promise<UploadOutcome>,
+  markSynced: (clientId: string) => Promise<void>,
+  markRejected: (clientId: string) => Promise<void>,
+): Promise<FotosReport> => {
+  const report: FotosReport = { enviadas: 0, rechazadas: 0, pendientes: 0 };
+
+  for (const foto of fotos) {
+    const outcome = await upload(foto);
+
+    if (outcome.kind === "ok") {
+      await markSynced(foto.clientId);
+      report.enviadas += 1;
+    } else if (outcome.kind === "rejected") {
+      await markRejected(foto.clientId);
+      report.rechazadas += 1;
+    } else {
+      // `failed` y `missing`: la fila se queda pendiente. Un archivo que ya no
+      // está en disco no se puede subir nunca, pero borrar su fila aquí sería
+      // destructivo ante un fallo temporal de lectura — de eso se encarga la
+      // barrida de la descarga.
+      report.pendientes += 1;
+    }
+  }
+
+  return report;
 };
 
 /**
@@ -130,20 +165,39 @@ export const pushTratamientoRespuestas = async (
     });
   }
 
-  // Sin nada que mandar no se toca la red. Pulsar enviar con todo enviado tiene
-  // que ser inofensivo, no una petición vacía.
-  if (items.length === 0) {
-    return { ...EMPTY_REPORT, pendientes: ilegibles };
+  // **El texto primero y las fotografías después, y es una dependencia de orden,
+  // no una preferencia.** El lote va por `apiClient`, que refresca el token en un
+  // 401; la subida de fotos no pasa por ahí y lleva el bearer a mano. Mandando el
+  // texto primero, las subidas salen con un token fresco. Invertir los dos pasos
+  // rompe el refresco en silencio.
+  //
+  // Y sin secciones que mandar no se toca la red: pulsar enviar con el texto
+  // enviado y una foto pendiente tiene que subir la foto, no hacer una petición
+  // vacía primero.
+  const secciones = { enviadas: 0, rechazadas: 0, pendientes: 0 };
+
+  if (items.length > 0) {
+    const { results } = await pushRespuestasBatch(items);
+    const outcome = reconcileRespuestas(sent, results);
+    await applyRespuestasPushOutcome(db, outcome, ahora());
+
+    secciones.enviadas = outcome.synced.length;
+    secciones.rechazadas = outcome.rejected.length;
+    secciones.pendientes = outcome.retry.length;
   }
 
-  const { results } = await pushRespuestasBatch(items);
-  const outcome = reconcileRespuestas(sent, results);
-  await applyRespuestasPushOutcome(db, outcome, ahora());
+  const fotos = await subirFotos(
+    await getPendingFotos(db, tratamientoId),
+    uploadFoto,
+    (clientId) => markFotoSynced(db, clientId, ahora()),
+    (clientId) => markFotoRejected(db, clientId),
+  );
 
   return {
-    enviadas: outcome.synced.length,
-    rechazadas: outcome.rejected.length,
-    pendientes: outcome.retry.length + ilegibles,
+    enviadas: secciones.enviadas,
+    fotos: fotos.enviadas,
+    rechazadas: secciones.rechazadas + fotos.rechazadas,
+    pendientes: secciones.pendientes + fotos.pendientes + ilegibles,
     blocked: false,
   };
 };
@@ -191,18 +245,30 @@ export const pushPostcosechaRespuestas = async (
     });
   }
 
-  if (items.length === 0) {
-    return { ...EMPTY_REPORT, pendientes: ilegibles };
+  const secciones = { enviadas: 0, rechazadas: 0, pendientes: 0 };
+
+  if (items.length > 0) {
+    const { results } = await pushPostcosechaBatch(items);
+    const outcome = reconcilePostcosecha(sent, results);
+    await applyPostcosechaPushOutcome(db, outcome, ahora());
+
+    secciones.enviadas = outcome.synced.length;
+    secciones.rechazadas = outcome.rejected.length;
+    secciones.pendientes = outcome.retry.length;
   }
 
-  const { results } = await pushPostcosechaBatch(items);
-  const outcome = reconcilePostcosecha(sent, results);
-  await applyPostcosechaPushOutcome(db, outcome, ahora());
+  const fotos = await subirFotos(
+    await getPendingPostcosechaFotos(db, { plantId, evalId }),
+    uploadPostcosechaFoto,
+    (clientId) => markPostcosechaFotoSynced(db, clientId, ahora()),
+    (clientId) => markPostcosechaFotoRejected(db, clientId),
+  );
 
   return {
-    enviadas: outcome.synced.length,
-    rechazadas: outcome.rejected.length,
-    pendientes: outcome.retry.length + ilegibles,
+    enviadas: secciones.enviadas,
+    fotos: fotos.enviadas,
+    rechazadas: secciones.rechazadas + fotos.rechazadas,
+    pendientes: secciones.pendientes + fotos.pendientes + ilegibles,
     blocked: false,
   };
 };
@@ -212,7 +278,7 @@ export function useSyncItem(scope: SyncScope) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationKey: SYNC_ITEM_MUTATION_KEY,
+    mutationKey: syncItemMutationKey(scope),
     mutationFn: () =>
       scope.kind === "tratamiento"
         ? pushTratamientoRespuestas(db, scope.tratamientoId)
@@ -241,7 +307,7 @@ export function useSyncItem(scope: SyncScope) {
 
       haptics.success();
       toast.success({
-        title: "Envío completo",
+        title: "Sincronización completa",
         description: formatPushSummary(report),
       });
     },

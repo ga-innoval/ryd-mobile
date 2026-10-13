@@ -177,22 +177,77 @@ export const getPendingFotos = async (
 };
 
 /**
- * El archivo llegó al servidor.
+ * El resultado de la subida, sobre la fila del archivo que viajó.
  *
  * **Sin el guardia del `updatedAtLocal` que llevan las respuestas, y a
  * propósito**: una fotografía no se edita. Lo que puede pasar es que el
  * evaluador la borre mientras subía, y entonces la fila ya no está y este
- * `UPDATE` no encuentra nada — que es exactamente lo que tiene que ocurrir. Lo
- * que queda pendiente entonces es decirle al servidor que la quite, y de eso
- * habla la lápida que sigue sin existir.
+ * `UPDATE` no encuentra nada — que es exactamente lo que tiene que ocurrir, no
+ * un error. Lo que queda pendiente entonces es decirle al servidor que la quite,
+ * y de eso habla la lápida que sigue sin existir.
  */
-export const markFotoSynced = async (
+const markFoto = async (
   db: SQLiteDatabase,
   clientId: string,
-  syncedAt: string,
+  syncStatus: SyncStatus,
+  syncedAt: string | null,
 ): Promise<void> => {
   await db.runAsync(
     "UPDATE respuesta_fotos SET syncStatus = ?, syncedAt = ? WHERE clientId = ?",
-    [SyncStatus.synced, syncedAt, clientId],
+    [syncStatus, syncedAt, clientId],
   );
+};
+
+/** El archivo llegó al servidor. */
+export const markFotoSynced = (
+  db: SQLiteDatabase,
+  clientId: string,
+  syncedAt: string,
+): Promise<void> => markFoto(db, clientId, SyncStatus.synced, syncedAt);
+
+/**
+ * El servidor la rechazó y reintentar no va a cambiarlo —la encuesta está
+ * cerrada—. Sale de la cola y `syncedAt` se queda en `NULL`: no llegó.
+ *
+ * Sin esto, una foto con la encuesta cerrada se reintentaría en cada envío para
+ * siempre, y el item nunca llegaría a decir «Enviado».
+ */
+export const markFotoRejected = (
+  db: SQLiteDatabase,
+  clientId: string,
+): Promise<void> => markFoto(db, clientId, SyncStatus.rejected_closed, null);
+
+/**
+ * Cuántas fotografías le faltan por subir a un tratamiento y cuántas quedaron
+ * rechazadas. Entra en el mismo conteo que las secciones: el evaluador no
+ * distingue entre las dos tablas, y **sin esto el indicador diría «Enviado» con
+ * fotos sin subir**.
+ */
+export const getFotoSyncCounts = async (
+  db: SQLiteDatabase,
+  tratamientoId: string,
+): Promise<{ captured: number; pending: number; rejected: number }> => {
+  const row = await db.getFirstAsync<{
+    captured: number;
+    pending: number;
+    rejected: number;
+  }>(
+    `SELECT
+       COUNT(*) AS captured,
+       COALESCE(SUM(CASE WHEN syncStatus = $pending THEN 1 ELSE 0 END), 0) AS pending,
+       COALESCE(SUM(CASE WHEN syncStatus = $rejected THEN 1 ELSE 0 END), 0) AS rejected
+     FROM respuesta_fotos
+     WHERE tratamientoId = $tratamientoId`,
+    {
+      $pending: SyncStatus.pending,
+      $rejected: SyncStatus.rejected_closed,
+      $tratamientoId: tratamientoId,
+    },
+  );
+
+  return {
+    captured: row?.captured ?? 0,
+    pending: row?.pending ?? 0,
+    rejected: row?.rejected ?? 0,
+  };
 };

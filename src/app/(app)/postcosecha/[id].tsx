@@ -161,13 +161,15 @@ export default function PostcosechaScreen() {
       title: evalName,
       header: () => (
         <PostcosechaPageHeader
+          plantId={id}
+          evalId={current.id}
           plantName={plantName}
           evalName={evalName}
           isLoading={isLoading}
         />
       ),
     }),
-    [plantName, evalName, isLoading],
+    [id, current.id, plantName, evalName, isLoading],
   );
 
   return (

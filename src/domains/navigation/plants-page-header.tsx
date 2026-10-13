@@ -6,6 +6,7 @@ import { UserMenu } from "@/components/user-menu";
 import { SyncBlock } from "../plants/components/sync-block";
 import { DownloadBlock } from "../plants/components/download-block";
 import { HeaderBase } from "./header-base";
+import { SeparatorLine } from "@/components/ui/separator-line";
 
 type PlantsPageHeaderProps = {
   section?: string;
@@ -46,8 +47,4 @@ export function PlantsPageHeader({
       </View>
     </HeaderBase>
   );
-}
-
-function SeparatorLine() {
-  return <View className="w-px h-4 bg-primary-foreground/20" />;
 }

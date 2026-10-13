@@ -11,7 +11,10 @@ import {
   formatProgress,
   fotografiasProgress,
 } from "../evaluation-progress";
-import { getFotoCategoriaCounts } from "./respuesta-fotos.repository";
+import {
+  getFotoCategoriaCounts,
+  getFotoSyncCounts,
+} from "./respuesta-fotos.repository";
 
 // La fila tal como vive en SQLite: el payload es texto y los enums son strings
 // sueltos, porque SQLite no sabe de tipos nuestros.
@@ -294,22 +297,66 @@ export const markRespuestaRejected = (
  * `hasError` mira **todas** las filas y no solo las pendientes: la marca está
  * guardada por el propio guardado, así que preguntarla no abre ningún payload.
  */
-export type RespuestasSyncState = { pending: number; hasError: boolean };
+export type RespuestasSyncState = {
+  /**
+   * Cuántas filas hay capturadas, enviadas o no.
+   *
+   * Sirve para distinguir «no hay nada que mandar porque ya se mandó todo» de
+   * «no hay nada que mandar porque no se ha capturado nada». Sin eso, una
+   * evaluación en blanco diría «Sincronizado» de entrada, que suena a que algo
+   * salió cuando no hay nada.
+   */
+  captured: number;
+  pending: number;
+  /**
+   * Rechazadas por encuesta cerrada. **No están pendientes** —reintentarlas no
+   * abre la encuesta— pero tampoco están enviadas, así que sin contarlas la
+   * cabecera diría «Enviado» sobre un dato que el servidor no tiene.
+   *
+   * Y se cuentan de la fila y no del resultado de la última mutation porque esto
+   * tiene que sobrevivir a salir de la pantalla y volver: el rechazo sigue ahí
+   * hasta que un administrador reabra.
+   */
+  rejected: number;
+  hasError: boolean;
+};
 
 export const getTratamientoSyncState = async (
   db: SQLiteDatabase,
   tratamientoId: string,
 ): Promise<RespuestasSyncState> => {
-  const row = await db.getFirstAsync<{ pending: number; hasError: number }>(
-    `SELECT
-       COALESCE(SUM(CASE WHEN syncStatus = $pending THEN 1 ELSE 0 END), 0) AS pending,
-       COALESCE(MAX(hasError), 0) AS hasError
-     FROM respuestas
-     WHERE tratamientoId = $tratamientoId`,
-    { $pending: SyncStatus.pending, $tratamientoId: tratamientoId },
-  );
+  // Las fotografías van en el mismo conteo: el evaluador no distingue entre las
+  // dos tablas, y contar solo secciones haría que un tratamiento con fotos sin
+  // subir dijera «Enviado» sin serlo.
+  const [row, fotos] = await Promise.all([
+    db.getFirstAsync<{
+      captured: number;
+      pending: number;
+      rejected: number;
+      hasError: number;
+    }>(
+      `SELECT
+         COUNT(*) AS captured,
+         COALESCE(SUM(CASE WHEN syncStatus = $pending THEN 1 ELSE 0 END), 0) AS pending,
+         COALESCE(SUM(CASE WHEN syncStatus = $rejected THEN 1 ELSE 0 END), 0) AS rejected,
+         COALESCE(MAX(hasError), 0) AS hasError
+       FROM respuestas
+       WHERE tratamientoId = $tratamientoId`,
+      {
+        $pending: SyncStatus.pending,
+        $rejected: SyncStatus.rejected_closed,
+        $tratamientoId: tratamientoId,
+      },
+    ),
+    getFotoSyncCounts(db, tratamientoId),
+  ]);
 
-  return { pending: row?.pending ?? 0, hasError: (row?.hasError ?? 0) === 1 };
+  return {
+    captured: (row?.captured ?? 0) + fotos.captured,
+    pending: (row?.pending ?? 0) + fotos.pending,
+    rejected: (row?.rejected ?? 0) + fotos.rejected,
+    hasError: (row?.hasError ?? 0) === 1,
+  };
 };
 
 /**

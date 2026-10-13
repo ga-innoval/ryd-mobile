@@ -336,7 +336,9 @@ describe("la cola del push", () => {
 
     it("sin captura no hay nada pendiente ni nada que revisar", async () => {
       expect(await getTratamientoSyncState(db, "t1")).toEqual({
+        captured: 0,
         pending: 0,
+        rejected: 0,
         hasError: false,
       });
     });
@@ -356,7 +358,9 @@ describe("la cola del push", () => {
       });
 
       expect(await getTratamientoSyncState(db, "t1")).toEqual({
+        captured: 1,
         pending: 1,
+        rejected: 0,
         hasError: false,
       });
     });
@@ -376,8 +380,30 @@ describe("la cola del push", () => {
       });
 
       expect(await getTratamientoSyncState(db, "t1")).toEqual({
+        captured: 2,
         pending: 2,
+        rejected: 0,
         hasError: true,
+      });
+    });
+
+
+    // `captured` es lo que distingue «ya se mandó todo» de «no hay nada»: sin
+    // él, una captura en blanco diría «Sincronizado» de entrada.
+    it("cuenta también las fotografías, que son del mismo dueño", async () => {
+      await insertFoto(db, {
+        clientId: "f1",
+        tratamientoId: "t1",
+        categoria: "racimo",
+        fileName: "f1.jpg",
+        capturedAt: "2026-01-01T10:00:00.000Z",
+      });
+
+      expect(await getTratamientoSyncState(db, "t1")).toEqual({
+        captured: 1,
+        pending: 1,
+        rejected: 0,
+        hasError: false,
       });
     });
 

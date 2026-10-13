@@ -125,13 +125,14 @@ export default function TratamientoScreen() {
       title: tratamientoName ?? "Tratamiento",
       header: () => (
         <TratamientosPageHeader
+          tratamientoId={id}
           plantName={plantName}
           tratamientoName={tratamientoName}
           isLoading={isLoading}
         />
       ),
     }),
-    [plantName, tratamientoName, isLoading],
+    [id, plantName, tratamientoName, isLoading],
   );
 
   return (

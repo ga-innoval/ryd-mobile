@@ -287,11 +287,17 @@ una foto que el evaluador quitó de la tablet seguiría en el reporte.
 Las categorías son el catálogo de `src/domains/plants/lib/photo-categories.ts`,
 y su `id` es parte del contrato: cambiarlo no es un cambio de texto.
 
-**HEIC: resuelto, y convierte el cliente.** El servidor valida con
-`serializers.ImageField()`, o sea con Pillow, que no trae HEIC registrado: un
-`.heic` da **400**. Y como 400 no es un código terminal, esa fotografía se
-reintentaría en cada envío para siempre. Así que el cliente **convierte antes de
-subir**, y conserva la extensión original solo para saber cuándo hace falta.
+**HEIC: lo acepta el servidor, no lo convierte el cliente.** Una fotografía
+elegida de la galería en iOS llega en ese formato, y el cliente la manda tal
+cual con su extensión y su `mimeType`. Hoy el servidor valida con
+`serializers.ImageField()`, o sea con Pillow, que **no trae HEIC registrado**, así
+que un `.heic` da 400 — y como 400 no es un código terminal, esa fotografía se
+reintentaría en cada envío para siempre.
+
+> **Pendiente del lado Django, y bloquea las fotografías en iPad**: instalar
+> `pillow-heif`. Se eligió esta vía sobre convertir en el cliente para no añadir
+> una dependencia a la app y para que el servidor guarde el original. Hasta que
+> esté, una foto de galería de iOS no entra; las de cámara, sí.
 
 **Encuesta cerrada en la subida: 409 con `{"code": "encuesta_cerrada"}`.** No
 estaba en este contrato —solo definía `code` para el `batch`— y el servidor lo

@@ -12,8 +12,12 @@ import {
   postcosechaSeccionProgress,
   POSTCOSECHA_PROGRESS_SECTIONS,
 } from "../postcosecha-progress";
-import { getPostcosechaFotoCategoriaCounts } from "./postcosecha-fotos.repository";
+import {
+  getPostcosechaFotoCategoriaCounts,
+  getPostcosechaFotoSyncCounts,
+} from "./postcosecha-fotos.repository";
 import { formatProgress } from "../evaluation-progress";
+import type { RespuestasSyncState } from "./respuestas.repository";
 
 /**
  * Lo capturado en post-cosecha, sección a sección.
@@ -358,21 +362,37 @@ export const getPostcosechaSyncState = async (
   db: SQLiteDatabase,
   plantId: string,
   evalId: string,
-): Promise<{ pending: number; hasError: boolean }> => {
-  const row = await db.getFirstAsync<{ pending: number; hasError: number }>(
-    `SELECT
-       COALESCE(SUM(CASE WHEN syncStatus = $pending THEN 1 ELSE 0 END), 0) AS pending,
-       COALESCE(MAX(hasError), 0) AS hasError
-     FROM postcosecha_respuestas
-     WHERE plantId = $plantId AND evalId = $evalId`,
-    {
-      $pending: SyncStatus.pending,
-      $plantId: plantId,
-      $evalId: evalId,
-    },
-  );
+): Promise<RespuestasSyncState> => {
+  const [row, fotos] = await Promise.all([
+    db.getFirstAsync<{
+      captured: number;
+      pending: number;
+      rejected: number;
+      hasError: number;
+    }>(
+      `SELECT
+         COUNT(*) AS captured,
+         COALESCE(SUM(CASE WHEN syncStatus = $pending THEN 1 ELSE 0 END), 0) AS pending,
+         COALESCE(SUM(CASE WHEN syncStatus = $rejected THEN 1 ELSE 0 END), 0) AS rejected,
+         COALESCE(MAX(hasError), 0) AS hasError
+       FROM postcosecha_respuestas
+       WHERE plantId = $plantId AND evalId = $evalId`,
+      {
+        $pending: SyncStatus.pending,
+        $rejected: SyncStatus.rejected_closed,
+        $plantId: plantId,
+        $evalId: evalId,
+      },
+    ),
+    getPostcosechaFotoSyncCounts(db, plantId, evalId),
+  ]);
 
-  return { pending: row?.pending ?? 0, hasError: (row?.hasError ?? 0) === 1 };
+  return {
+    captured: (row?.captured ?? 0) + fotos.captured,
+    pending: (row?.pending ?? 0) + fotos.pending,
+    rejected: (row?.rejected ?? 0) + fotos.rejected,
+    hasError: (row?.hasError ?? 0) === 1,
+  };
 };
 
 /** Hermano de `applyRespuestasPushOutcome`, con las mismas razones. */

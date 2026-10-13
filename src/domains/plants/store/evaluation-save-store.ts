@@ -10,13 +10,24 @@ import { create } from "zustand";
  * se distinguen aquí pero **se enseñan igual**, los dos como "Guardando…". La
  * separación la usa la cabecera para decidir qué bloquear: solo la escritura de
  * verdad apaga los botones.
- * **Aquí solo se habla de la escritura.** Que lo capturado tenga un dato
- * imposible no es un estado de guardado y no entra: lo enseña el botón flotante
- * de la pantalla. Mezclarlo tapaba el "Guardando…" justo cuando había algo sin
- * escribir, que es cuando más falta hace verlo.
+ *
+ * **Aquí solo se habla de la escritura**, y dos cosas que la cabecera sí enseña
+ * se quedan fuera, cada una por su razón:
+ *
+ * - **El error de captura**, porque es *otra* pregunta —«¿hay algo que
+ *   revisar?»— y mezclarla tapaba el "Guardando…" justo cuando había algo sin
+ *   escribir, que es cuando más falta hace verlo. Lo enseña el botón flotante.
+ * - **El estado del envío**, que sí es la misma pregunta una etapa después, pero
+ *   que **la cabecera puede ver por su cuenta**: `SQLiteProvider` y
+ *   `QueryClientProvider` están por encima del `<Slot/>` (`src/app/_layout.tsx`),
+ *   así que aunque se pinte fuera del árbol de la pantalla puede consultar la
+ *   caché de mutations y SQLite. Y lo que no necesita pasar por aquí, no pasa.
+ *
+ * Esa es la regla de admisión de este store, dicha de una vez: **lleva lo que la
+ * cabecera no puede ver**. Quien lo componga todo en una sola línea es
+ * `resolveCaptureStatus`.
  */
-export type SaveStatus =
-  "idle" | "pending" | "saving" | "saved" | "error" | "invalid";
+export type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
 
 /** Lo que hacen los dos botones de la cabecera. */
 export type EvaluationSaveActions = {
@@ -31,6 +42,18 @@ export type EvaluationSaveActions = {
    * cuatro evaluaciones. Por eso el texto del diálogo lo pone cada cabecera.
    */
   clear: () => void;
+  /**
+   * Manda al servidor lo que quede sin enviar de lo que hay abierto.
+   *
+   * **Va aquí, y no en un botón que llame a la mutation por su cuenta, porque
+   * antes de mandar hay que guardar.** El autoguardado espera dos segundos de
+   * silencio, así que un envío que lea la cola directamente se deja fuera lo
+   * último que se tecleó: el evaluador pulsa, lee «Enviado», y esa frase nunca
+   * salió. Quien puede vaciar el formulario es quien lo ve, y eso es el
+   * autoguardado — de ahí que la acción viaje por el store como sus dos
+   * hermanas, aunque su *estado* no lo haga.
+   */
+  send: () => void;
 };
 
 type EvaluationSaveStore = {

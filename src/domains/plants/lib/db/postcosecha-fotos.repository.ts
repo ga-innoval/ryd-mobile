@@ -184,14 +184,61 @@ export const getPendingPostcosechaFotos = async (
   return rows.map(toRecord);
 };
 
-/** El archivo llegó al servidor. Por `clientId`, que es la PK y el nombre. */
-export const markPostcosechaFotoSynced = async (
+const markPostcosechaFoto = async (
   db: SQLiteDatabase,
   clientId: string,
-  syncedAt: string,
+  syncStatus: SyncStatus,
+  syncedAt: string | null,
 ): Promise<void> => {
   await db.runAsync(
     "UPDATE postcosecha_fotos SET syncStatus = ?, syncedAt = ? WHERE clientId = ?",
-    [SyncStatus.synced, syncedAt, clientId],
+    [syncStatus, syncedAt, clientId],
   );
+};
+
+/** El archivo llegó al servidor. Por `clientId`, que es la PK y el nombre. */
+export const markPostcosechaFotoSynced = (
+  db: SQLiteDatabase,
+  clientId: string,
+  syncedAt: string,
+): Promise<void> =>
+  markPostcosechaFoto(db, clientId, SyncStatus.synced, syncedAt);
+
+/** Rechazada sin vuelta. Mismas razones que su hermana de tratamiento. */
+export const markPostcosechaFotoRejected = (
+  db: SQLiteDatabase,
+  clientId: string,
+): Promise<void> =>
+  markPostcosechaFoto(db, clientId, SyncStatus.rejected_closed, null);
+
+/** Hermano de `getFotoSyncCounts`, con el dueño de dos partes. */
+export const getPostcosechaFotoSyncCounts = async (
+  db: SQLiteDatabase,
+  plantId: string,
+  evalId: string,
+): Promise<{ captured: number; pending: number; rejected: number }> => {
+  const row = await db.getFirstAsync<{
+    captured: number;
+    pending: number;
+    rejected: number;
+  }>(
+    `SELECT
+       COUNT(*) AS captured,
+       COALESCE(SUM(CASE WHEN syncStatus = $pending THEN 1 ELSE 0 END), 0) AS pending,
+       COALESCE(SUM(CASE WHEN syncStatus = $rejected THEN 1 ELSE 0 END), 0) AS rejected
+     FROM postcosecha_fotos
+     WHERE plantId = $plantId AND evalId = $evalId`,
+    {
+      $pending: SyncStatus.pending,
+      $rejected: SyncStatus.rejected_closed,
+      $plantId: plantId,
+      $evalId: evalId,
+    },
+  );
+
+  return {
+    captured: row?.captured ?? 0,
+    pending: row?.pending ?? 0,
+    rejected: row?.rejected ?? 0,
+  };
 };

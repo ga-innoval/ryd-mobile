@@ -10,10 +10,22 @@ import { HeaderBase } from "./header-base";
 import {
   ClearEvaluationButton,
   SaveStatusIndicator,
+  SendEvaluationButton,
+  SyncStatusIndicator,
 } from "./evaluation-save-controls";
 import { useEvaluationSaveStore } from "@/domains/plants/store/evaluation-save-store";
+import { resolveSyncStatus } from "@/domains/plants/lib/sync-status";
+import { syncEligibility } from "@/domains/plants/lib/sync-eligibility";
+import {
+  useItemSendStatus,
+  useItemSyncState,
+} from "@/domains/plants/hooks/use-item-sync-state";
 
 type PostcosechaPageHeaderProps = {
+  /** La plantación y cuál de las cuatro: hace falta para preguntar qué le queda
+   *  por enviar a **esta** evaluación, no a las cuatro. */
+  plantId: string;
+  evalId: string;
   plantName?: string;
   /** Los días y el empaque de la evaluación abierta, ya compuestos. */
   evalName?: string;
@@ -49,6 +61,8 @@ function HeaderDataSkeleton() {
  * hace falta que el store sepa de quién es lo que cuenta.
  */
 export function PostcosechaPageHeader({
+  plantId,
+  evalId,
   plantName,
   evalName,
   isLoading = false,
@@ -59,9 +73,28 @@ export function PostcosechaPageHeader({
   // desde el primer frame, y hasta entonces no hay nada que guardar.
   const actions = useEvaluationSaveStore((state) => state.actions);
 
-  // Mientras escribe no se sale, no se limpia y no se vuelve a guardar: la
-  // cabecera entera espera a que la escritura termine.
+  // Lo del envío lo lee la cabecera por su cuenta, sin pasar por el store: los
+  // proveedores de SQLite y de la caché están por encima del navigator.
+  const scope = { kind: "postcosecha" as const, plantId, evalId };
+  const { data: syncState } = useItemSyncState(scope);
+  const sendStatus = useItemSendStatus(scope);
+
+  const syncIndicator = resolveSyncStatus({
+    send: sendStatus,
+    captured: syncState?.captured ?? 0,
+    pending: syncState?.pending ?? 0,
+    rejected: syncState?.rejected ?? 0,
+  });
+  const eligibility = syncEligibility({
+    pending: syncState?.pending ?? 0,
+    hasError: syncState?.hasError ?? false,
+  }).kind;
+
+  // `busy` es solo la escritura local, no el envío: bloquear la cabecera entera
+  // mientras algo sube dejaría al evaluador atrapado hasta diez segundos sin
+  // poder ni volver atrás. Limpiar sí se apaga, porque borra lo que viaja.
   const busy = status === "saving";
+  const sending = sendStatus === "sending";
   const disabled = busy || !actions;
 
   return (
@@ -107,7 +140,7 @@ export function PostcosechaPageHeader({
               chips es fácil estar en la que no es. */}
           <ClearEvaluationButton
             onConfirm={actions?.clear}
-            disabled={disabled}
+            disabled={disabled || sending}
             description={`Se borrarán todas las respuestas de esta evaluación${
               evalName ? ` (${evalName})` : ""
             } y sus fotografías. No se podrán recuperar.`}
@@ -120,6 +153,18 @@ export function PostcosechaPageHeader({
           >
             <Icon as={SaveIcon} size={16} className="text-white" />
           </IconButton>
+        </View>
+
+        {/* Su propio par, con el mismo `gap-2` que el `SyncBlock` de la
+            pantalla principal: el estado pegado al botón que lo cambia, igual
+            que arriba el de guardado va pegado al suyo. */}
+        <View className="flex-row items-center gap-2">
+          <SyncStatusIndicator status={syncIndicator} />
+          <SendEvaluationButton
+            onPress={actions?.send}
+            eligibility={eligibility}
+            sending={sending}
+          />
         </View>
       </View>
     </HeaderBase>

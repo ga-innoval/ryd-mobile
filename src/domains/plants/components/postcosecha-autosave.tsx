@@ -11,6 +11,7 @@ import {
   usePostcosechaSave,
 } from "../hooks/use-postcosecha-respuestas";
 import { PLANTS_QUERY_KEY } from "../hooks/use-plants";
+import { useSyncItem } from "../hooks/use-sync-item";
 import {
   EMPTY_POSTCOSECHA_FOTOS,
   usePostcosechaFotos,
@@ -78,7 +79,15 @@ export function PostcosechaAutosave({
   const db = useSQLiteContext();
   const queryClient = useQueryClient();
   const { data: respuestas } = usePostcosechaRespuestas(plantId, evalId);
-  const { mutate, isPending, isError } = usePostcosechaSave(plantId, evalId);
+  const { mutate, mutateAsync, isPending, isError } = usePostcosechaSave(
+    plantId,
+    evalId,
+  );
+  const { mutate: sendItem } = useSyncItem({
+    kind: "postcosecha",
+    plantId,
+    evalId,
+  });
   const { mutate: clearRespuestas } = usePostcosechaClear(plantId, evalId);
   const { mutate: removeFotos } = useRemovePostcosechaFotos(plantId, evalId);
 
@@ -239,11 +248,43 @@ export function PostcosechaAutosave({
     setWritten(snapshotPostcosecha(vacia));
   }, [fotos, removeFotos, clearRespuestas, reset]);
 
-  // Sin `saved` no hay contra qué comparar y los dos botones no harían nada:
-  // mejor apagados —que es lo que significa `null`— que mudos.
+  /**
+   * El botón de enviar de la cabecera.
+   *
+   * **Guarda antes de mandar**, y eso no es prudencia: el autoguardado espera
+   * dos segundos de silencio, así que lo último que se tecleó todavía no está en
+   * SQLite y el envío —que lee la cola— no lo vería. El evaluador pulsaría
+   * Enviar, leería «Enviado», y esa frase no habría salido. Es pérdida de dato
+   * silenciosa, que es justo lo que esta pantalla entera existe para evitar.
+   *
+   * Y si la escritura falla **no se manda**: `usePostcosechaSave` ya avisó con su
+   * toast, y enviar ahora dejaría fuera precisamente lo que acaba de escribirse.
+   */
+  const handleSend = useCallback(async () => {
+    if (!saved) return;
+
+    const current = getValues();
+    const changed = changedSeccionesPostcosecha(current, saved);
+
+    if (changed.length > 0) {
+      try {
+        await mutateAsync({ values: current, secciones: changed });
+        setWritten(mergePostcosechaSnapshot(saved, current, changed));
+      } catch {
+        return;
+      }
+    }
+
+    sendItem();
+  }, [saved, getValues, mutateAsync, sendItem]);
+
+  // Sin `saved` no hay contra qué comparar y los botones no harían nada: mejor
+  // apagados —que es lo que significa `null`— que mudos.
   useEffect(() => {
-    setActions(saved ? { save: handleSave, clear: handleClear } : null);
-  }, [setActions, saved, handleSave, handleClear]);
+    setActions(
+      saved ? { save: handleSave, clear: handleClear, send: handleSend } : null,
+    );
+  }, [setActions, saved, handleSave, handleClear, handleSend]);
 
   // El fallo de escritura va antes que lo pendiente a propósito: tras un fallo
   // los cambios siguen sin guardar, y decir "Cambios por guardar" escondería que
