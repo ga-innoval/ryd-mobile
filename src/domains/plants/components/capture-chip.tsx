@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import { RefreshCwIcon, type LucideIcon } from "lucide-react-native";
+import {
+  CloudSync,
+  CloudSyncIcon,
+  RefreshCwIcon,
+  type LucideIcon,
+} from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import { cn } from "@/lib/utils";
@@ -119,10 +124,10 @@ export function CaptureChip({
         >
           {pendingSync && (
             <Icon
-              as={RefreshCwIcon}
-              size={18}
-              strokeWidth={2.4}
-              className="text-warn"
+              as={CloudSyncIcon}
+              size={20}
+              strokeWidth={2}
+              className="text-foreground"
               fill={fill}
             />
           )}
