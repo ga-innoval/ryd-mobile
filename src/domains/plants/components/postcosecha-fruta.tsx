@@ -251,11 +251,11 @@ export function PostcosechaFrutaForm({
         </View>
 
         <View className="flex-1 gap-2">
-          <Text variant="muted">Fecha de evaluación</Text>
-          <DateField
-            value={values.fecha_evaluacion}
-            onChange={(value) => set("fecha_evaluacion", value)}
-            accessibilityLabel="Fecha de evaluación"
+          <PesoField
+            label="Peso inicial"
+            hint="Con empaque"
+            value={values.peso_inicial}
+            onChange={(value) => set("peso_inicial", value)}
           />
 
           {/* La esperada se ofrece, no se impone: el evaluador puede abrir la
@@ -306,12 +306,14 @@ export function PostcosechaFrutaForm({
       {/* En el orden en que se pesa: la caja entera al entrar y al salir del
           cuarto frío, y después lo que se separa de ella. */}
       <View className="flex-row gap-4">
-        <PesoField
-          label="Peso inicial"
-          hint="Con empaque"
-          value={values.peso_inicial}
-          onChange={(value) => set("peso_inicial", value)}
-        />
+        <View className="flex-1 gap-2">
+          <Text variant="muted">Fecha de evaluación</Text>
+          <DateField
+            value={values.fecha_evaluacion}
+            onChange={(value) => set("fecha_evaluacion", value)}
+            accessibilityLabel="Fecha de evaluación"
+          />
+        </View>
         <PesoField
           label="Peso final"
           hint={dias === null ? "" : `A los ${dias} días`}
