@@ -536,6 +536,18 @@ piezas. Lo que no es obvio:
   mientras algo sube: bloquear la cabecera dejaría al evaluador atrapado hasta
   diez segundos —el `timeout` de `apiClient`— sin poder ni salir. Limpiar sí se
   apaga, porque borra justo lo que viaja.
+- **Limpiar se apaga en cuanto el servidor tenga algo** (`hasSyncedWork`). Se
+  probó ocultándolo y se cambió por apagarlo, para que la cabecera no cambie de
+  forma entre una captura y otra. Es el único control de la cabecera que
+  destruye trabajo, y **sin la lápida de lo borrado-ya-enviado, lo que el
+  servidor tiene se quedaría vivo en el reporte mientras desaparece de la
+  tablet** — el evaluador creería haberlo borrado. **Basta una fila enviada, no
+  hace falta que haya salido todo**: se pensó atarlo a que el indicador dijera
+  «Sincronizado», que es más fácil de explicar, pero con una sección enviada y
+  cinco pendientes el indicador dice «Pendiente» y limpiar se llevaría por
+  delante la que ya salió. Lo rechazado **no** cuenta, porque es justo lo que el
+  servidor no aceptó. El precio es que el botón no se vuelve a encender, ni capturando cosas
+  nuevas encima.
 - **Las fotografías van después del texto, en serie, y marcando de a una.** En
   serie porque el cuello de botella es la subida y siete multipart a la vez sobre
   una conexión de campo hacen las siete lentas y las siete más propensas a agotar
