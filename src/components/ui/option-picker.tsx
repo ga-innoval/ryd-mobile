@@ -9,27 +9,15 @@ export type PickerOption<T extends string> = {
 };
 
 /**
- * Cuánto sitio ocupa cada opción.
+ * Cada opción ocupa un cuarto de la fila y la píldora lo llena: el ancho lo pide
+ * la etiqueta —«Nula», «Media»—, no el contenido.
  *
- * - `extended` reparte la fila en cuatro y estira cada píldora hasta su cuarto.
- *   Es lo que quieren las respuestas con texto —«Nula», «Media»— donde el ancho
- *   lo pide la etiqueta.
- * - `compressed` deja que cada píldora mida lo suyo, con un mínimo para que siga
- *   siendo cómoda de tocar. Es lo que quieren las escalas de 1 a 5: cinco
- *   píldoras de un dígito estiradas a un quinto de una tablet serían cinco
- *   botones enormes con un número diminuto dentro, y además no caben en cuatro.
+ * Hubo una variante `compressed` para las escalas de 1 a 5, donde cada píldora
+ * medía lo suyo. Se fue con ellas: ahora tienen su propio control
+ * (`RatingPicker`), porque además de medir distinto se **llenan** hasta el
+ * valor elegido, y eso no es una opción entre varias.
  */
-type OptionPickerVariant = "extended" | "compressed";
-
-/** El ancho de la celda y el de la píldora, que van juntos: en `extended` la
- *  celda manda y la píldora la llena; en `compressed` manda la píldora. */
-const VARIANT_CN: Record<OptionPickerVariant, { cell: string; item: string }> =
-  {
-    extended: { cell: "w-1/4 min-w-24", item: "w-full" },
-    // 64 px es el mínimo cómodo de tocar con guantes; de ahí para arriba crece
-    // con la etiqueta.
-    compressed: { cell: "", item: "min-w-16" },
-  };
+const CELL_CN = "w-1/4 min-w-24";
 
 type OptionPickerProps<T extends string> = {
   label: string;
@@ -37,7 +25,6 @@ type OptionPickerProps<T extends string> = {
   value?: T;
   /** Llega `undefined` al pulsar la opción ya activa, que la deselecciona. */
   onChange: (value: T | undefined) => void;
-  variant?: OptionPickerVariant;
 };
 
 // TODO(obligatorias): cuando se sepa qué preguntas son obligatorias, un prop
@@ -71,20 +58,15 @@ export function OptionPicker<T extends string>({
   options,
   value,
   onChange,
-  variant = "extended",
 }: OptionPickerProps<T>) {
-  const styles = VARIANT_CN[variant];
-
   return (
     <View className="gap-2">
       <Text variant="muted" className="text-base">
         {label}
       </Text>
 
-      {/* En `extended`, tope de 4 opciones por fila; a partir de ahí saltan a la
-          siguiente y la sobrante se queda del ancho de una celda, sin
-          estirarse. En `compressed` caben las que quepan, y cinco de un dígito
-          entran de sobra.
+      {/* Tope de 4 opciones por fila; a partir de ahí saltan a la siguiente y
+          la sobrante se queda del ancho de una celda, sin estirarse.
 
           El canal horizontal NO puede venir de `gap`: cuatro celdas del 25% más
           tres huecos suman más del 100% y solo entrarían tres. Lo dan el `px-1`
@@ -112,12 +94,11 @@ export function OptionPicker<T extends string>({
             // estrecho —una pregunta a media fila— el 25% sería diminuto, así
             // que entra el mínimo y caben menos. Cuatro es un máximo, no una
             // obligación.
-            <View key={option.value} className={cn("px-1", styles.cell)}>
+            <View key={option.value} className={cn("px-1", CELL_CN)}>
               <ToggleGroupPrimitive.Item
                 value={option.value}
                 className={cn(
-                  "items-center justify-center rounded-xl border px-2 py-2",
-                  styles.item,
+                  "w-full items-center justify-center rounded-xl border px-2 py-2",
                   "active:scale-95",
                   isSelected
                     ? "bg-foreground/90 border-primary"
