@@ -11,7 +11,7 @@ import type {
   PostcosechaSectionId,
 } from "../lib/postcosecha-schema";
 import { PLANTS_QUERY_KEY } from "./use-plants";
-import { SYNC_STATE_QUERY_KEY } from "./use-item-sync-state";
+import { invalidateCaptureWrite } from "./use-item-sync-state";
 
 // Cuelga de `["plants"]` como el resto: así la invalidación que dispara una
 // descarga alcanza también a lo capturado.
@@ -104,10 +104,9 @@ export async function savePostcosechaSecciones(
  * segundos: el evaluador vería su campo reiniciarse mientras escribe. El
  * formulario ya es la copia viva; SQLite es el respaldo.
  *
- * El `exact` del listado no es adorno: sin él la invalidación alcanzaría también
- * a `["plants", "postcosecha-respuestas", ...]` —y a las respuestas de
- * tratamiento— y estaríamos releyendo de SQLite el formulario abierto cada dos
- * segundos mientras se teclea.
+ * Lo que sí invalida lo pone `invalidateCaptureWrite`: el listado y el conteo de
+ * lo que le falta por enviar a esta evaluación. El `exact` que lleva dentro es
+ * justamente lo que deja fuera a esta propia query.
  *
  * Hoy el listado no cuenta post-cosecha para el avance, así que esta
  * invalidación todavía no mueve nada en la tarjeta. Se pone igualmente porque es
@@ -121,19 +120,7 @@ export function usePostcosechaSave(plantId: string, evalId: string) {
   return useMutation({
     mutationFn: (input: SavePostcosechaInput) =>
       savePostcosechaSecciones(db, plantId, evalId, input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: PLANTS_QUERY_KEY,
-        exact: true,
-      });
-      // Cada escritura devuelve su sección a `pending`, así que el conteo de
-      // «qué falta por enviar» cambia. Por prefijo y no por alcance exacto: solo
-      // hay una pantalla de captura abierta a la vez, y así no hay que pasarle
-      // el dueño a estas mutations. Y **tiene que ser una clave distinta de
-      // `PLANTS_QUERY_KEY`**, porque el `exact` de arriba está ahí a propósito
-      // para no releer el formulario abierto cada dos segundos.
-      queryClient.invalidateQueries({ queryKey: SYNC_STATE_QUERY_KEY });
-    },
+    onSuccess: () => invalidateCaptureWrite(queryClient),
     onError: (error) => {
       toast.error({
         title: "No se pudo guardar",
@@ -155,19 +142,7 @@ export function usePostcosechaClear(plantId: string, evalId: string) {
 
   return useMutation({
     mutationFn: () => deletePostcosechaRespuestas(db, plantId, evalId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: PLANTS_QUERY_KEY,
-        exact: true,
-      });
-      // Cada escritura devuelve su sección a `pending`, así que el conteo de
-      // «qué falta por enviar» cambia. Por prefijo y no por alcance exacto: solo
-      // hay una pantalla de captura abierta a la vez, y así no hay que pasarle
-      // el dueño a estas mutations. Y **tiene que ser una clave distinta de
-      // `PLANTS_QUERY_KEY`**, porque el `exact` de arriba está ahí a propósito
-      // para no releer el formulario abierto cada dos segundos.
-      queryClient.invalidateQueries({ queryKey: SYNC_STATE_QUERY_KEY });
-    },
+    onSuccess: () => invalidateCaptureWrite(queryClient),
     onError: (error) => {
       toast.error({
         title: "No se pudo limpiar",

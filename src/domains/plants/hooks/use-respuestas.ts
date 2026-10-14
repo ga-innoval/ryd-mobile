@@ -11,7 +11,7 @@ import type {
   EvaluationSectionId,
 } from "../lib/evaluation-schema";
 import { PLANTS_QUERY_KEY } from "./use-plants";
-import { SYNC_STATE_QUERY_KEY } from "./use-item-sync-state";
+import { invalidateCaptureWrite } from "./use-item-sync-state";
 
 // Cuelga de `["plants"]` como el resto: así la invalidación que dispara una
 // descarga alcanza también a lo capturado.
@@ -100,10 +100,10 @@ export async function saveRespuestaSecciones(
  * el evaluador vería su campo reiniciarse mientras escribe. El formulario ya es
  * la copia viva; SQLite es el respaldo.
  *
- * Lo que sí invalida es el listado, para que la tarjeta de plantación se entere
- * de si la captura trae un error. Va con `exact` a propósito: sin él alcanzaría
- * también a `["plants", "respuestas", id]` y estaríamos releyendo de SQLite las
- * respuestas del tratamiento abierto cada dos segundos mientras se teclea.
+ * Lo que sí invalida lo pone `invalidateCaptureWrite`: el listado —para que la
+ * tarjeta de plantación se entere de si la captura trae un error— y el conteo
+ * de lo que le falta por enviar al tratamiento. El `exact` que lleva dentro es
+ * justamente lo que deja fuera a esta propia query.
  *
  * TODO(progreso): el mismo punto sirve cuando la tarjeta muestre el avance.
  */
@@ -117,19 +117,7 @@ export function useClearRespuestas(tratamientoId: string) {
     // cero y de que el error de captura, si lo había, ya no está. Su propia
     // query no se invalida por lo mismo de siempre —el formulario es la copia
     // viva—, y quien limpia ya lo deja en blanco a mano.
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: PLANTS_QUERY_KEY,
-        exact: true,
-      });
-      // Cada escritura devuelve su sección a `pending`, así que el conteo de
-      // «qué falta por enviar» cambia. Por prefijo y no por alcance exacto: solo
-      // hay una pantalla de captura abierta a la vez, y así no hay que pasarle
-      // el dueño a estas mutations. Y **tiene que ser una clave distinta de
-      // `PLANTS_QUERY_KEY`**, porque el `exact` de arriba está ahí a propósito
-      // para no releer el formulario abierto cada dos segundos.
-      queryClient.invalidateQueries({ queryKey: SYNC_STATE_QUERY_KEY });
-    },
+    onSuccess: () => invalidateCaptureWrite(queryClient),
     onError: (error) => {
       toast.error({
         title: "No se pudo limpiar",
@@ -146,19 +134,7 @@ export function useSaveRespuestas(tratamientoId: string) {
   return useMutation({
     mutationFn: (input: SaveRespuestasInput) =>
       saveRespuestaSecciones(db, tratamientoId, input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: PLANTS_QUERY_KEY,
-        exact: true,
-      });
-      // Cada escritura devuelve su sección a `pending`, así que el conteo de
-      // «qué falta por enviar» cambia. Por prefijo y no por alcance exacto: solo
-      // hay una pantalla de captura abierta a la vez, y así no hay que pasarle
-      // el dueño a estas mutations. Y **tiene que ser una clave distinta de
-      // `PLANTS_QUERY_KEY`**, porque el `exact` de arriba está ahí a propósito
-      // para no releer el formulario abierto cada dos segundos.
-      queryClient.invalidateQueries({ queryKey: SYNC_STATE_QUERY_KEY });
-    },
+    onSuccess: () => invalidateCaptureWrite(queryClient),
     onError: (error) => {
       toast.error({
         title: "No se pudo guardar",

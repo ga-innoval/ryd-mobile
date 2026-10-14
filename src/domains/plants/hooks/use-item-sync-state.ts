@@ -1,5 +1,9 @@
 import { useSQLiteContext } from "expo-sqlite";
-import { useMutationState, useQuery } from "@tanstack/react-query";
+import {
+  useMutationState,
+  useQuery,
+  type QueryClient,
+} from "@tanstack/react-query";
 import type { SendStatus } from "../lib/sync-status";
 import { getPostcosechaSyncState } from "../lib/db/postcosecha-respuestas.repository";
 import { getTratamientoSyncState } from "../lib/db/respuestas.repository";
@@ -55,6 +59,35 @@ export const syncStateQueryKey = (scope: SyncScope) => [
   ...SYNC_STATE_QUERY_KEY,
   scopeKey(scope),
 ];
+
+/**
+ * Lo que hay que invalidar después de **escribir una captura**, sea una sección
+ * o una fotografía.
+ *
+ * Son dos claves y las dos hacen falta, por motivos opuestos:
+ *
+ * - **El listado, con `exact`.** Sin `exact` alcanzaría a
+ *   `["plants","respuestas",id]` y estaríamos releyendo de SQLite el formulario
+ *   abierto cada dos segundos mientras se teclea, pisando lo que se escribe.
+ * - **El conteo del envío, que es hermana y no hija**, así que ese mismo `exact`
+ *   la deja fuera. Toda escritura cambia lo que le falta por mandar al item: una
+ *   sección vuelve a `pending` al guardarla, y una fotografía nace `pending`.
+ *
+ * **Está aquí, en una sola función, porque la mitad de los escritores se la
+ * dejaron.** Las fotografías invalidaban solo el listado, así que adjuntar una
+ * no encendía el botón de sincronizar —el conteo seguía siendo el que se leyó al
+ * abrir la pantalla, y con `staleTime` de un minuto no se corregía solo—. Con
+ * seis sitios copiando el mismo par, que uno se quede atrás es cuestión de
+ * tiempo; con uno, no hay dónde olvidarlo.
+ *
+ * El conteo va **por prefijo y no por alcance exacto**: solo hay una pantalla de
+ * captura abierta a la vez, y así ninguna de estas mutations necesita saber de
+ * quién es lo que acaba de escribir.
+ */
+export const invalidateCaptureWrite = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({ queryKey: PLANTS_QUERY_KEY, exact: true });
+  queryClient.invalidateQueries({ queryKey: SYNC_STATE_QUERY_KEY });
+};
 
 /**
  * Cuánto le queda por enviar a este item y si trae algo que revisar.

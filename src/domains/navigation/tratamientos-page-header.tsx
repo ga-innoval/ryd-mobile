@@ -125,11 +125,11 @@ export function TratamientosPageHeader({
       <View className="flex-row items-center gap-4">
         <SaveStatusIndicator status={status} />
         <View className="flex-row gap-2">
-          {/* <ClearEvaluationButton
+          <ClearEvaluationButton
             onConfirm={actions?.clear}
             disabled={disabled || sending}
             description="Se borrarán todas las respuestas de este tratamiento y sus fotografías. No se podrán recuperar."
-          /> */}
+          />
           <IconButton
             onPress={actions?.save}
             disabled={disabled}

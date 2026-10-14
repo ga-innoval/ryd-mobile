@@ -18,6 +18,7 @@ import {
   photoUri,
 } from "../lib/photo-files";
 import { photoFileName } from "../lib/photo-file-name";
+import { invalidateCaptureWrite } from "./use-item-sync-state";
 import { PLANTS_QUERY_KEY } from "./use-plants";
 
 // Cuelga de `["plants"]` como el resto: una descarga puede podar el tratamiento
@@ -161,17 +162,19 @@ export async function sweepOrphanPhotos(db: SQLiteDatabase): Promise<number> {
 }
 
 /**
- * Las dos escrituras invalidan lo mismo: la propia lista y el avance del
- * listado.
+ * Las dos escrituras invalidan lo mismo: la propia lista, y lo que invalida
+ * cualquier captura escrita.
  *
  * **Aquí sí se invalida la propia query**, al revés que en `useSaveRespuestas`.
  * Allí no se hace porque el formulario es la copia viva y un refetch pisaría lo
  * que se está tecleando; aquí SQLite es la única copia, así que refrescar es
  * justo lo que toca.
  *
- * El `exact` del segundo sigue siendo obligatorio: sin él alcanzaría a
- * `["plants","respuestas",id]` —el que no debe refetchear— y además repetiría la
- * invalidación que acabamos de hacer.
+ * Lo demás lo pone `invalidateCaptureWrite`, y **antes estaba a medias**: se
+ * invalidaba el listado y no el conteo del envío, así que una fotografía recién
+ * adjuntada no encendía el botón de sincronizar. Una foto nace `pending` igual
+ * que una sección guardada; que viva en otra tabla no la hace menos trabajo por
+ * mandar.
  */
 function useInvalidateFotos(tratamientoId: string) {
   const queryClient = useQueryClient();
@@ -180,10 +183,7 @@ function useInvalidateFotos(tratamientoId: string) {
     queryClient.invalidateQueries({
       queryKey: [...FOTOS_QUERY_KEY, tratamientoId],
     });
-    queryClient.invalidateQueries({
-      queryKey: PLANTS_QUERY_KEY,
-      exact: true,
-    });
+    invalidateCaptureWrite(queryClient);
   };
 }
 
