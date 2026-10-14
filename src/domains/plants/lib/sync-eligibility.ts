@@ -46,3 +46,36 @@ export function syncEligibility({
 
   return { kind: "ready", pending };
 }
+
+/**
+ * Si el servidor ya tiene algo de esta captura.
+ *
+ * Es el portero de **limpiar**, que es destructivo y no deja rastro: borra las
+ * filas locales, y como la lápida de lo borrado-ya-enviado sigue sin existir, lo
+ * que el servidor tenga se queda en el reporte mientras desaparece de la tablet.
+ * El evaluador creería haberlo borrado.
+ *
+ * **Basta con que haya salido una fila, no hace falta que haya salido todo.** Se
+ * pensó atarlo a que el indicador dijera «Sincronizado», que es más fácil de
+ * explicar, pero deja fuera el caso que importa: con una sección enviada y cinco
+ * pendientes el indicador dice «Pendiente», y limpiar ahí borra también la que
+ * ya salió. El daño empieza en la primera fila, así que el portero también.
+ *
+ * **Lo rechazado no cuenta**: `rejected_closed` es precisamente lo que el
+ * servidor **no** aceptó, así que esa fila solo está en la tablet y limpiarla no
+ * descuadra nada.
+ *
+ * El precio, y es real: el botón no se vuelve a encender. Capturar cinco secciones nuevas
+ * sobre una ya enviada no devuelve el limpiado, aunque esas cinco sean
+ * puramente locales — borrarlas de golpe es indistinguible, desde aquí, de
+ * llevarse por delante la que ya salió.
+ */
+export const hasSyncedWork = ({
+  captured,
+  pending,
+  rejected,
+}: {
+  captured: number;
+  pending: number;
+  rejected: number;
+}): boolean => captured - pending - rejected > 0;

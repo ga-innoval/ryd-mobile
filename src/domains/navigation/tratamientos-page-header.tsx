@@ -15,7 +15,10 @@ import { ArrowLeft, LeafIcon, SaveIcon } from "lucide-react-native";
 import { useAppRouter } from "@/lib/use-app-router";
 import { useEvaluationSaveStore } from "@/domains/plants/store/evaluation-save-store";
 import { resolveSyncStatus } from "@/domains/plants/lib/sync-status";
-import { syncEligibility } from "@/domains/plants/lib/sync-eligibility";
+import {
+  hasSyncedWork,
+  syncEligibility,
+} from "@/domains/plants/lib/sync-eligibility";
 import {
   useItemSendStatus,
   useItemSyncState,
@@ -80,6 +83,18 @@ export function TratamientosPageHeader({
     hasError: syncState?.hasError ?? false,
   }).kind;
 
+  // **Limpiar se apaga en cuanto el servidor tenga algo.** Es el único control
+  // de la cabecera que destruye trabajo, y sin lápida lo borrado seguiría vivo
+  // en el reporte. Se apaga y no se oculta para que la cabecera no cambie de
+  // forma entre una captura y otra. Mientras SQLite no conteste está encendido,
+  // que es lo correcto en el caso de siempre: una captura a la que no le falta
+  // nada por mandar es la excepción, no la regla.
+  const limpiable = !hasSyncedWork({
+    captured: syncState?.captured ?? 0,
+    pending: syncState?.pending ?? 0,
+    rejected: syncState?.rejected ?? 0,
+  });
+
   // **`busy` es solo la escritura local**, no el envío. Bloquear la cabecera
   // entera mientras algo sube dejaría al evaluador atrapado hasta diez segundos
   // —el `timeout` de `apiClient`— sin poder ni volver atrás, y en campo eso es
@@ -127,7 +142,7 @@ export function TratamientosPageHeader({
         <View className="flex-row gap-2">
           <ClearEvaluationButton
             onConfirm={actions?.clear}
-            disabled={disabled || sending}
+            disabled={disabled || sending || !limpiable}
             description="Se borrarán todas las respuestas de este tratamiento y sus fotografías. No se podrán recuperar."
           />
           <IconButton
