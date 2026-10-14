@@ -11,6 +11,7 @@ import {
 } from "../lib/db/postcosecha-fotos.repository";
 import { copyPhotoInto, deletePhotoFiles, photoUri } from "../lib/photo-files";
 import { photoFileName } from "../lib/photo-file-name";
+import { invalidateCaptureWrite } from "./use-item-sync-state";
 import { PLANTS_QUERY_KEY } from "./use-plants";
 
 export const POSTCOSECHA_FOTOS_QUERY_KEY = [
@@ -107,13 +108,12 @@ export async function removePostcosechaFotos(
 }
 
 /**
- * Las dos consultas que mueve una fotografía: la de esta evaluación —la
- * cuadrícula y el resumen de la fila— y la del listado, porque la fotografía
- * cuenta en la barra de la tarjeta de post-cosecha.
+ * Lo que mueve una fotografía: la consulta de esta evaluación —la cuadrícula y
+ * el resumen de la fila— y lo que mueve cualquier captura escrita.
  *
- * La del listado va con `exact` a propósito: sin él alcanzaría también a las
- * respuestas del formulario abierto, que se releerían de SQLite y pisarían lo
- * que se está capturando.
+ * Eso segundo lo pone `invalidateCaptureWrite`, y **antes estaba a medias**: se
+ * invalidaba el listado y no el conteo del envío, así que una fotografía recién
+ * adjuntada no encendía el botón de sincronizar de la cabecera.
  */
 function useInvalidate(plantId: string, evalId: string) {
   const queryClient = useQueryClient();
@@ -122,10 +122,7 @@ function useInvalidate(plantId: string, evalId: string) {
     queryClient.invalidateQueries({
       queryKey: [...POSTCOSECHA_FOTOS_QUERY_KEY, plantId, evalId],
     });
-    queryClient.invalidateQueries({
-      queryKey: PLANTS_QUERY_KEY,
-      exact: true,
-    });
+    invalidateCaptureWrite(queryClient);
   };
 }
 

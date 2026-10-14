@@ -641,6 +641,18 @@ piezas. Lo que no es obvio:
   mutations de guardado necesitan la clave para invalidarla, y si la importaran
   del módulo que trae `api-client` arrastrarían axios y el store de sesión a sus
   tests —que es exactamente lo que pasó al intentarlo—.
+- **Toda escritura de captura invalida el mismo par, y por eso hay una sola
+  función** (`invalidateCaptureWrite`): el listado **con `exact`** y el conteo
+  del envío. Los dos motivos se contradicen, que es lo que lo hace fácil de
+  romper — el `exact` está puesto para no releer el formulario abierto cada dos
+  segundos mientras se teclea, y como el conteo cuelga de una clave **hermana**
+  de `["plants"]` y no hija, ese mismo `exact` la deja fuera. Con seis
+  escritores copiando el par, dos se quedaron atrás: los de fotografías
+  invalidaban solo el listado, así que **adjuntar una foto a una encuesta vacía
+  no encendía el botón de sincronizar** —y con `staleTime` de un minuto y la
+  cabecera sin desmontarse, no se corregía solo—. Una fotografía nace `pending`
+  igual que una sección guardada; que viva en otra tabla no la hace menos
+  trabajo por mandar.
 - **Sin backend el camino de éxito se prueba con el stub** del apéndice del
   contrato: 40 líneas de `node:http` y `EXPO_PUBLIC_API_URL` apuntando ahí. Hoy
   ya hay servidor, así que es solo el respaldo. Un modo falso dentro de la app es
