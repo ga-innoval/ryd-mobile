@@ -1000,6 +1000,11 @@ renombró) y `temporada` en español.
   pantalla (ej. empty states reciben todo por props)
 - `EmptyState` es genérico (`icon`, `title`, `body`, `renderAction`),
   reutilizable en toda la app
+- **Las escalas de 1 a 5 tienen su propio control** (`ui/rating-picker.tsx`), no
+  una variante de `OptionPicker`: allí las opciones son excluyentes y aquí el
+  valor es una altura, así que elegir el 4 deja marcados también el 1, el 2 y el 3. Lo marcado por debajo es **pintura, no selección**: para un lector de
+  pantalla esto sigue siendo elegir uno entre cinco, así que solo el elegido va
+  como `checked` — anunciar cuatro marcados describiría un control que no existe.
 - **Un campo marcado se marca con la variante del `Input`**, nunca con clases
   sueltas: `warn` para el dato fuera de lo habitual y `destructive` para el
   imposible. Estaban escritas a mano en Brix, Criba y Rendimiento, y cambiar el

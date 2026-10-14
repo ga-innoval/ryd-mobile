@@ -15,7 +15,8 @@ import { DateField } from "@/components/ui/date-field";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { OptionPicker, type PickerOption } from "@/components/ui/option-picker";
+import { OptionPicker } from "@/components/ui/option-picker";
+import { RatingPicker } from "@/components/ui/rating-picker";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
@@ -45,53 +46,6 @@ const styles = StyleSheet.create({
   // `font-variant-numeric`, así que `tabular-nums` fallaría en silencio.
   tabular: { fontVariant: ["tabular-nums"] },
 });
-
-/**
- * Los cinco grados, como opciones.
- *
- * `OptionPicker` trabaja con `string` —se apoya en `toggle-group`, y ahí el
- * valor seleccionado es texto—, pero **lo que se guarda sigue siendo número**:
- * la conversión vive en `EscalaPicker` y no sale de este archivo. Guardar "4" en
- * vez de 4 obligaría al servidor a parsear una escala que ya es numérica.
- */
-const ESCALA_OPTIONS: PickerOption<string>[] = [1, 2, 3, 4, 5].map((grado) => ({
-  label: String(grado),
-  value: String(grado),
-}));
-
-/**
- * Una de las tres escalas de 1 a 5.
- *
- * Existe para que la conversión número↔texto se escriba una vez y no tres, y
- * para que la nota de los extremos vaya pegada al control: es lo único que dice
- * hacia dónde crece la escala, y hoy además es el recordatorio de que el negocio
- * no ha definido qué significan (ver el TODO de arriba).
- */
-function EscalaPicker({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value?: number;
-  onChange: (value: number | undefined) => void;
-}) {
-  return (
-    <View className="gap-2">
-      <OptionPicker
-        label={label}
-        options={ESCALA_OPTIONS}
-        // Cinco dígitos no necesitan un cuarto de fila cada uno, y además en
-        // `extended` el quinto se iría a la línea de abajo.
-        variant="compressed"
-        value={value === undefined ? undefined : String(value)}
-        onChange={(next) =>
-          onChange(next === undefined ? undefined : Number(next))
-        }
-      />
-    </View>
-  );
-}
 
 /**
  * Un peso en gramos.
@@ -406,7 +360,7 @@ export function PostcosechaFrutaForm({
       />
 
       <Separator />
-      <EscalaPicker
+      <RatingPicker
         label="Calidad de tallo"
         value={values.tallo}
         onChange={(value) => set("tallo", value)}
@@ -430,14 +384,14 @@ export function PostcosechaFrutaForm({
 
       <Separator />
 
-      <EscalaPicker
+      <RatingPicker
         label="Calidad de consumo"
         value={values.calidad_consumo}
         onChange={(value) => set("calidad_consumo", value)}
       />
 
       <Separator />
-      <EscalaPicker
+      <RatingPicker
         label="Calidad de sabor"
         value={values.sabor}
         onChange={(value) => set("sabor", value)}
