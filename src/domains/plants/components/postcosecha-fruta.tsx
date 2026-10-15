@@ -257,26 +257,6 @@ export function PostcosechaFrutaForm({
             value={values.peso_inicial}
             onChange={(value) => set("peso_inicial", value)}
           />
-
-          {/* La esperada se ofrece, no se impone: el evaluador puede abrir la
-              caja un día después y la fecha real es la que vale.
-
-              Sin pie debajo, al revés que el empaque: lo que habría que decir
-              ahí —cuántos días van— solo importa cuando la fecha no cuadra, y
-              entonces ya lo dice el aviso con la fecha concreta. Un recordatorio
-              permanente para una regla que casi siempre se cumple es ruido. */}
-          {sugerir && (
-            <PressableScale
-              onPress={() => set("fecha_evaluacion", esperada)}
-              role="button"
-              className="flex-row items-center gap-1.5 self-start rounded-full border border-dashed border-primary/40 px-2.5 py-1"
-            >
-              <Icon as={ArrowRightIcon} size={12} className="text-primary" />
-              <Text className="text-[13px] font-semibold text-primary">
-                {`Usar ${formatISODate(esperada)}`}
-              </Text>
-            </PressableScale>
-          )}
         </View>
       </View>
 
@@ -313,6 +293,25 @@ export function PostcosechaFrutaForm({
             onChange={(value) => set("fecha_evaluacion", value)}
             accessibilityLabel="Fecha de evaluación"
           />
+          {/* La esperada se ofrece, no se impone: el evaluador puede abrir la
+              caja un día después y la fecha real es la que vale.
+
+              Sin pie debajo, al revés que el empaque: lo que habría que decir
+              ahí —cuántos días van— solo importa cuando la fecha no cuadra, y
+              entonces ya lo dice el aviso con la fecha concreta. Un recordatorio
+              permanente para una regla que casi siempre se cumple es ruido. */}
+          {sugerir && (
+            <PressableScale
+              onPress={() => set("fecha_evaluacion", esperada)}
+              role="button"
+              className="flex-row items-center gap-1.5 self-start rounded-full border border-dashed border-primary/40 px-2.5 py-1"
+            >
+              <Icon as={ArrowRightIcon} size={12} className="text-primary" />
+              <Text className="text-[13px] font-semibold text-primary">
+                {`Usar ${formatISODate(esperada)}`}
+              </Text>
+            </PressableScale>
+          )}
         </View>
         <PesoField
           label="Peso final"
