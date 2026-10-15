@@ -8,8 +8,16 @@ import { savePostcosechaRespuesta } from "@/domains/plants/lib/db/postcosecha-re
 import { buildFrutaDefaults } from "@/domains/plants/lib/postcosecha-fruta";
 import { toISODate } from "@/lib/dates";
 import { refreshPostcosechaReminders } from "../refresh-postcosecha-reminders";
-import { reminderIdentifier, type DesiredReminder } from "../reminder-plan";
-import { syncReminders } from "../reminders";
+import {
+  REMINDER_PREFIX,
+  reminderIdentifier,
+  type DesiredReminder,
+} from "../reminder-plan";
+import {
+  DEV_TEST_PREFIX,
+  scheduleTestNotification,
+  syncReminders,
+} from "../reminders";
 
 type Mocked = Record<string, jest.Mock>;
 const notifications = () =>
@@ -164,6 +172,68 @@ describe("syncReminders", () => {
 
       expect(notifications().requestPermissionsAsync).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("scheduleTestNotification", () => {
+  it("programa para dentro del retraso, con el contenido que se le da", async () => {
+    const before = Date.now();
+
+    const scheduled = await scheduleTestNotification({
+      delayMs: 15_000,
+      title: "Título",
+      body: "Cuerpo",
+      data: { plantId: "p1", evalId: "15caja" },
+    });
+
+    expect(scheduled).toBe(true);
+    const [call] = notifications().scheduleNotificationAsync.mock.calls;
+    expect(call[0].content).toEqual({
+      title: "Título",
+      body: "Cuerpo",
+      data: { plantId: "p1", evalId: "15caja" },
+    });
+    expect(call[0].trigger.type).toBe("date");
+    expect(call[0].trigger.channelId).toBe("post-cosecha");
+    const delay = call[0].trigger.date.getTime() - before;
+    expect(delay).toBeGreaterThanOrEqual(15_000);
+    expect(delay).toBeLessThan(16_000);
+  });
+
+  // El prefijo de los recordatorios lo cancela el repaso si no está en lo que se
+  // quiere: con el mismo prefijo, el aviso de prueba se borraría solo.
+  it("su identificador no cae en el prefijo que cancela el repaso", async () => {
+    expect(DEV_TEST_PREFIX.startsWith(REMINDER_PREFIX)).toBe(false);
+
+    await scheduleTestNotification({ delayMs: 1000, title: "t", body: "b" });
+    const { identifier } =
+      notifications().scheduleNotificationAsync.mock.calls[0][0];
+    expect(identifier.startsWith(DEV_TEST_PREFIX)).toBe(true);
+
+    notifications().getAllScheduledNotificationsAsync.mockResolvedValue([
+      { identifier },
+    ]);
+    await syncReminders([]);
+
+    expect(
+      notifications().cancelScheduledNotificationAsync,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("sin permiso responde false y no programa nada", async () => {
+    notifications().getPermissionsAsync.mockResolvedValue({
+      granted: false,
+      canAskAgain: false,
+    });
+
+    const scheduled = await scheduleTestNotification({
+      delayMs: 1000,
+      title: "t",
+      body: "b",
+    });
+
+    expect(scheduled).toBe(false);
+    expect(notifications().scheduleNotificationAsync).not.toHaveBeenCalled();
   });
 });
 

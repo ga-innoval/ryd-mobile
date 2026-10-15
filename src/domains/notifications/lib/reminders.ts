@@ -85,3 +85,48 @@ export async function syncReminders(
     });
   }
 }
+
+/**
+ * El prefijo de los avisos de prueba (`scheduleTestNotification`).
+ *
+ * **Distinto del de los recordatorios a propósito**: `syncReminders` cancela todo
+ * lo que lleve `postcosecha:` y no esté en lo que se quiere, así que un aviso de
+ * prueba con ese prefijo se cancelaría solo en el siguiente repaso —al guardar, al
+ * volver de segundo plano—. Con otro prefijo no es asunto del repaso y se deja en
+ * paz. Hay un test que lo fija.
+ */
+export const DEV_TEST_PREFIX = "dev-test:";
+
+/**
+ * Programa un aviso suelto para dentro de `delayMs`, **para probar a mano** cómo
+ * se ve y cómo se comporta —el del sistema con la app en segundo plano, el toast
+ * con ella abierta—. Solo lo llama la herramienta de desarrollo de la campana.
+ *
+ * Responde `false`, sin programar nada, si no hay permiso: no es un fallo, es el
+ * mismo silencio que los recordatorios de verdad.
+ */
+export async function scheduleTestNotification({
+  delayMs,
+  title,
+  body,
+  data,
+}: {
+  delayMs: number;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}): Promise<boolean> {
+  if (!(await ensurePermission())) return false;
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: `${DEV_TEST_PREFIX}${Date.now()}`,
+    content: { title, body, data },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: new Date(Date.now() + delayMs),
+      channelId: CHANNEL_ID,
+    },
+  });
+
+  return true;
+}
