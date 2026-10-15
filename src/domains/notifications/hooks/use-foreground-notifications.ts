@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import * as Notifications from "expo-notifications";
 import { toast } from "@/lib/toast";
+import { reminderTarget } from "../lib/reminder-target";
+import { useOpenReminder } from "./use-open-reminder";
 
 /**
  * Qué pasa con un aviso que llega **con la app abierta**.
@@ -14,9 +16,15 @@ import { toast } from "@/lib/toast";
  * porque `expo-notifications` las separa así: el manejador responde en menos de
  * tres segundos o el aviso se descarta, y no es sitio para trabajo de la app.
  *
+ * **Tocar el toast abre la evaluación**, igual que tocar la notificación del
+ * sistema: con la app abierta el toast *es* el aviso, y que el mismo aviso
+ * respondiera distinto según la app esté abierta o no sería raro.
+ *
  * Se monta una sola vez, en el layout autenticado.
  */
 export function useForegroundNotifications() {
+  const open = useOpenReminder();
+
   useEffect(() => {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -29,13 +37,16 @@ export function useForegroundNotifications() {
 
     const subscription = Notifications.addNotificationReceivedListener(
       ({ request }) => {
+        const target = reminderTarget(request.content.data);
+
         toast.info({
           title: request.content.title ?? "Notificación",
           description: request.content.body ?? undefined,
+          onPress: target ? () => open(target) : undefined,
         });
       },
     );
 
     return () => subscription.remove();
-  }, []);
+  }, [open]);
 }

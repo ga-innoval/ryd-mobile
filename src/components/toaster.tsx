@@ -26,6 +26,8 @@ type ToastBodyProps = {
   title?: string;
   description?: string;
   onClose: () => void;
+  /** Hace tocable todo el cuerpo. Sin él, solo se cierra con la equis. */
+  onPress?: () => void;
 };
 
 /**
@@ -49,9 +51,15 @@ export function ToastBody({
   title,
   description,
   onClose,
+  onPress,
 }: ToastBodyProps) {
   return (
-    <View
+    <Pressable
+      // Sin `onPress` no es un botón: que `Pressable` no se anuncie como tal
+      // ni se deje tocar en vano.
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? "button" : undefined}
       className={cn(
         alertVariants({ variant }),
         // `w-auto` deshace el `w-full` del aviso, que ahí ocupa el ancho de su
@@ -99,7 +107,7 @@ export function ToastBody({
           className={cn(alertDescriptionColorVariants({ variant }), "px-3")}
         />
       </Pressable>
-    </View>
+    </Pressable>
   );
 }
 
@@ -110,32 +118,45 @@ export function ToastBody({
  * es el color de «este dato se sale de lo habitual», y «hay actualizaciones por
  * descargar» no es eso. Es el único cambio de color que trae esta alineación.
  */
+/** El `onPress` de la librería, solo si quien mostró el toast lo pidió: por sí
+ *  sola siempre trae una función vacía. Ver `lib/toast.ts`. */
+const pressOf = ({
+  props,
+  onPress,
+}: {
+  props?: { tappable?: boolean };
+  onPress: () => void;
+}) => (props?.tappable ? onPress : undefined);
+
 const toastConfig: ToastConfig = {
-  success: ({ text1, text2, hide }) => (
+  success: ({ text1, text2, hide, ...rest }) => (
     <ToastBody
       icon={CheckCircle2Icon}
       variant="success"
       title={text1}
       description={text2}
       onClose={() => hide()}
+      onPress={pressOf(rest)}
     />
   ),
-  error: ({ text1, text2, hide }) => (
+  error: ({ text1, text2, hide, ...rest }) => (
     <ToastBody
       icon={CircleXIcon}
       variant="destructive"
       title={text1}
       description={text2}
       onClose={() => hide()}
+      onPress={pressOf(rest)}
     />
   ),
-  info: ({ text1, text2, hide }) => (
+  info: ({ text1, text2, hide, ...rest }) => (
     <ToastBody
       icon={InfoIcon}
       variant="warning"
       title={text1}
       description={text2}
       onClose={() => hide()}
+      onPress={pressOf(rest)}
     />
   ),
 };

@@ -1012,8 +1012,7 @@ Lo que no es obvio:
 > **Qué hay:** el primer tipo real, y es **aparte de la lista de arriba**, que
 > sigue con datos de mentira. Una notificación local por cada evaluación
 > empacada, programada con `expo-notifications`. **Falta** el modal de
-> introducción para el permiso, abrir la evaluación al tocar el aviso, y los
-> otros dos tipos.
+> introducción para el permiso y los otros dos tipos.
 
 Lo que no es obvio:
 
@@ -1057,6 +1056,26 @@ Lo que no es obvio:
   manejador tiene tres segundos para responder o el aviso se descarta. En segundo
   plano el manejador ni se consulta y sale el del sistema. Va en
   `NotificationsWatcher`, en el layout autenticado.
+- **Tocar el aviso abre la evaluación**, en los tres estados de la app. Con la app
+  **cerrada o en segundo plano** lo hace `useNotificationTap`, sobre
+  `useLastNotificationResponse`: ese hook devuelve tanto el toque que acaba de
+  ocurrir como el que **abrió la app estando cerrada**, que es el delicado —la
+  respuesta ya existe cuando el componente monta—. Se limpia (`clearLastNotificationResponse`)
+  **antes** de navegar, o un remonte volvería a llevar a la misma evaluación. Con la
+  app **abierta**, el toast también es tocable y hace lo mismo: es el aviso en ese
+  caso, y que respondiera distinto según la app esté abierta o no sería raro.
+  Lo que viaja en el `data` se valida (`reminderTarget`, puro): llega sin tipo del
+  sistema operativo, de un aviso programado hace días.
+- **`navigate` y no `push`** al abrirla (`useOpenReminder`): con la app ya sobre esa
+  evaluación, `push` apilaría una segunda copia igual. Probado: un solo «volver»
+  lleva al listado.
+- **El toast sabe si es tocable por `props.tappable`, no por `onPress`.**
+  `react-native-toast-message` rellena `onPress` con una función vacía cuando no se
+  le da ninguno, así que deducirlo de ahí volvería «botón» a todos los toasts.
+- **Probar el toque con el simulador tiene una trampa:** el `tap` sintético sobre un
+  toast lo cierra sin disparar su `onPress` —la librería lo trata como gesto de
+  descarte—, así que esa prueba hay que hacerla con un toque real. El toque desde
+  el Centro de notificaciones (app cerrada o en segundo plano) sí es fiable.
 - **Solo `reminders.ts` importa `expo-notifications` para programar**, como
   `photo-files.ts` con `expo-file-system`; lo que decide qué programar es
   `reminder-plan.ts`, puro. El módulo está **mockeado globalmente en
