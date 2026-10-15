@@ -1027,9 +1027,10 @@ Lo que no es obvio:
   huérfanos en cuanto algo cambia por otro camino —la poda de una descarga borra
   la plantación y su aviso seguía vivo; corregir la fecha dejaba el viejo—. Los
   sitios que lo llaman son los que cambian lo que lo alimenta: guardar (solo si
-  entra `fruta`), limpiar, el vaciado al salir de la pantalla, la descarga y el
-  arranque. **El arranque es la red de seguridad** y la que rellena lo que el
-  tope de iOS dejó fuera.
+  entra `fruta`), limpiar, el vaciado al salir de la pantalla, la descarga, el
+  arranque y **volver de segundo plano**. Los dos últimos son la red de seguridad:
+  rellenan lo que el tope de iOS dejó fuera y recogen lo que cambió mientras la
+  app no miraba.
 - **La fecha en que toca va dentro del identificador**
   (`postcosecha:{plantId}:{evalId}:{AAAA-MM-DD}`). Comparar lo que se quiere con
   lo programado es comparar textos, sin leer de vuelta el disparador que guardó
@@ -1042,6 +1043,22 @@ Lo que no es obvio:
   resto sin avisar, así que se programan las 64 más próximas
   (`MAX_PENDING_REMINDERS`). No es algo que confirmara la página de docs de
   Expo: es el límite documentado por Apple.
+- **Al volver de segundo plano se repasa otra vez**, y **solo `background →
+  active`** (`returnedFromBackground`, puro y con test): en iOS la app pasa por
+  `inactive` en el diálogo del permiso, el Centro de notificaciones y el selector
+  de apps, y repasar en cada regreso de ahí sería trabajo de más —con el diálogo del
+  permiso, un repaso encadenado al que lo provocó—. Una tablet de campo casi nunca
+  arranca de cero, así que sin esto el repaso de arranque no corregiría nada
+  durante días. **Lo más valioso es el permiso**: quien lo activa en Ajustes
+  después de decir que no recupera sus recordatorios al volver, sin matar la app,
+  que es lo que hace cierto el «se omiten en silencio hasta que lo active él».
+  Probado con el disparo temporal de 20 s: tras volver de segundo plano **sin
+  reiniciar**, el aviso se reprogramó solo y sonó. No está probado el caso del
+  permiso desde Ajustes.
+  **Límite conocido: un cambio de zona horaria no se corrige**, porque el
+  identificador lleva la fecha y no el instante: el aviso programado para las 7:00
+  de una zona suena a esa misma hora absoluta en la otra, y el repaso lo ve «ya
+  programado». Corregirlo es poner el instante (`fireAt`) en el identificador.
 - **Los repasos van en cola, de uno en uno.** Guardar y salir de la pantalla
   disparan el repaso casi juntos; dos simultáneos ven los dos «falta este» y lo
   programan dos veces. Nunca lanza ni se espera: guardar una captura no puede
