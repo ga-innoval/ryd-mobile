@@ -1093,6 +1093,17 @@ Lo que no es obvio:
   toast lo cierra sin disparar su `onPress` —la librería lo trata como gesto de
   descarte—, así que esa prueba hay que hacerla con un toque real. El toque desde
   el Centro de notificaciones (app cerrada o en segundo plano) sí es fiable.
+- **Herramienta de prueba, solo en desarrollo:** mantener pulsada la campana abre un
+  `alert-dialog` que programa un aviso **para dentro de 15 segundos**
+  (`DevNotificationDialog`), para ver las dos caras sin esperar a que toque de
+  verdad: con la app abierta, el toast; en segundo plano, la notificación del
+  sistema. Imita a un recordatorio real —mismo título y mismo `data`— y apunta a
+  la primera plantación descargada, así que tocarlo también abre su evaluación. Va
+  detrás de `__DEV__`, que Metro vuelve `false` en producción. **Su identificador
+  lleva el prefijo `dev-test:`, nunca `postcosecha:`**: el repaso cancela todo lo que
+  lleve el segundo y no esté en lo que se quiere, así que con ese prefijo el aviso
+  de prueba se cancelaría solo al guardar o al volver de segundo plano (hay un test
+  que lo fija).
 - **Solo `reminders.ts` importa `expo-notifications` para programar**, como
   `photo-files.ts` con `expo-file-system`; lo que decide qué programar es
   `reminder-plan.ts`, puro. El módulo está **mockeado globalmente en

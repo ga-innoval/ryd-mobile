@@ -89,7 +89,9 @@ function buildReminder(input: ReminderInput, now: number) {
   // ruido: lo que avisa es justo lo que ya se hizo.
   if (input.fechaEvaluacion !== "") return null;
 
-  const evaluacion = EVALS_POST_COSECHA.find((item) => item.id === input.evalId);
+  const evaluacion = EVALS_POST_COSECHA.find(
+    (item) => item.id === input.evalId,
+  );
   if (!evaluacion) return null;
 
   const due = fechaEsperada(input.fechaEmpaque, periodoDias(input.evalId));
@@ -104,10 +106,14 @@ function buildReminder(input: ReminderInput, now: number) {
   if (fireAt.getTime() <= now) return null;
 
   const reminder: DesiredReminder = {
-    identifier: reminderIdentifier(input.plantId, input.evalId, toISODate(fireAt)),
+    identifier: reminderIdentifier(
+      input.plantId,
+      input.evalId,
+      toISODate(fireAt),
+    ),
     fireAt: fireAt.getTime(),
-    title: "Evaluación de post-cosecha",
-    body: `${evaluacion.title} · ${evaluacion.subtitle} toca evaluarla hoy en ${input.plantName}. Se empacó el ${longDate(input.fechaEmpaque)}.`,
+    title: `Evaluación de post-cosecha (${evaluacion.title}${evaluacion.subtitle[0]})`,
+    body: `Hoy toca evaluar post-cosecha en variedad ${input.plantName}.`,
     data: { plantId: input.plantId, evalId: input.evalId },
   };
 
