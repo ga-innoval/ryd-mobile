@@ -1,7 +1,6 @@
 import * as ToggleGroupPrimitive from "@rn-primitives/toggle-group";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
-import { FilterValues } from "../types";
 
 const ToggleItemVariantsCn = {
   default: {
@@ -14,23 +13,28 @@ const ToggleItemVariantsCn = {
   },
 };
 
-type FilterItem = {
+type FilterItem<T extends string> = {
   label: string;
-  value: FilterValues;
+  value: T;
   count?: number;
 };
 
-interface ListFilterProps {
+interface ListFilterProps<T extends string> {
   selectedItem: string;
-  onItemPress: (value: FilterValues) => void;
-  items: FilterItem[];
+  onItemPress: (value: T) => void;
+  items: FilterItem<T>[];
 }
 
-export function ListFilter({
+/**
+ * Los chips de filtro. Genérico en el valor porque lo usan dos pantallas con
+ * sus propios filtros —el listado y las notificaciones— y el estilo tiene que
+ * ser el mismo.
+ */
+export function ListFilter<T extends string>({
   selectedItem,
   onItemPress,
   items,
-}: ListFilterProps) {
+}: ListFilterProps<T>) {
   return (
     <ToggleGroupPrimitive.Root
       type="single"
@@ -40,7 +44,7 @@ export function ListFilter({
       // neutro—, así que ese caso se ignora en vez de dejar la lista sin
       // criterio.
       onValueChange={(next) => {
-        if (next) onItemPress(next as FilterValues);
+        if (next) onItemPress(next as T);
       }}
       className="flex flex-row gap-2"
     >

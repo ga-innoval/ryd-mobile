@@ -965,6 +965,48 @@ Lo que no es obvio:
   sección deja de tener once preguntas, eso puede dejar de ser cierto **sin que
   nada avise**: ahí es donde hay que mirar.
 
+## Notificaciones
+
+> **Qué hay de esto:** la pantalla (`src/app/(app)/notifications.tsx`), la campana
+> con su badge en la cabecera principal y los tres tipos de aviso, **todo con
+> datos de mentira** (`lib/notifications-mock.ts`). Nada se deriva todavía de
+> SQLite.
+
+Los tres tipos planeados, y no hay más: plantaciones nuevas o con cambios por
+descargar (`plants-download`), una post-cosecha empacada que ya toca evaluarse
+(`postcosecha-reminder`) y plantaciones con capturas sin enviar (`sync-reminder`).
+Lo que no es obvio:
+
+- **El store guarda solo qué ids se marcaron como leídos, no las
+  notificaciones.** La lista vendrá de derivar lo descargable, lo evaluable y lo
+  pendiente; lo único que no se puede derivar es qué se ha mirado.
+  `notifications-read-store` **no persiste todavía**, y el día que las
+  notificaciones sean reales tiene que hacerlo —un aviso que reaparece como nuevo
+  en cada apertura deja de ser un aviso—: `persist` + `AsyncStorage`, como
+  `download-store`.
+- **`useNotifications` es la única fuente del conteo de sin leer.** La campana y
+  el «N sin leer» de la cabecera salen de ahí y no pueden contradecirse. El día
+  que haya datos reales es ese hook lo que cambia.
+- **La fila entera es la acción, sin botón.** Tocarla la marca como leída y abre
+  lo que avisa (`notificationTarget`): el recordatorio de post-cosecha lleva a su
+  evaluación —`/postcosecha/[id]?eval=`—, y descargar y enviar **vuelven a la
+  pantalla principal**, que es donde están `DownloadBlock` y `SyncBlock`. Vuelven
+  con `dismissTo("/")` y no con `push`, para no apilar un segundo listado bajo las
+  notificaciones. Solo el recordatorio de evaluar carga `plantId` y `evalId`: es
+  una unión discriminada para que uno sin destino ni compile. **Los mocks usan
+  las ids reales de «518» y «Candy Dreams»** del usuario de pruebas; con otra
+  cuenta no existen y la pantalla de destino sale vacía.
+- **Los chips reparten tres tipos en dos categorías**, y el reparto es forzado:
+  descargar y enviar van a «Sincronización», y el recordatorio de evaluar a
+  «Alertas». Vive en `NOTIFICATION_CATEGORY`.
+- **«Esta semana» es una semana corrida** (hoy y los seis días anteriores), no la
+  de calendario: con la de calendario, un lunes sería solo hoy. Y los días se
+  cuentan **en calendario local**, no en bloques de 24 horas —lo de las 11 p. m.
+  de ayer es «ayer»—; `groupByRecency` y `formatNotificationTime` comparten
+  `calendarDaysAgo` para que el bloque y el texto no discrepen.
+- **`ListFilter` es genérico en su valor** porque lo comparten el listado de
+  plantaciones y esta pantalla: los chips tienen que verse igual.
+
 ## Naming
 
 Identificadores **técnicos en inglés** (tablas, hooks, tipos, query keys,

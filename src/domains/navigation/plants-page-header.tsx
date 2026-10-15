@@ -7,6 +7,7 @@ import { SyncBlock } from "../plants/components/sync-block";
 import { DownloadBlock } from "../plants/components/download-block";
 import { HeaderBase } from "./header-base";
 import { SeparatorLine } from "@/components/ui/separator-line";
+import { NotificationsBell } from "@/domains/notifications/components/notifications-bell";
 
 type PlantsPageHeaderProps = {
   section?: string;
@@ -43,6 +44,7 @@ export function PlantsPageHeader({
         <SeparatorLine />
         <SyncBlock disabled={totalCount === 0} />
         <SeparatorLine />
+        <NotificationsBell />
         <UserMenu />
       </View>
     </HeaderBase>
