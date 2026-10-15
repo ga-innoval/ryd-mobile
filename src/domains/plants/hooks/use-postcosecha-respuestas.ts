@@ -1,6 +1,7 @@
 import { useSQLiteContext, type SQLiteDatabase } from "expo-sqlite";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
+import { refreshPostcosechaReminders } from "@/domains/notifications/lib/refresh-postcosecha-reminders";
 import {
   deletePostcosechaRespuestas,
   getPostcosechaRespuestas,
@@ -120,7 +121,15 @@ export function usePostcosechaSave(plantId: string, evalId: string) {
   return useMutation({
     mutationFn: (input: SavePostcosechaInput) =>
       savePostcosechaSecciones(db, plantId, evalId, input),
-    onSuccess: () => invalidateCaptureWrite(queryClient),
+    onSuccess: (_, input) => {
+      invalidateCaptureWrite(queryClient);
+
+      // La fecha de empaque vive en `fruta`: guardar las notas no puede mover
+      // ningún recordatorio, así que no se repasa por ellas.
+      if (input.secciones.includes("fruta")) {
+        void refreshPostcosechaReminders(db);
+      }
+    },
     onError: (error) => {
       toast.error({
         title: "No se pudo guardar",
@@ -142,7 +151,12 @@ export function usePostcosechaClear(plantId: string, evalId: string) {
 
   return useMutation({
     mutationFn: () => deletePostcosechaRespuestas(db, plantId, evalId),
-    onSuccess: () => invalidateCaptureWrite(queryClient),
+    onSuccess: () => {
+      invalidateCaptureWrite(queryClient);
+
+      // Limpiar se lleva la fecha de empaque, y con ella el aviso.
+      void refreshPostcosechaReminders(db);
+    },
     onError: (error) => {
       toast.error({
         title: "No se pudo limpiar",

@@ -5,7 +5,7 @@ import type {
   PostcosechaSectionId,
 } from "../postcosecha-schema";
 import { postcosechaSeccionHasError } from "../postcosecha-errors";
-import { frutaEmpacada } from "../postcosecha-fruta";
+import { frutaEmpacada, type FrutaValues } from "../postcosecha-fruta";
 import {
   postcosechaKey,
   postcosechaProgressFromRow,
@@ -261,6 +261,66 @@ export const getPostcosechaEmpacadas = async (
   );
 
   return new Set(rows.map((row) => postcosechaKey(row.plantId, row.evalId)));
+};
+
+/**
+ * Una evaluación empacada, con lo que hace falta para avisar de ella.
+ *
+ * Mismos campos que `ReminderInput` del dominio de notificaciones, declarados
+ * aquí a propósito: el repositorio no puede depender de quien lo consume.
+ */
+export type PostcosechaReminderCandidate = {
+  plantId: string;
+  plantName: string;
+  evalId: string;
+  fechaEmpaque: string;
+  /** Vacía mientras la evaluación no se haya hecho. */
+  fechaEvaluacion: string;
+};
+
+/**
+ * Las evaluaciones con fecha de empaque, para programar su recordatorio.
+ *
+ * Filtra por la columna `empacada` y solo abre el payload de **esas** filas: no
+ * hay una por evaluación posible, sino las que ya entraron. Une con `plants`
+ * porque el aviso nombra la plantación, y el `INNER JOIN` deja fuera lo que ya
+ * no tiene dueño — que es justo lo que no debe avisar.
+ *
+ * Un payload que no se pueda leer se salta: un recordatorio de menos es mejor
+ * que una consulta que revienta cada vez que se guarda.
+ */
+export const getPostcosechaReminderCandidates = async (
+  db: SQLiteDatabase,
+): Promise<PostcosechaReminderCandidate[]> => {
+  const rows = await db.getAllAsync<{
+    plantId: string;
+    plantName: string;
+    evalId: string;
+    payload: string;
+  }>(
+    `SELECT r.plantId, p.name AS plantName, r.evalId, r.payload
+       FROM postcosecha_respuestas r
+       JOIN plants p ON p.id = r.plantId
+      WHERE r.seccion = 'fruta' AND r.empacada = 1`,
+  );
+
+  return rows.flatMap((row) => {
+    try {
+      const fruta = JSON.parse(row.payload) as Partial<FrutaValues> | null;
+
+      return [
+        {
+          plantId: row.plantId,
+          plantName: row.plantName,
+          evalId: row.evalId,
+          fechaEmpaque: fruta?.fecha_empaque ?? "",
+          fechaEvaluacion: fruta?.fecha_evaluacion ?? "",
+        },
+      ];
+    } catch {
+      return [];
+    }
+  });
 };
 
 /**

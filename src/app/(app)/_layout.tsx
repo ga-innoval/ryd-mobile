@@ -2,6 +2,7 @@ import { Redirect, Stack } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 import { useAuthStore } from "@/domains/auth/store/auth-store";
 import { usePendingPlantsPolling } from "@/domains/plants/hooks/use-pending-plants-polling";
+import { NotificationsWatcher } from "@/domains/notifications/components/notifications-watcher";
 
 // Debe montarse una sola vez y solo con sesión autenticada para evitar
 // llamadas sin token
@@ -26,6 +27,7 @@ export default function AppLayout() {
   return (
     <>
       <PendingPlantsWatcher />
+      <NotificationsWatcher />
       <Stack>
         {/* La presentación tiene que conocerse al empujar la ruta, así que
             va aquí y no dentro de la pantalla, donde llegaría tarde. Las

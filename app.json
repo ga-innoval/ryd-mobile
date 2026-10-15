@@ -52,7 +52,13 @@
         }
       ],
       "expo-sqlite",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "color": "#2d5a27"
+        }
+      ]
     ],
     "extra": {
       "router": {},
