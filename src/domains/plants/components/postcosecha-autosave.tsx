@@ -3,6 +3,7 @@ import { useSQLiteContext } from "expo-sqlite";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFormContext, useWatch } from "react-hook-form";
 import { toast } from "@/lib/toast";
+import { refreshPostcosechaReminders } from "@/domains/notifications/lib/refresh-postcosecha-reminders";
 import { useDebouncedValue } from "../hooks/use-debounced-value";
 import {
   savePostcosechaSecciones,
@@ -352,12 +353,16 @@ export function PostcosechaAutosave({
         values: current,
         secciones: changed,
       })
-        .then(() =>
-          queryClient.invalidateQueries({
+        .then(() => {
+          // Salir de la pantalla es también un guardado: si lo último tecleado
+          // fue la fecha de empaque, el aviso tiene que programarse igual.
+          if (changed.includes("fruta")) void refreshPostcosechaReminders(db);
+
+          return queryClient.invalidateQueries({
             queryKey: PLANTS_QUERY_KEY,
             exact: true,
-          }),
-        )
+          });
+        })
         .catch((error: Error) =>
           toast.error({
             title: "No se pudo guardar",

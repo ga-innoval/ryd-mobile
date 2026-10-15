@@ -8,6 +8,7 @@ import { syncPlantsBatch } from "../lib/db/plants.repository";
 import { sweepOrphanPhotos } from "./use-respuesta-fotos";
 import { formatDownloadSummary } from "../lib/format-download-summary";
 import { toast } from "@/lib/toast";
+import { refreshPostcosechaReminders } from "@/domains/notifications/lib/refresh-postcosecha-reminders";
 import { haptics } from "@/lib/haptics";
 
 // Permite que cualquier consumidor lea el estado de la descarga desde la
@@ -40,6 +41,11 @@ export function usePlantsMutation() {
       // Con su propio `catch`: no recuperar espacio no puede convertir una
       // descarga correcta en un error.
       await sweepOrphanPhotos(db).catch(() => 0);
+
+      // La poda también se lleva el aviso de lo que borra: sin este repaso, una
+      // plantación dada de baja seguiría avisando de una evaluación que ya no
+      // está. Nunca lanza, así que no puede tumbar una descarga correcta.
+      await refreshPostcosechaReminders(db);
 
       return { count, serverTime: server_time };
     },

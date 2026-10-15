@@ -1007,6 +1007,76 @@ Lo que no es obvio:
 - **`ListFilter` es genérico en su valor** porque lo comparten el listado de
   plantaciones y esta pantalla: los chips tienen que verse igual.
 
+### Recordatorios de post-cosecha (notificaciones locales del sistema)
+
+> **Qué hay:** el primer tipo real, y es **aparte de la lista de arriba**, que
+> sigue con datos de mentira. Una notificación local por cada evaluación
+> empacada, programada con `expo-notifications`. **Falta** el modal de
+> introducción para el permiso, abrir la evaluación al tocar el aviso, y los
+> otros dos tipos.
+
+Lo que no es obvio:
+
+- **Suena a las 7:00 del dispositivo, el día `fecha_empaque + días`**, con los días
+  sacados del `id` de la evaluación (`15plastico` → 15). Reusa `fechaEsperada` y
+  `periodoDias`, que ya sugerían esa misma fecha en el formulario: el aviso y la
+  sugerencia no pueden discrepar. La hora se construye en hora local, nunca con
+  `toISOString()`.
+- **Se repasa entero, no por eventos** (`refreshPostcosechaReminders`): recalcula
+  desde SQLite lo que debería existir y lo diferencia de lo que el sistema tiene
+  programado. Programar y cancelar según lo que acaba de pasar deja avisos
+  huérfanos en cuanto algo cambia por otro camino —la poda de una descarga borra
+  la plantación y su aviso seguía vivo; corregir la fecha dejaba el viejo—. Los
+  sitios que lo llaman son los que cambian lo que lo alimenta: guardar (solo si
+  entra `fruta`), limpiar, el vaciado al salir de la pantalla, la descarga y el
+  arranque. **El arranque es la red de seguridad** y la que rellena lo que el
+  tope de iOS dejó fuera.
+- **La fecha en que toca va dentro del identificador**
+  (`postcosecha:{plantId}:{evalId}:{AAAA-MM-DD}`). Comparar lo que se quiere con
+  lo programado es comparar textos, sin leer de vuelta el disparador que guardó
+  el sistema, cuya forma cambia entre iOS y Android. Corregir la fecha cambia el
+  identificador: sobra el viejo y falta el nuevo.
+- **Evaluada, el aviso se cancela**: si `fecha_evaluacion` ya tiene valor —aunque
+  sea antes de tiempo— el aviso del día señalado sería ruido. Una hora que ya
+  pasó tampoco se programa: no es un aviso, es un disparador inválido.
+- **iOS conserva como máximo 64 notificaciones locales pendientes** y descarta el
+  resto sin avisar, así que se programan las 64 más próximas
+  (`MAX_PENDING_REMINDERS`). No es algo que confirmara la página de docs de
+  Expo: es el límite documentado por Apple.
+- **Los repasos van en cola, de uno en uno.** Guardar y salir de la pantalla
+  disparan el repaso casi juntos; dos simultáneos ven los dos «falta este» y lo
+  programan dos veces. Nunca lanza ni se espera: guardar una captura no puede
+  fallar porque un aviso no se pudiera programar.
+- **Cancelar no pide permiso y se hace siempre**: un aviso que ya no toca no
+  puede sonar porque el usuario desactivara las notificaciones después. Y no se
+  toca lo que no lleve el prefijo `postcosecha:`, que es de los tipos que vengan.
+- **Con la app abierta no sale la notificación del sistema, sale un toast.** El
+  manejador (`setNotificationHandler`) responde que no a las cuatro formas de
+  mostrarla y el oyente (`addNotificationReceivedListener`) saca el toast que ya
+  usa la app. Son dos piezas porque `expo-notifications` las separa así: el
+  manejador tiene tres segundos para responder o el aviso se descarta. En segundo
+  plano el manejador ni se consulta y sale el del sistema. Va en
+  `NotificationsWatcher`, en el layout autenticado.
+- **Solo `reminders.ts` importa `expo-notifications` para programar**, como
+  `photo-files.ts` con `expo-file-system`; lo que decide qué programar es
+  `reminder-plan.ts`, puro. El módulo está **mockeado globalmente en
+  `jest-setup.js`**: sin eso, importar los hooks de guardado en un test avisa del
+  uso de push en Expo Go, porque la cadena de imports lo arrastra.
+- **Es un módulo nativo**: añadirlo obliga a **reconstruir el binario de
+  desarrollo**. Hasta entonces la app sale con «Cannot find native module
+  'ExpoPushTokenManager'», y no hay JS que lo arregle.
+
+**Pendiente: un modal de introducción para el permiso.** Hoy el permiso se pide
+**la primera vez que se programa un aviso**, es decir, en el instante en que se
+guarda una fecha de empaque, sin contexto. Es un sustituto: el sitio correcto es
+un modal tipo «onboarding» que explique **por qué importan estos avisos** y pida el
+permiso de notificaciones. Si el usuario dice que no, **se omiten las
+notificaciones en silencio** —sin toasts ni insistencia— hasta que las active él
+mismo en Ajustes; los recordatorios se programan solos en el siguiente repaso. En
+iOS, tras un «no» `canAskAgain` queda en falso y no se vuelve a preguntar, así que
+reintentar en cada guardado ya no molesta, pero tampoco hace nada. Cuando exista el
+modal, `ensurePermission` deja de pedir y solo comprueba.
+
 ## Naming
 
 Identificadores **técnicos en inglés** (tablas, hooks, tipos, query keys,
@@ -1157,7 +1227,7 @@ renombró) y `temporada` en español.
 
   **Las borra cualquier `npm install`**, aunque sea para añadir un paquete sin
   relación: pasó al instalar `@rn-primitives/slider` y tumbó el build de EAS
-  (`npm ci` en su linux). Después de tocar dependencias, comprobar y reponerlas
+  (`npm ci` en su linux). **Volvió a pasar** al instalar `expo-notifications`: se las llevó otra vez, y se repusieron desde `HEAD` con un script que comprueba antes que reescribir el JSON no cambia nada más. Después de tocar dependencias, comprobar y reponerlas
   —el commit `c0aee44` tiene las entradas buenas, con sus `integrity`—.
 
   Para comprobar si el lockfile está sano, sin esperar al CI: recorrer

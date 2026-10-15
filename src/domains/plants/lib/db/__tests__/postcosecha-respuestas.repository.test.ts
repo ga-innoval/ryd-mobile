@@ -13,6 +13,7 @@ import {
   getPostcosechaEmpacadas,
   getPostcosechaIdsWithErrors,
   getPostcosechaProgress,
+  getPostcosechaReminderCandidates,
   getPostcosechaRespuestas,
   savePostcosechaRespuesta,
 } from "../postcosecha-respuestas.repository";
@@ -294,6 +295,70 @@ describe("postcosecha-respuestas.repository", () => {
       await guardarFruta({ fecha_empaque: "" }, "15caja");
 
       expect(await getPostcosechaEmpacadas(db)).toEqual(new Set());
+    });
+  });
+
+  describe("los candidatos a recordatorio", () => {
+    it("devuelve la plantación por su nombre y las dos fechas", async () => {
+      await guardarFruta(
+        { fecha_empaque: "2026-10-15", fecha_evaluacion: "2026-10-28" },
+        "15plastico",
+      );
+
+      expect(await getPostcosechaReminderCandidates(db)).toEqual([
+        {
+          plantId: "p1",
+          plantName: expect.any(String),
+          evalId: "15plastico",
+          fechaEmpaque: "2026-10-15",
+          fechaEvaluacion: "2026-10-28",
+        },
+      ]);
+    });
+
+    it("una evaluación sin evaluar trae la fecha vacía", async () => {
+      await guardarFruta({ fecha_empaque: "2026-10-15" }, "30caja");
+
+      const [candidate] = await getPostcosechaReminderCandidates(db);
+      expect(candidate.fechaEvaluacion).toBe("");
+    });
+
+    it("sin fecha de empaque no es candidata", async () => {
+      await guardarFruta({ acidez: "low" }, "15caja");
+
+      expect(await getPostcosechaReminderCandidates(db)).toEqual([]);
+    });
+
+    // Corregir o borrar la fecha tiene que sacarla de la lista, o el repaso no
+    // cancelaría nunca el aviso viejo.
+    it("deja de serlo si se borra la fecha", async () => {
+      await guardarFruta({ fecha_empaque: "2026-10-15" }, "15caja");
+      await guardarFruta({ fecha_empaque: "" }, "15caja");
+
+      expect(await getPostcosechaReminderCandidates(db)).toEqual([]);
+    });
+
+    // La CASCADE se lleva sus filas: es el camino de la poda de la descarga, y
+    // lo que no tiene dueño no debe seguir avisando.
+    it("una plantación borrada ya no aparece", async () => {
+      await guardarFruta({ fecha_empaque: "2026-10-15" }, "15caja", "p1");
+      await guardarFruta({ fecha_empaque: "2026-10-16" }, "15caja", "p2");
+      await deletePlant(db, "p1");
+
+      const candidates = await getPostcosechaReminderCandidates(db);
+      expect(candidates.map((candidate) => candidate.plantId)).toEqual(["p2"]);
+    });
+
+    it("las notas no cuentan: la fecha vive en fruta", async () => {
+      await savePostcosechaRespuesta(db, {
+        plantId: "p1",
+        evalId: "15caja",
+        seccion: "comentarios",
+        payload: createComentarios(),
+        updatedAtLocal: "2026-09-29T10:00:00.000Z",
+      });
+
+      expect(await getPostcosechaReminderCandidates(db)).toEqual([]);
     });
   });
 
