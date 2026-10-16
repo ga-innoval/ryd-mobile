@@ -1,7 +1,7 @@
+import { Pressable, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -12,6 +12,7 @@ import {
 import { Text } from "@/components/ui/text";
 import { toast } from "@/lib/toast";
 import { getAllPlants } from "@/domains/plants/lib/db/plants.repository";
+import { announcePendingPlants } from "@/domains/plants/lib/announce-pending-plants";
 import { scheduleTestNotification } from "../lib/reminders";
 
 /** Lo bastante para mandar la app a segundo plano y mirar. */
@@ -32,6 +33,8 @@ type DevNotificationDialogProps = {
  * plantación descargada, para que el toque lleve a una evaluación que existe. Sin
  * plantaciones se programa igual, solo que sin destino.
  *
+ * También puede **simular el ping de descargas pendientes**.
+ *
  * Quien lo monta tiene que protegerlo con `__DEV__`: no debe llegar a producción.
  */
 export function DevNotificationDialog({
@@ -39,6 +42,13 @@ export function DevNotificationDialog({
   onOpenChange,
 }: DevNotificationDialogProps) {
   const db = useSQLiteContext();
+
+  /** Simula que el ping encontró plantaciones por descargar, aunque no las haya:
+   *  sale el mismo toast y entra el mismo aviso a la bandeja. */
+  const handleSimulateDownload = () => {
+    onOpenChange(false);
+    announcePendingPlants(2);
+  };
 
   const handleSchedule = async () => {
     onOpenChange(false);
@@ -80,20 +90,52 @@ export function DevNotificationDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Notificación de prueba</AlertDialogTitle>
           <AlertDialogDescription>
-            Se programará un aviso para dentro de 15 segundos. Déjalo abierto
-            para ver el toast, o manda la app a segundo plano para ver la
-            notificación del sistema. Solo existe en desarrollo.
+            Elige qué aviso simular. Solo existe en desarrollo.
           </AlertDialogDescription>
         </AlertDialogHeader>
+
+        <View className="gap-3">
+          <TestCard
+            title="Notificación de post-cosecha"
+            description="Simula la notificación de fecha de evaluación. Se programará en 15 segundos: con la app abierta sale el toast, y en segundo plano la notificación del sistema."
+            onPress={handleSchedule}
+          />
+          <TestCard
+            title="Descargas pendientes"
+            description="Simula que el ping detectó plantaciones por descargar, aunque no las haya. Sale el toast y se agrega a la lista al instante."
+            onPress={handleSimulateDownload}
+          />
+        </View>
+
         <AlertDialogFooter>
           <AlertDialogCancel>
             <Text>Cancelar</Text>
           </AlertDialogCancel>
-          <AlertDialogAction onPress={handleSchedule}>
-            <Text>Programar</Text>
-          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+/** Una opción de la herramienta: lo que simula y qué esperar, en una tarjeta
+ *  tocable. */
+function TestCard({
+  title,
+  description,
+  onPress,
+}: {
+  title: string;
+  description: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      className="gap-1 rounded-xl border border-border bg-card px-4 py-3 active:bg-secondary"
+    >
+      <Text className="font-medium">{title}</Text>
+      <Text variant="muted">{description}</Text>
+    </Pressable>
   );
 }
