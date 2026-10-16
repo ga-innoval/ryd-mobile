@@ -1,6 +1,6 @@
 import { pendingPlantsRequest } from "../api/plants.api";
 import { useDownloadStore } from "../store/download-store";
-import { toast } from "@/lib/toast";
+import { announcePendingPlants } from "../lib/announce-pending-plants";
 
 export function usePendingPlants() {
   const lastDownloadAt = useDownloadStore((s) => s.lastDownloadAt);
@@ -13,12 +13,7 @@ export function usePendingPlants() {
     try {
       const { count } = await pendingPlantsRequest(lastDownloadAt);
 
-      if (pendingCount === 0 && count > 0) {
-        toast.info({
-          title: "Actualizaciones por descargar",
-          description: "Se detectaron actualizaciones en las plantaciones.",
-        });
-      }
+      if (pendingCount === 0 && count > 0) announcePendingPlants(count);
 
       setPendingCount(count);
     } catch {

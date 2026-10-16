@@ -996,6 +996,14 @@ Lo que no es obvio:
   una unión discriminada para que uno sin destino ni compile. **Los mocks usan
   las ids reales de «518» y «Candy Dreams»** del usuario de pruebas; con otra
   cuenta no existen y la pantalla de destino sale vacía.
+- **El ping de plantaciones por descargar también deja un aviso en la bandeja**
+  (`usePendingPlants`, junto al toast que ya salía), por si no alcanzó a verse. **Sin
+  notificación del sistema**: el ping solo corre con la app en primer plano, así que
+  el toast ya fue el aviso. Entra solo al pasar de cero a algo pendiente, igual que
+  el toast, y su identificador lleva el instante porque cada detección es un aviso
+  distinto. Tocarlo lleva a la pantalla principal, donde está la descarga.
+  El toast y el aviso salen juntos de `announcePendingPlants`, que comparten el ping y
+  el botón «Simular descargas» de la herramienta de desarrollo de la campana.
 - **Los chips cortan solo por estado de lectura**: Todas, Sin leer y Leídas. Hubo
   también «Alertas» y «Sincronización», por categoría de tipo, y se quitaron: con
   tres tipos el reparto era forzado y no se iban a usar.
