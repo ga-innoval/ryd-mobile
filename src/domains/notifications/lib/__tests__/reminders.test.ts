@@ -269,7 +269,7 @@ describe("refreshPostcosechaReminders", () => {
 
     const [call] = notifications().scheduleNotificationAsync.mock.calls;
     expect(call[0].identifier).toMatch(/^postcosecha:p1:15plastico:\d{4}-/);
-    expect(call[0].content.body).toContain("en 518");
+    expect(call[0].content.body).toContain("variedad 518");
   });
 
   it("sin nada empacado no programa nada", async () => {

@@ -1,6 +1,6 @@
 /**
  * Los tres avisos que la app va a dar, y nada más: cada tipo nuevo es una
- * entrada aquí y una en `NOTIFICATION_CATEGORY`.
+ * entrada aquí.
  *
  * - `plants-download`: se detectaron plantaciones nuevas o cambios en las que ya
  *   se tienen, listos para descargar.
@@ -12,18 +12,8 @@ export type NotificationKind =
   | "postcosecha-reminder"
   | "sync-reminder";
 
-/** Los chips de la pantalla. `todas` y `sin-leer` cortan por estado; los otros
- *  dos, por la categoría del tipo. */
-export type NotificationFilter =
-  | "todas"
-  | "sin-leer"
-  | "alertas"
-  | "sincronizacion";
-
-export type NotificationCategory = Exclude<
-  NotificationFilter,
-  "todas" | "sin-leer"
->;
+/** Los chips de la pantalla: todos cortan por estado de lectura. */
+export type NotificationFilter = "todas" | "sin-leer" | "leidas";
 
 type NotificationBase = {
   id: string;

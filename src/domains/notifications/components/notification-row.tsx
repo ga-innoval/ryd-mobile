@@ -63,7 +63,7 @@ export function NotificationRow({
         {/* Los dos `Text` llevan el tamaño: el anidado no hereda `text-sm` y
             caería en el `text-base` por defecto. */}
         <Text className="text-sm">
-          <Text className="text-sm font-bold">{subject}</Text> {body}
+          <Text className="text-sm font-bold">{subject}</Text>. {body}
         </Text>
         <Text variant="muted" className="text-xs">
           {formatNotificationTime(createdAt, now)}

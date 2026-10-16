@@ -996,9 +996,9 @@ Lo que no es obvio:
   una unión discriminada para que uno sin destino ni compile. **Los mocks usan
   las ids reales de «518» y «Candy Dreams»** del usuario de pruebas; con otra
   cuenta no existen y la pantalla de destino sale vacía.
-- **Los chips reparten tres tipos en dos categorías**, y el reparto es forzado:
-  descargar y enviar van a «Sincronización», y el recordatorio de evaluar a
-  «Alertas». Vive en `NOTIFICATION_CATEGORY`.
+- **Los chips cortan solo por estado de lectura**: Todas, Sin leer y Leídas. Hubo
+  también «Alertas» y «Sincronización», por categoría de tipo, y se quitaron: con
+  tres tipos el reparto era forzado y no se iban a usar.
 - **«Esta semana» es una semana corrida** (hoy y los seis días anteriores), no la
   de calendario: con la de calendario, un lunes sería solo hoy. Y los días se
   cuentan **en calendario local**, no en bloques de 24 horas —lo de las 11 p. m.

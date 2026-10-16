@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import * as Notifications from "expo-notifications";
+import { notificationFromOs } from "../lib/notification-from-os";
 import { reminderTarget } from "../lib/reminder-target";
+import { useNotificationsInbox } from "../store/notifications-inbox-store";
 import { useOpenReminder } from "./use-open-reminder";
 
 /**
@@ -33,7 +35,17 @@ export function useNotificationTap() {
       return;
     }
 
-    const target = reminderTarget(response.notification.request.content.data);
+    const { notification } = response;
+    const target = reminderTarget(notification.request.content.data);
+
+    // **A la bandeja y leído.** Con la app cerrada, el toque es lo único que la
+    // app llega a ver de ese aviso —el barrido de las presentadas no lo encuentra
+    // porque iOS lo retira del Centro de notificaciones al tocarlo—, así que si no
+    // entra aquí, no entra nunca. `addToInbox` no duplica si ya estaba.
+    const { addMany, markRead } = useNotificationsInbox.getState();
+    const item = notificationFromOs(notification, Date.now());
+    if (item) addMany([item]);
+    markRead(notification.request.identifier);
 
     Notifications.clearLastNotificationResponse();
     if (target) open(target);
