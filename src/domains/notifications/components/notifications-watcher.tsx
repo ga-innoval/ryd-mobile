@@ -3,13 +3,30 @@ import { AppState } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 import { useForegroundNotifications } from "../hooks/use-foreground-notifications";
 import { useNotificationTap } from "../hooks/use-notification-tap";
+import { getPresentedAsInbox } from "../lib/presented-notifications";
 import { refreshPostcosechaReminders } from "../lib/refresh-postcosecha-reminders";
 import { returnedFromBackground } from "../lib/returned-from-background";
+import { useNotificationsInbox } from "../store/notifications-inbox-store";
+
+/**
+ * Trae a la bandeja lo que llegó mientras la app no miraba y sigue en el Centro
+ * de notificaciones. Nunca lanza: no poder leerlo no puede tumbar nada.
+ */
+const importPresented = async () => {
+  try {
+    const items = await getPresentedAsInbox(Date.now());
+
+    useNotificationsInbox.getState().addMany(items);
+  } catch (error) {
+    console.warn("No se pudieron leer las notificaciones presentadas", error);
+  }
+};
 
 /**
  * Lo que tiene que estar vivo mientras haya sesión: el manejo de los avisos que
  * llegan con la app abierta, abrir la evaluación al tocar uno, y el repaso de
- * los recordatorios al arrancar y al volver de segundo plano.
+ * los recordatorios y el barrido de lo recibido al arrancar y al volver de
+ * segundo plano.
  *
  * No pinta nada. Va en el layout autenticado, como `PendingPlantsWatcher`, para
  * que se monte una sola vez y no antes de tener sesión.
@@ -24,6 +41,7 @@ export function NotificationsWatcher() {
   // lo que el tope de iOS dejó fuera cuando ya sonaron los de delante.
   useEffect(() => {
     void refreshPostcosechaReminders(db);
+    void importPresented();
   }, [db]);
 
   // Y al volver de segundo plano. **Una tablet de campo casi nunca arranca de
@@ -44,6 +62,7 @@ export function NotificationsWatcher() {
     const subscription = AppState.addEventListener("change", (next) => {
       if (returnedFromBackground(previous, next)) {
         void refreshPostcosechaReminders(db);
+        void importPresented();
       }
 
       previous = next;

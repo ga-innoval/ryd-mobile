@@ -41,10 +41,8 @@ describe("buildDesiredReminders", () => {
   it("dice qué evaluación toca, en qué plantación y desde cuándo", () => {
     const [reminder] = build([input()]);
 
-    expect(reminder.title).toBe("Evaluación de post-cosecha");
-    expect(reminder.body).toBe(
-      "15 días · Liner toca evaluarla hoy en 518. Se empacó el 15 de octubre.",
-    );
+    expect(reminder.title).toBe("Evaluación de post-cosecha (15 díasL)");
+    expect(reminder.body).toBe("Hoy toca evaluar post-cosecha en variedad 518.");
     expect(reminder.data).toEqual({ plantId: "p1", evalId: "15plastico" });
   });
 

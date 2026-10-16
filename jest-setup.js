@@ -13,6 +13,7 @@ jest.mock("react-native-worklets", () =>
 // se programa leen estos `jest.fn` con `jest.requireMock`.
 jest.mock("expo-notifications", () => ({
   getAllScheduledNotificationsAsync: jest.fn(async () => []),
+  getPresentedNotificationsAsync: jest.fn(async () => []),
   cancelScheduledNotificationAsync: jest.fn(async () => undefined),
   scheduleNotificationAsync: jest.fn(async () => "id"),
   getPermissionsAsync: jest.fn(async () => ({

@@ -8,6 +8,7 @@ import { NotificationsPageHeader } from "@/domains/navigation/notifications-page
 import { ListFilter } from "@/domains/plants/components/list-filter";
 import { NotificationsList } from "@/domains/notifications/components/notifications-list";
 import { useNotifications } from "@/domains/notifications/hooks/use-notifications";
+import { useNow } from "@/domains/notifications/hooks/use-now";
 import { groupByRecency } from "@/domains/notifications/lib/group-by-recency";
 import {
   countByFilter,
@@ -29,13 +30,13 @@ const screenOptions = {
 const FILTERS: { label: string; value: NotificationFilter }[] = [
   { label: "Todas", value: "todas" },
   { label: "Sin leer", value: "sin-leer" },
-  { label: "Alertas", value: "alertas" },
-  { label: "Sincronización", value: "sincronizacion" },
+  { label: "Leídas", value: "leidas" },
 ];
 
 export default function NotificationsScreen() {
   const router = useAppRouter();
-  const { notifications, now, markRead } = useNotifications();
+  const { notifications, markRead } = useNotifications();
+  const now = useNow();
   const [filter, setFilter] = useState<NotificationFilter>("todas");
 
   /**

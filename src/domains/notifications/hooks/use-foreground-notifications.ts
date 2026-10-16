@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import * as Notifications from "expo-notifications";
 import { toast } from "@/lib/toast";
+import { notificationFromOs } from "../lib/notification-from-os";
 import { reminderTarget } from "../lib/reminder-target";
+import { useNotificationsInbox } from "../store/notifications-inbox-store";
 import { useOpenReminder } from "./use-open-reminder";
 
 /**
@@ -15,6 +17,9 @@ import { useOpenReminder } from "./use-open-reminder";
  * **El manejador decide si se muestra; el oyente reacciona.** Son dos piezas
  * porque `expo-notifications` las separa así: el manejador responde en menos de
  * tres segundos o el aviso se descarta, y no es sitio para trabajo de la app.
+ *
+ * **Lo que llega entra también a la bandeja** de notificaciones, que es lo que
+ * pinta la pantalla y cuenta la campana.
  *
  * **Tocar el toast abre la evaluación**, igual que tocar la notificación del
  * sistema: con la app abierta el toast *es* el aviso, y que el mismo aviso
@@ -36,13 +41,26 @@ export function useForegroundNotifications() {
     });
 
     const subscription = Notifications.addNotificationReceivedListener(
-      ({ request }) => {
+      (notification) => {
+        const { request } = notification;
         const target = reminderTarget(request.content.data);
+        const { addMany, markRead } = useNotificationsInbox.getState();
+
+        // A la bandeja, además del toast: es lo que alimenta la pantalla de
+        // notificaciones y el contador de la campana. Nace sin leer.
+        const item = notificationFromOs(notification, Date.now());
+        if (item) addMany([item]);
 
         toast.info({
           title: request.content.title ?? "Notificación",
           description: request.content.body ?? undefined,
-          onPress: target ? () => open(target) : undefined,
+          // Tocar el toast es abrirlo, así que además queda leído.
+          onPress: target
+            ? () => {
+                markRead(request.identifier);
+                open(target);
+              }
+            : undefined,
         });
       },
     );

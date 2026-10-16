@@ -40,12 +40,8 @@ describe("filterNotifications", () => {
     expect(ids(filterNotifications(SAMPLE, "sin-leer"))).toEqual(["a", "c"]);
   });
 
-  it("los dos chips de categoría cortan por tipo", () => {
-    expect(ids(filterNotifications(SAMPLE, "alertas"))).toEqual(["c", "d"]);
-    expect(ids(filterNotifications(SAMPLE, "sincronizacion"))).toEqual([
-      "a",
-      "b",
-    ]);
+  it("leídas corta por estado", () => {
+    expect(ids(filterNotifications(SAMPLE, "leidas"))).toEqual(["b", "d"]);
   });
 });
 
@@ -58,8 +54,7 @@ describe("countByFilter", () => {
     expect(counts).toEqual({
       todas: 4,
       "sin-leer": 2,
-      alertas: 2,
-      sincronizacion: 2,
+      leidas: 2,
     });
   });
 
@@ -67,8 +62,7 @@ describe("countByFilter", () => {
     expect(countByFilter([])).toEqual({
       todas: 0,
       "sin-leer": 0,
-      alertas: 0,
-      sincronizacion: 0,
+      leidas: 0,
     });
   });
 });
