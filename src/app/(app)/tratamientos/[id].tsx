@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { ScrollView, View } from "react-native";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,7 +8,9 @@ import { useAppRouter } from "@/lib/use-app-router";
 import { useHideOnScroll } from "@/lib/use-hide-on-scroll";
 import { useTratamiento } from "@/domains/plants/hooks/use-tratamiento";
 import { useRespuestas } from "@/domains/plants/hooks/use-respuestas";
+import { useFotos } from "@/domains/plants/hooks/use-respuesta-fotos";
 import { buildEvaluationFromRespuestas } from "@/domains/plants/lib/build-evaluation-from-respuestas";
+import type { RespuestaRecord } from "@/domains/plants/types";
 import { EvaluationAutosave } from "@/domains/plants/components/evaluation-autosave";
 import { EvaluationProgressBar } from "@/domains/plants/components/evaluation-progress-bar";
 import {
@@ -26,7 +28,6 @@ import {
 } from "@/domains/plants/components/tratamiento-chip";
 import { EmptyState } from "@/components/empty-state";
 import {
-  buildEvaluationDefaults,
   evaluationSchema,
   type EvaluationFormValues,
   type EvaluationValues,
@@ -37,49 +38,15 @@ export default function TratamientoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading } = useTratamiento(id);
   const { data: respuestas } = useRespuestas(id);
+  const { data: fotos } = useFotos(id);
   const router = useAppRouter();
 
-  // La evaluación entera. Es el búfer de edición: cuando exista la tabla
-  // `respuestas`, lo guardado serán sus `defaultValues`, guardar será
-  // `handleSubmit`, y "hay cambios sin guardar", `isDirty`.
-  const form = useForm<EvaluationFormValues, unknown, EvaluationValues>({
-    resolver: zodResolver(evaluationSchema),
-    defaultValues: buildEvaluationDefaults(),
-    // Los errores aparecen al intentar guardar y se corrigen en vivo después;
-    // mientras se captura, nada regaña. Los avisos de rango de Brix no pasan
-    // por aquí: van por su propio esquema.
-    mode: "onSubmit",
-    reValidateMode: "onChange",
-  });
-  const { reset } = form;
-
-  // `setParams` cambia de hermano sin desmontar la pantalla, así que sin esto
-  // las respuestas del tratamiento anterior seguirían aquí.
-  //
-  // Compara contra el id anterior en vez de limpiar en cada efecto: tal cual
-  // estaba, cualquier remonte borraba lo ya contestado. Las fotografías no
-  // necesitan nada de esto: se consultan por tratamiento, así que cambiar de
-  // hermano ya trae las suyas.
-  const previousId = useRef(id);
-  // Lo guardado ya se volcó para este tratamiento. Es lo que impide que un
-  // refetch posterior pise lo que el evaluador está escribiendo: el volcado
-  // ocurre una sola vez por tratamiento, no cada vez que la consulta responde.
-  const loadedFor = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (previousId.current !== id) {
-      previousId.current = id;
-      loadedFor.current = null;
-      // Se vacía ya, sin esperar a SQLite: si no, durante la consulta seguirían
-      // a la vista las respuestas del tratamiento anterior.
-      reset(buildEvaluationDefaults());
-    }
-
-    if (respuestas && loadedFor.current !== id) {
-      loadedFor.current = id;
-      reset(buildEvaluationFromRespuestas(respuestas));
-    }
-  }, [id, respuestas, reset]);
+  // **Lo capturado se espera aquí, antes de montar nada.** Las respuestas y las
+  // fotografías son consultas aparte de la plantación, y con `gcTime: 0` las
+  // respuestas se piden de nuevo en cada visita. Montar las secciones con solo la
+  // plantación las pintaba vacías un instante, con «0 de 3 categorías» y sin una
+  // sola respuesta, y luego se rellenaban. Hasta que llegan las dos, esqueleto.
+  const ready = !!data && !!respuestas && !!fotos;
 
   // El bloque va superpuesto, así que su hueco se reserva con un espaciador y
   // hay que medirlo. Si no se renderiza, no hay hueco que reservar.
@@ -136,10 +103,7 @@ export default function TratamientoScreen() {
   );
 
   return (
-    // Solo alcanza al árbol de esta pantalla: el header del navigator
-    // (`options.header`) se pinta fuera de él y no verá este contexto.
-    <FormProvider {...form}>
-      <View className="flex-1 bg-background">
+    <View className="flex-1 bg-background">
         {/* Se registra fuera de cualquier rama para que el header exista desde
           el primer frame: su estructura ya es visible mientras carga y solo
           los nombres son skeleton, así no hay salto de layout al llegar el
@@ -246,29 +210,89 @@ export default function TratamientoScreen() {
 
         {/* Las secciones tardan ~400 ms en montarse, casi todo en pintarlas,
           así que sin esto el formulario es un hueco en blanco durante ese
-          rato. Va atado a `isLoading` y no a `!data`: con el tratamiento
-          podado lo que toca es el `EmptyState` de arriba, no un esqueleto
-          esperando algo que no va a llegar. */}
-        {isLoading && (
+          rato. Dura hasta que llega **todo**: la plantación, las respuestas y
+          las fotografías. Y no se ata a `!data` sino a `data && !ready`: con el
+          tratamiento podado lo que toca es el `EmptyState` de arriba, no un
+          esqueleto esperando algo que no va a llegar. */}
+        {(isLoading || (data && !ready)) && (
           <EvaluationSectionsSkeleton reservedHeight={reservedHeight} />
         )}
 
-        {data && (
-          <>
-            {/* No pinta nada: guarda y le cuenta a la cabecera cómo va. Va
-              dentro del `FormProvider` porque mira el formulario entero, y con
-              `key` para que al saltar a un hermano empiece de cero — lo que
-              lleva guardado es de este tratamiento, no del siguiente. */}
-            <EvaluationAutosave key={id} tratamientoId={id} />
-            <EvaluationSections
-              tratamientoId={id}
-              reservedHeight={reservedHeight}
-              pinnedHeight={progressBarHeight}
-              onScroll={scrollHandler}
-            />
-          </>
+        {/* La `key` es lo que vacía el formulario al saltar a un hermano: cada
+          tratamiento tiene el suyo, nacido ya con sus respuestas. */}
+        {ready && (
+          <TratamientoForm
+            key={id}
+            tratamientoId={id}
+            respuestas={respuestas}
+            reservedHeight={reservedHeight}
+            pinnedHeight={progressBarHeight}
+            onScroll={scrollHandler}
+          />
         )}
-      </View>
+    </View>
+  );
+}
+
+type TratamientoFormProps = {
+  tratamientoId: string;
+  respuestas: RespuestaRecord[];
+  reservedHeight: number;
+  pinnedHeight: number;
+  onScroll: ComponentProps<typeof EvaluationSections>["onScroll"];
+};
+
+/**
+ * El formulario de un tratamiento y lo que cuelga de él.
+ *
+ * **Nace con las respuestas ya puestas** (`defaultValues`) y se monta solo cuando
+ * ya están: por eso desaparecieron el `reset` en un efecto y el `loadedFor` que
+ * impedían que un refetch pisara lo tecleado. Un formulario que solo lee sus
+ * valores iniciales al nacer no tiene ese problema, y tampoco el cuadro en blanco
+ * entre pintar y volcar.
+ *
+ * El precio es que **cada tratamiento remonta las secciones** (~400 ms), con su
+ * esqueleto: saltar de chip ya no es un `reset` en el sitio. Y el plegado de las
+ * secciones se pierde al saltar, porque vive dentro de ellas.
+ */
+function TratamientoForm({
+  tratamientoId,
+  respuestas,
+  reservedHeight,
+  pinnedHeight,
+  onScroll,
+}: TratamientoFormProps) {
+  // Se calcula una sola vez: `useForm` solo lee los iniciales al nacer, y esto
+  // recorre las seis secciones.
+  const [defaultValues] = useState(() =>
+    buildEvaluationFromRespuestas(respuestas),
+  );
+
+  // La evaluación entera. Es el búfer de edición; guardar lo hace el
+  // autoguardado, no `handleSubmit`.
+  const form = useForm<EvaluationFormValues, unknown, EvaluationValues>({
+    resolver: zodResolver(evaluationSchema),
+    defaultValues,
+    // Los errores aparecen al intentar guardar y se corrigen en vivo después;
+    // mientras se captura, nada regaña. Los avisos de rango de Brix no pasan
+    // por aquí: van por su propio esquema.
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+  });
+
+  return (
+    // Solo alcanza a este árbol: el header del navigator (`options.header`) se
+    // pinta fuera de él y no verá este contexto.
+    <FormProvider {...form}>
+      {/* No pinta nada: guarda y le cuenta a la cabecera cómo va. Va dentro del
+        `FormProvider` porque mira el formulario entero. */}
+      <EvaluationAutosave tratamientoId={tratamientoId} />
+      <EvaluationSections
+        tratamientoId={tratamientoId}
+        reservedHeight={reservedHeight}
+        pinnedHeight={pinnedHeight}
+        onScroll={onScroll}
+      />
     </FormProvider>
   );
 }

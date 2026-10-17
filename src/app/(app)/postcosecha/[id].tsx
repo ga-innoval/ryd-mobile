@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { ScrollView, View } from "react-native";
 import { FormProvider, useForm } from "react-hook-form";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
@@ -28,11 +28,10 @@ import { PostcosechaComentariosSection } from "@/domains/plants/components/postc
 import { PostcosechaAutosave } from "@/domains/plants/components/postcosecha-autosave";
 import { EvaluationProgressBar } from "@/domains/plants/components/evaluation-progress-bar";
 import { usePostcosechaRespuestas } from "@/domains/plants/hooks/use-postcosecha-respuestas";
+import { usePostcosechaFotos } from "@/domains/plants/hooks/use-postcosecha-fotos";
+import type { PostcosechaRespuestaRecord } from "@/domains/plants/lib/db/postcosecha-respuestas.repository";
 import { buildPostcosechaFromRespuestas } from "@/domains/plants/lib/build-postcosecha-from-respuestas";
-import {
-  buildPostcosechaDefaults,
-  type PostcosechaFormValues,
-} from "@/domains/plants/lib/postcosecha-schema";
+import { type PostcosechaFormValues } from "@/domains/plants/lib/postcosecha-schema";
 import { EVALS_POST_COSECHA } from "@/domains/plants/lib/evals-post-cosecha";
 import {
   SectionSkeleton,
@@ -87,43 +86,14 @@ export default function PostcosechaScreen() {
   const owner = `${id}:${current.id}`;
 
   const { data: respuestas } = usePostcosechaRespuestas(id, current.id);
+  const { data: fotos } = usePostcosechaFotos(id, current.id);
 
-  // Sin `resolver`: aquí nada se envía ni se valida contra el esquema. El papel
-  // de `postcosechaSchema` es otro —hacer de portero al volcar lo que sale de
-  // SQLite y tipar el formulario—, y montar una validación que nunca corre solo
-  // haría creer que algo la usa.
-  const form = useForm<PostcosechaFormValues>({
-    defaultValues: buildPostcosechaDefaults(),
-  });
-  const { reset } = form;
-
-  const previousOwner = useRef(owner);
-  const loadedFor = useRef<string | null>(null);
-
-  /**
-   * El volcado de lo guardado, **una sola vez por evaluación**.
-   *
-   * Se vacía en cuanto cambia el dueño, sin esperar a SQLite: la consulta no
-   * conserva caché (`gcTime: 0`), así que mientras el `SELECT` está en vuelo no
-   * hay nada que enseñar y sin este vaciado se vería un instante lo de la
-   * evaluación anterior.
-   *
-   * Y `loadedFor` impide que un refetch posterior pise lo que el evaluador está
-   * escribiendo: el volcado ocurre una vez, no cada vez que la consulta
-   * responde.
-   */
-  useEffect(() => {
-    if (previousOwner.current !== owner) {
-      previousOwner.current = owner;
-      loadedFor.current = null;
-      reset(buildPostcosechaDefaults());
-    }
-
-    if (respuestas && loadedFor.current !== owner) {
-      loadedFor.current = owner;
-      reset(buildPostcosechaFromRespuestas(respuestas));
-    }
-  }, [owner, respuestas, reset]);
+  // **Lo capturado se espera aquí, antes de montar nada.** Las respuestas y las
+  // fotografías son consultas aparte de la plantación, y con `gcTime: 0` las
+  // respuestas se piden de nuevo en cada visita. Montar las secciones con solo la
+  // plantación las pintaba vacías un instante y luego se rellenaban. Hasta que
+  // llegan las dos, esqueleto.
+  const ready = !!plant && !!respuestas && !!fotos;
 
   // El bloque va superpuesto, así que su hueco se reserva con un espaciador y
   // hay que medirlo. Si no se renderiza, no hay hueco que reservar.
@@ -173,11 +143,7 @@ export default function PostcosechaScreen() {
   );
 
   return (
-    // Solo alcanza al árbol de esta pantalla: el header del navigator se pinta
-    // fuera de él y no ve este contexto — por eso el estado de guardado viaja
-    // por el store.
-    <FormProvider {...form}>
-      <View className="flex-1 bg-background">
+    <View className="flex-1 bg-background">
         <Stack.Screen options={screenOptions} />
 
         {/* Datos de la plantación y acceso rápido a las demás evaluaciones.
@@ -244,10 +210,11 @@ export default function PostcosechaScreen() {
 
         {/* Las secciones nacen abiertas, así que montarlas cuesta un rato en
           el que el hilo de JS no puede pintar nada: sin esto la pantalla es un
-          hueco en blanco. Va atado a `isLoading` y no a `!plant`: con la
-          plantación podada lo que toca es el `EmptyState`, no un esqueleto
-          esperando algo que no va a llegar. */}
-        {isLoading && (
+          hueco en blanco. Dura hasta que llega **todo** —plantación,
+          respuestas y fotografías— y se ata a `plant && !ready` y no a
+          `!plant`: con la plantación podada lo que toca es el `EmptyState`, no
+          un esqueleto esperando algo que no va a llegar. */}
+        {(isLoading || (plant && !ready)) && (
           <SectionSkeleton
             rows={SKELETON_ROWS}
             reservedHeight={reservedHeight}
@@ -264,63 +231,107 @@ export default function PostcosechaScreen() {
           />
         )}
 
-        {plant && (
-          <>
-            {/* No pinta nada: guarda y le cuenta a la cabecera cómo va. La `key`
-            es lo que lo reinicia al saltar de evaluación — sin ella escribiría
-            lo de la anterior dentro de la nueva. */}
-            <PostcosechaAutosave key={owner} plantId={id} evalId={current.id} />
-
-            {/* `KeyboardAwareScrollView` y no un `ScrollView` normal:
-              `scrollHandler` es un worklet de `useAnimatedScrollHandler`, y un
-              ScrollView de React Native intenta llamarlo como función y revienta
-              con «Object is not a function». Este por dentro es un
-              `Reanimated.ScrollView`, así que lo deja pasar — y es el mismo que
-              usa la pantalla de tratamiento. */}
-            <KeyboardAwareScrollView
-              onScroll={scrollHandler}
-              scrollEventThrottle={16}
-              contentContainerClassName="px-4 pb-10"
-            >
-              {/* Reserva el hueco del bloque superpuesto. Sin holgura extra: la
-            primera cabecera ya trae la suya. */}
-              <View style={{ height: reservedHeight }} />
-
-              <View className="bg-background pt-4">
-                <CollapsibleHeader
-                  icon={CameraIcon}
-                  title="Fotografías"
-                  description="Evidencia de los racimos."
-                  summary={
-                    <PostcosechaPhotosHeaderSummary
-                      plantId={id}
-                      evalId={current.id}
-                    />
-                  }
-                  open={photosOpen}
-                  onToggle={() => setPhotosOpen((open) => !open)}
-                />
-              </View>
-              <CollapsibleBody open={photosOpen}>
-                {/* `key` para que al saltar de evaluación empiece de cero: lo
-              capturado es de esta, no de la siguiente. */}
-                <PostcosechaPhotosForm
-                  key={current.id}
-                  plantId={id}
-                  evalId={current.id}
-                />
-              </CollapsibleBody>
-
-              {/* Sin `key` por evaluación: ahora quien las vacía al saltar es el
-            `reset` del volcado. Con las dos cosas habría dos mecanismos para lo
-            mismo, y acabarían discrepando. */}
-              <PostcosechaFrutaSection evalId={current.id} />
-
-              <PostcosechaComentariosSection />
-            </KeyboardAwareScrollView>
-          </>
+        {/* La `key` es lo que vacía el formulario y reinicia el autoguardado al
+          saltar de evaluación: cada una tiene el suyo, nacido ya con sus
+          respuestas. Sin ella el autoguardado escribiría lo de la anterior
+          dentro de la nueva. */}
+        {ready && (
+          <PostcosechaForm
+            key={owner}
+            plantId={id}
+            evalId={current.id}
+            respuestas={respuestas}
+            reservedHeight={reservedHeight}
+            onScroll={scrollHandler}
+            photosOpen={photosOpen}
+            onTogglePhotos={() => setPhotosOpen((open) => !open)}
+          />
         )}
-      </View>
+    </View>
+  );
+}
+
+type PostcosechaFormProps = {
+  plantId: string;
+  evalId: string;
+  respuestas: PostcosechaRespuestaRecord[];
+  reservedHeight: number;
+  onScroll: ComponentProps<typeof KeyboardAwareScrollView>["onScroll"];
+  photosOpen: boolean;
+  onTogglePhotos: () => void;
+};
+
+/**
+ * El formulario de una evaluación de post-cosecha y lo que cuelga de él.
+ *
+ * **Nace con las respuestas ya puestas** y se monta solo cuando ya están: por eso
+ * desaparecieron el `reset` en un efecto, el `previousOwner` y el `loadedFor`. Un
+ * formulario que solo lee sus valores iniciales al nacer no puede pisar lo que se
+ * teclea ni enseñar un cuadro en blanco entre pintar y volcar.
+ *
+ * El precio es que **cada salto de chip remonta las secciones** (~400 ms), con su
+ * esqueleto. Antes se vaciaban en el sitio con un `reset`.
+ *
+ * Sin `resolver`: nada se envía. El papel de `postcosechaSchema` es hacer de
+ * portero al volcar lo que sale de SQLite y tipar el formulario, no validar al
+ * capturar.
+ */
+function PostcosechaForm({
+  plantId,
+  evalId,
+  respuestas,
+  reservedHeight,
+  onScroll,
+  photosOpen,
+  onTogglePhotos,
+}: PostcosechaFormProps) {
+  // Una sola vez: `useForm` solo lee los iniciales al nacer.
+  const [defaultValues] = useState(() =>
+    buildPostcosechaFromRespuestas(respuestas),
+  );
+  const form = useForm<PostcosechaFormValues>({ defaultValues });
+
+  return (
+    // Solo alcanza a este árbol: el header del navigator se pinta fuera de él y
+    // no ve este contexto — por eso el estado de guardado viaja por el store.
+    <FormProvider {...form}>
+      {/* No pinta nada: guarda y le cuenta a la cabecera cómo va. */}
+      <PostcosechaAutosave plantId={plantId} evalId={evalId} />
+
+      {/* `KeyboardAwareScrollView` y no un `ScrollView` normal: `scrollHandler`
+        es un worklet de `useAnimatedScrollHandler`, y un ScrollView de React
+        Native intenta llamarlo como función y revienta con «Object is not a
+        function». Este por dentro es un `Reanimated.ScrollView`, así que lo
+        deja pasar — y es el mismo que usa la pantalla de tratamiento. */}
+      <KeyboardAwareScrollView
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        contentContainerClassName="px-4 pb-10"
+      >
+        {/* Reserva el hueco del bloque superpuesto. Sin holgura extra: la
+          primera cabecera ya trae la suya. */}
+        <View style={{ height: reservedHeight }} />
+
+        <View className="bg-background pt-4">
+          <CollapsibleHeader
+            icon={CameraIcon}
+            title="Fotografías"
+            description="Evidencia de los racimos."
+            summary={
+              <PostcosechaPhotosHeaderSummary plantId={plantId} evalId={evalId} />
+            }
+            open={photosOpen}
+            onToggle={onTogglePhotos}
+          />
+        </View>
+        <CollapsibleBody open={photosOpen}>
+          <PostcosechaPhotosForm plantId={plantId} evalId={evalId} />
+        </CollapsibleBody>
+
+        <PostcosechaFrutaSection evalId={evalId} />
+
+        <PostcosechaComentariosSection />
+      </KeyboardAwareScrollView>
     </FormProvider>
   );
 }
