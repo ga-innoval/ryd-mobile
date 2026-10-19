@@ -15,7 +15,12 @@ import { haptics } from "@/lib/haptics";
 // cache (`useIsMutating`) en vez de depender de su propio observer.
 export const PLANTS_DOWNLOAD_MUTATION_KEY = ["plants", "download"];
 
-export function usePlantsMutation() {
+/**
+ * `announce: false` calla el toast de éxito —el de error se queda—: lo usa el
+ * onboarding, cuya propia pantalla ya cuenta el resultado y con el toast encima
+ * lo diría dos veces.
+ */
+export function usePlantsMutation({ announce = true } = {}) {
   const db = useSQLiteContext();
   const queryClient = useQueryClient();
   const lastDownloadAt = useDownloadStore((s) => s.lastDownloadAt);
@@ -53,10 +58,12 @@ export function usePlantsMutation() {
       queryClient.invalidateQueries({ queryKey: PLANTS_QUERY_KEY });
       setLastDownloadAt(new Date(serverTime).getTime());
       haptics.success();
-      toast.success({
-        title: "Descarga completa",
-        description: formatDownloadSummary(count),
-      });
+      if (announce) {
+        toast.success({
+          title: "Descarga completa",
+          description: formatDownloadSummary(count),
+        });
+      }
     },
     onError: (error) => {
       haptics.error();

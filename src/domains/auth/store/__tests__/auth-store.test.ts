@@ -100,6 +100,25 @@ describe("init()", () => {
     expect(useAuthStore.getState().isLoading).toBe(false);
   });
 
+  // Reinstalar borra AsyncStorage pero no el llavero: tokens sin perfil.
+  test("tokens without a stored user do not make a session", async () => {
+    (secureStorage.getAccessToken as jest.Mock).mockResolvedValue(
+      "stored-access",
+    );
+    (secureStorage.getRefreshToken as jest.Mock).mockResolvedValue(
+      "stored-refresh",
+    );
+    (secureStorage.clearTokens as jest.Mock).mockResolvedValue(undefined);
+    (storage.getUser as jest.Mock).mockResolvedValue(null);
+
+    await useAuthStore.getState().init();
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().accessToken).toBeNull();
+    expect(useAuthStore.getState().isLoading).toBe(false);
+    expect(secureStorage.clearTokens).toHaveBeenCalledTimes(1);
+  });
+
   test("won't update isAuthenticated (false) if no tokens found in secureStorage", async () => {
     (secureStorage.getAccessToken as jest.Mock).mockResolvedValue(null);
     (secureStorage.getRefreshToken as jest.Mock).mockResolvedValue(null);

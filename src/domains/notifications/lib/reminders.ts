@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
+import type { PermissionStatus } from "@/lib/permission-action";
 import { planReminderChanges, type DesiredReminder } from "./reminder-plan";
 
 /**
@@ -17,33 +18,52 @@ const isGranted = (status: Notifications.NotificationPermissionsStatus) =>
   status.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
 
 /**
- * Si se puede avisar, pidiendo el permiso la primera vez.
+ * Android exige un canal para toda notificación desde la 8.0, y desde Android 13
+ * el aviso del sistema no sale hasta que existe uno. Va antes de leer o pedir el
+ * permiso.
+ */
+async function ensureChannel() {
+  if (Platform.OS !== "android") return;
+
+  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+    name: "Evaluaciones de post-cosecha",
+    importance: Notifications.AndroidImportance.DEFAULT,
+  });
+}
+
+const toStatus = (status: Notifications.NotificationPermissionsStatus) => ({
+  granted: isGranted(status),
+  canAskAgain: status.canAskAgain,
+});
+
+/** Cómo está el permiso de notificaciones, sin pedir nada. */
+export async function getNotificationPermission(): Promise<PermissionStatus> {
+  await ensureChannel();
+
+  return toStatus(await Notifications.getPermissionsAsync());
+}
+
+/**
+ * Pregunta por el permiso. **Solo lo llama el onboarding**: es el único sitio
+ * donde el usuario ha leído por qué importan estos avisos.
+ */
+export async function requestNotificationPermission(): Promise<PermissionStatus> {
+  await ensureChannel();
+
+  return toStatus(await Notifications.requestPermissionsAsync());
+}
+
+/**
+ * Si se puede avisar. **Solo comprueba, nunca pregunta.**
  *
- * **Es un sustituto, y está dicho en CLAUDE.md:** el sitio de pedirlo es un
- * modal de introducción que explique por qué importan estos avisos, no el
- * instante en que se guarda una fecha. Mientras no exista, pedirlo aquí es lo
- * único que deja probar el flujo.
- *
- * Si el usuario dice que no, **se calla**: iOS no vuelve a preguntar —
- * `canAskAgain` queda en falso—, así que reintentar en cada guardado no molesta
- * a nadie, y los recordatorios se programan solos el día que lo active él en
- * Ajustes.
+ * Antes pedía el permiso la primera vez que se programaba algo —al guardar una
+ * fecha de empaque, sin contexto—, y eso era un sustituto declarado hasta que
+ * hubiera onboarding. Ya lo hay: quien dijo «ahora no» no recibe avisos y **no se
+ * le vuelve a preguntar**, y los recordatorios se programan solos el día que lo
+ * active en Ajustes, porque el repaso corre al volver a la app.
  */
 async function ensurePermission(): Promise<boolean> {
-  // El canal va antes que el permiso: desde Android 13 el aviso del sistema no
-  // sale hasta que existe uno.
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-      name: "Evaluaciones de post-cosecha",
-      importance: Notifications.AndroidImportance.DEFAULT,
-    });
-  }
-
-  const current = await Notifications.getPermissionsAsync();
-  if (isGranted(current)) return true;
-  if (!current.canAskAgain) return false;
-
-  return isGranted(await Notifications.requestPermissionsAsync());
+  return (await getNotificationPermission()).granted;
 }
 
 /**
