@@ -374,6 +374,20 @@ de esperar a que la consulta se refresque. Quedan cuatro: "Sin datos",
 sigue viva porque decide qué se bloquea: solo la escritura de verdad apaga
 volver, descartar y guardar.
 
+**El autoguardado escribe con `stillChanged`, no con la copia retrasada a secas.**
+El efecto corre cuando `debounced` —el formulario de hace 2 s— se mueve, y decidía
+qué escribir comparando **esa** copia. Limpiar vacía el formulario ya, pero la copia
+retrasada aún traía lo de antes: se reescribía lo borrado y, dos segundos después, el
+vacío encima, dejando una **fila en blanco y `pending`** —«Sin datos» con «Sinc.
+pendiente» a la vez—. Ahora se escribe la intersección de lo que cambió según la copia
+retrasada y lo que sigue cambiado en el formulario de ahora (`getValues()`). **Es un
+filtro y no un cambio de disparador**: no altera cuándo corre el efecto, así que no
+añade guardados y el debounce sigue agrupando como antes; usar `getValues()` como
+fuente habría reescrito al terminar cada guardado, porque el efecto también depende de
+`saved`. Vale igual para tratamiento y post-cosecha. **Sigue sin haber comparación con
+lo último enviado**: capturar, enviar, editar y volver al valor original sigue
+mostrando «pendiente», porque `saveRespuesta` deja siempre `pending`.
+
 **Al salir de la pantalla se vacía lo pendiente** (la limpieza de
 `EvaluationAutosave`). Sin eso se perdía lo último tecleado en los dos segundos
 antes de salir, porque el temporizador del autoguardado moría con el componente:

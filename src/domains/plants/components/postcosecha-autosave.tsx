@@ -5,6 +5,7 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { toast } from "@/lib/toast";
 import { refreshPostcosechaReminders } from "@/domains/notifications/lib/refresh-postcosecha-reminders";
 import { useDebouncedValue } from "../hooks/use-debounced-value";
+import { stillChanged } from "../lib/section-snapshot";
 import {
   savePostcosechaSecciones,
   usePostcosechaClear,
@@ -169,8 +170,15 @@ export function PostcosechaAutosave({
       return;
     }
 
-    write(changedSeccionesPostcosecha(debounced, saved), debounced);
-  }, [debounced, saved, write]);
+    // Lo retrasado decide cuándo; lo de ahora, qué. Ver `stillChanged`.
+    write(
+      stillChanged(
+        changedSeccionesPostcosecha(debounced, saved),
+        changedSeccionesPostcosecha(getValues(), saved),
+      ),
+      debounced,
+    );
+  }, [debounced, saved, write, getValues]);
 
   // Las fotografías no están en el formulario: viven en su tabla, así que el
   // avance las consulta aparte. El `useMemo` no es opcional — este componente se

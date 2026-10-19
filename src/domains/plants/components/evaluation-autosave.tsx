@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useFormContext, useWatch } from "react-hook-form";
 import { toast } from "@/lib/toast";
 import { useDebouncedValue } from "../hooks/use-debounced-value";
+import { stillChanged } from "../lib/section-snapshot";
 import {
   saveRespuestaSecciones,
   useClearRespuestas,
@@ -172,8 +173,15 @@ export function EvaluationAutosave({
       return;
     }
 
-    write(changedSecciones(debounced, saved), debounced);
-  }, [debounced, saved, write]);
+    // Lo retrasado decide cuándo; lo de ahora, qué. Ver `stillChanged`.
+    write(
+      stillChanged(
+        changedSecciones(debounced, saved),
+        changedSecciones(getValues(), saved),
+      ),
+      debounced,
+    );
+  }, [debounced, saved, write, getValues]);
 
   // Las fotografías no están en el formulario: viven en su tabla, así que el
   // avance las consulta aparte. El `useMemo` no es opcional — este componente

@@ -84,3 +84,28 @@ export function mergeSections<K extends string>(
 
   return { ...snapshot, ...written };
 }
+
+/**
+ * Las secciones que el autoguardado debe escribir: las que cambiaron según la
+ * copia retrasada del formulario **y que siguen cambiadas en el formulario de
+ * ahora**.
+ *
+ * El autoguardado espera a que el evaluador pare (`debounced`), así que lo que
+ * decide por sí solo es una foto de hace dos segundos. Limpiar la encuesta en ese
+ * intervalo la deja vacía **ya**, pero la copia retrasada aún trae lo de antes:
+ * sin este filtro lo reescribía —y luego reescribía el vacío encima— dejando una
+ * fila en blanco y pendiente de enviar. Lo mismo pasa si se teclea algo y se
+ * borra antes de que dispare el debounce.
+ *
+ * **Es un filtro y no un cambio de disparador**: no altera cuándo corre el efecto
+ * —sigue siendo cuando `debounced` se mueve—, solo recorta qué escribe, así que
+ * no añade guardados. Lo que se escribe sigue saliendo de la copia retrasada.
+ */
+export function stillChanged<K extends string>(
+  delayed: readonly K[],
+  current: readonly K[],
+): K[] {
+  const now = new Set(current);
+
+  return delayed.filter((seccion) => now.has(seccion));
+}
