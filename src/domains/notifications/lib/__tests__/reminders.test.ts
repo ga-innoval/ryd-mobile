@@ -15,6 +15,8 @@ import {
 } from "../reminder-plan";
 import {
   DEV_TEST_PREFIX,
+  getNotificationPermission,
+  requestNotificationPermission,
   scheduleTestNotification,
   syncReminders,
 } from "../reminders";
@@ -132,46 +134,58 @@ describe("syncReminders", () => {
       ).toHaveBeenCalledWith(stale);
     });
 
-    it("sin decidir: lo pide la primera vez y programa si lo dan", async () => {
+    // **Ya no pregunta**: eso lo hace el onboarding. Sin decidir se trata como
+    // sin permiso, y no se programa nada.
+    it("sin decidir: no pregunta y no programa", async () => {
       notifications().getPermissionsAsync.mockResolvedValue({
         granted: false,
         canAskAgain: true,
       });
 
       await syncReminders([reminder()]);
-
-      expect(notifications().requestPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(notifications().scheduleNotificationAsync).toHaveBeenCalledTimes(
-        1,
-      );
-    });
-
-    it("sin decidir y lo rechaza: no programa", async () => {
-      notifications().getPermissionsAsync.mockResolvedValue({
-        granted: false,
-        canAskAgain: true,
-      });
-      notifications().requestPermissionsAsync.mockResolvedValue({
-        granted: false,
-      });
-
-      await syncReminders([reminder()]);
-
-      expect(notifications().scheduleNotificationAsync).not.toHaveBeenCalled();
-    });
-
-    // Pedir permiso sin nada que programar sería un aviso del sistema sin
-    // motivo: solo se pide cuando de verdad hay algo que mandar.
-    it("sin nada que programar no pide permiso", async () => {
-      notifications().getPermissionsAsync.mockResolvedValue({
-        granted: false,
-        canAskAgain: true,
-      });
-
-      await syncReminders([]);
 
       expect(notifications().requestPermissionsAsync).not.toHaveBeenCalled();
+      expect(notifications().scheduleNotificationAsync).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("permiso de notificaciones", () => {
+  it("getNotificationPermission lee sin preguntar", async () => {
+    notifications().getPermissionsAsync.mockResolvedValue({
+      granted: false,
+      canAskAgain: true,
+    });
+
+    await expect(getNotificationPermission()).resolves.toEqual({
+      granted: false,
+      canAskAgain: true,
+    });
+    expect(notifications().requestPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it("requestNotificationPermission pregunta y devuelve la respuesta", async () => {
+    notifications().requestPermissionsAsync.mockResolvedValue({
+      granted: true,
+      canAskAgain: true,
+    });
+
+    await expect(requestNotificationPermission()).resolves.toEqual({
+      granted: true,
+      canAskAgain: true,
+    });
+    expect(notifications().requestPermissionsAsync).toHaveBeenCalledTimes(1);
+  });
+
+  // iOS provisional cuenta como concedido: es lo que ya hacía `isGranted`.
+  it("el permiso provisional de iOS cuenta como concedido", async () => {
+    notifications().getPermissionsAsync.mockResolvedValue({
+      granted: false,
+      canAskAgain: true,
+      ios: { status: 3 },
+    });
+
+    expect((await getNotificationPermission()).granted).toBe(true);
   });
 });
 

@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Text } from "@/components/ui/text";
 import { toast } from "@/lib/toast";
+import { useAuthStore } from "@/domains/auth/store/auth-store";
+import { useOnboardingStore } from "@/domains/onboarding/store/onboarding-store";
 import { getAllPlants } from "@/domains/plants/lib/db/plants.repository";
 import { announcePendingPlants } from "@/domains/plants/lib/announce-pending-plants";
 import { scheduleTestNotification } from "../lib/reminders";
@@ -48,6 +50,15 @@ export function DevNotificationDialog({
   const handleSimulateDownload = () => {
     onOpenChange(false);
     announcePendingPlants(2);
+  };
+
+  /** Deja al usuario actual como si nunca hubiera visto el onboarding. El candado
+   *  de `(app)/_layout` lo ve al instante y lo lleva allí. */
+  const handleResetOnboarding = () => {
+    onOpenChange(false);
+
+    const userId = useAuthStore.getState().user?.id;
+    if (userId) useOnboardingStore.getState().reset(userId);
   };
 
   const handleSchedule = async () => {
@@ -88,9 +99,9 @@ export function DevNotificationDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Notificación de prueba</AlertDialogTitle>
+          <AlertDialogTitle>Herramientas de prueba</AlertDialogTitle>
           <AlertDialogDescription>
-            Elige qué aviso simular. Solo existe en desarrollo.
+            Elige qué simular. Solo existe en desarrollo.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -99,6 +110,11 @@ export function DevNotificationDialog({
             title="Notificación de post-cosecha"
             description="Simula la notificación de fecha de evaluación. Se programará en 15 segundos: con la app abierta sale el toast, y en segundo plano la notificación del sistema."
             onPress={handleSchedule}
+          />
+          <TestCard
+            title="Reiniciar onboarding"
+            description="Olvida que este usuario ya lo completó y te lleva al principio, para probarlo sin borrar la app."
+            onPress={handleResetOnboarding}
           />
           <TestCard
             title="Descargas pendientes"

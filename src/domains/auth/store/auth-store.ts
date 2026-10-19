@@ -35,6 +35,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       secureStorage.getRefreshToken(),
       storage.getUser(),
     ]);
+
+    // **Una sesión sin perfil no es una sesión.** Los tokens viven en el llavero
+    // y el perfil en AsyncStorage, y solo el llavero sobrevive a reinstalar la
+    // app: se quedaba autenticado sin saber quién —la cabecera enseñaba «UU», y
+    // nada que dependa del usuario, como recordar quién completó el onboarding,
+    // podía funcionar—. Se cierra y se pide iniciar sesión, que es lo que vuelve a
+    // llenar el perfil.
+    if (access && !user) {
+      await secureStorage.clearTokens().catch(() => undefined);
+      set({
+        accessToken: null,
+        refreshToken: null,
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+      return;
+    }
+
     set({
       accessToken: access,
       refreshToken: refresh,

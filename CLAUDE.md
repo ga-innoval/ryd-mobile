@@ -1039,8 +1039,8 @@ Lo que no es obvio:
 
 > **Qué hay:** el primer tipo real, y es **aparte de la lista de arriba**, que
 > sigue con datos de mentira. Una notificación local por cada evaluación
-> empacada, programada con `expo-notifications`. **Falta** el modal de
-> introducción para el permiso y los otros dos tipos.
+> empacada, programada con `expo-notifications`. **Falta** el aviso de
+> plantaciones sin sincronizar.
 
 Lo que no es obvio:
 
@@ -1141,16 +1141,84 @@ Lo que no es obvio:
   desarrollo**. Hasta entonces la app sale con «Cannot find native module
   'ExpoPushTokenManager'», y no hay JS que lo arregle.
 
-**Pendiente: un modal de introducción para el permiso.** Hoy el permiso se pide
-**la primera vez que se programa un aviso**, es decir, en el instante en que se
-guarda una fecha de empaque, sin contexto. Es un sustituto: el sitio correcto es
-un modal tipo «onboarding» que explique **por qué importan estos avisos** y pida el
-permiso de notificaciones. Si el usuario dice que no, **se omiten las
-notificaciones en silencio** —sin toasts ni insistencia— hasta que las active él
-mismo en Ajustes; los recordatorios se programan solos en el siguiente repaso. En
-iOS, tras un «no» `canAskAgain` queda en falso y no se vuelve a preguntar, así que
-reintentar en cada guardado ya no molesta, pero tampoco hace nada. Cuando exista el
-modal, `ensurePermission` deja de pedir y solo comprueba.
+**El permiso de notificaciones lo pide el onboarding** (ver **Onboarding**).
+`ensurePermission` solo comprueba: quien dijo «ahora no» no recibe avisos y no se
+le vuelve a preguntar, y los recordatorios se programan solos el día que lo active
+en Ajustes, porque el repaso corre al volver de segundo plano.
+
+## Onboarding
+
+> **Qué hay:** tres pasos —cámara, notificaciones y descarga— que cada usuario ve
+> **una vez**, como **un modal sobre la pantalla principal** (`OnboardingFlow`,
+> montado por `OnboardingHost` en `(app)/_layout`). Salen del artefacto «CapExp
+> Notificaciones».
+
+- **Un modal, no una ruta ni tres.** El dibujo de la cabecera y los botones se quedan
+  quietos y cambian según la página; lo de en medio —título, texto y tarjeta— se
+  desliza en horizontal con paginación. Una sola pantalla porque el estado de la
+  descarga y el del permiso viven en ella. Se avanza deslizando o con los botones.
+  El ancho se mide con `onLayout` y se **recoloca al girar la tablet**, o el pager
+  queda entre dos páginas.
+- **Salir del modal equivale a «Omitir»**: tocar el fondo o el botón de atrás de
+  Android lo da por completado y cierra. Mientras la descarga está en marcha no se
+  puede salir. **Un `Modal` de React Native tapa el toaster**, así que el error de
+  descarga va en el propio texto de la página («No se pudo descargar…») y no como
+  toast.
+- **`OnboardingHost` recuerda que lo mostró** (`shown`) en vez de leer el candado en
+  cada render: la tercera página marca el onboarding como completado **al entrar**,
+  y con el candado a secas el modal desaparecería ahí, a mitad de la descarga. El
+  candado solo decide cuándo abrirlo; cerrarlo lo decide el modal. Se activa durante
+  el render y no en un efecto (`set-state-in-effect`).
+- **El indicador de paso es uno, fuera del pager, y se llena con el dedo**
+  (`PageIndicator`): lee el desplazamiento del propio scroll en un valor compartido
+  de Reanimated y cada barra se llena entre la página anterior y la suya. Antes era
+  una copia dibujada dentro de cada página, que saltaba al soltar. Verificado a
+  mitad de un deslizamiento: la segunda barra iba al 85 %.
+- **El dibujo late mientras descarga** (el círculo exterior, escala y opacidad), como
+  en el diseño. Lleva el latido en un `Animated.View` envolvente y el color en el de
+  dentro.
+- **Las medidas son las del diseño del modal** (560 de ancho máximo), no las de la
+  primera versión de pantalla completa, que salían enormes en la tablet.
+- **Tras reinstalar, el onboarding no salía, y la causa no era el modal.** Los
+  tokens viven en el llavero y el perfil del usuario en AsyncStorage, y **solo el
+  llavero sobrevive a reinstalar**: la app quedaba autenticada con `user` en `null`
+  —la cabecera enseñaba «UU»— y el candado, sin usuario, dejaba pasar. Ahora
+  `auth-store.init` **no da por válida una sesión con tokens y sin perfil**: borra los
+  tokens y pide iniciar sesión, que vuelve a llenar el perfil (con test). Es un
+  cambio de comportamiento: tras reinstalar hay que volver a iniciar sesión.
+- **`OnboardingHost` no presenta el `Modal` hasta que acaban las interacciones**
+  (`InteractionManager`): pedirle a iOS un `Modal` mientras se presenta la pantalla
+  o la transición de entrada tras el login puede fallar en silencio. Es una
+  precaución; **no se comprobó que fuera necesaria**.
+- **Se recuerda por usuario, no por tablet** (`onboarding-store`, ids de usuario en
+  AsyncStorage): la tablet puede compartirse y cada evaluador tiene su primera vez.
+  Va en AsyncStorage y no en SQLite por lo mismo que la bandeja de notificaciones.
+  **`hydrated` no se persiste y el candado espera a que conteste el disco**: con la
+  lista aún vacía se enseñaría el onboarding a quien ya lo hizo.
+- **El candado vive en `(app)/_layout`** (`onboardingGate`), el único sitio por el
+  que se entra. El stack `onboarding` es hermano de `(app)` y `(auth)`, sin
+  cabecera, con `gestureEnabled: false` y el botón físico de Android bloqueado. **No redirige a la app al estar completado**: la tercera página lo
+  marca al entrar y echaría al usuario a mitad de la descarga.
+- **Completarlo es llegar a la última página**, deslizando o con los botones, y se marca **al entrar**; cerrar la app a
+  mitad de la descarga no lo repite. **«Omitir»** (páginas 1 y 2) lo marca igual y
+  entra a la app, como si se hubieran leído las tres.
+- **«Permitir» avanza pase lo que pase** (`usePermissionStep`). Con el permiso ya
+  negado iOS no vuelve a preguntar, así que lleva a Ajustes (`permissionAction`) y
+  **avanza al volver** a la app. Probado en el simulador, incluida la vuelta de
+  Ajustes sin recargar el bundle: abrir la URL del cliente de desarrollo sí lo
+  recarga y borra el estado, y parece que no avanza.
+- **La descarga no enseña filas por plantación** (el artefacto sí las dibuja, con un avance inventado): es una sola petición y nada dice
+  cuál va. Barra indeterminada y el botón «Descargando…». El texto final cuenta lo
+  **descargado en esa petición**, no lo que hay en la tablet (`downloadResultBody`),
+  porque la descarga es incremental. El toast de éxito se calla aquí
+  (`usePlantsMutation({ announce: false })`); el de error se queda.
+- **Los botones son los del resto de la app** (`Button` `lg`, como el del login), no
+  uno propio: el primero que se hizo llevaba `h-16 rounded-full` y salía recortado
+  porque `Button` trae `sm:h-9`, y de todas formas se veía distinto.
+- **Los usuarios que ya existían lo ven una vez** al actualizar. La base SQLite
+  **no es por usuario**: un segundo usuario ve las plantaciones del primero y
+  `logout` no las borra. Es anterior al onboarding y sigue sin resolverse.
+- **Herramienta de desarrollo**: «Reiniciar onboarding» en el diálogo de la campana.
 
 ## Naming
 
