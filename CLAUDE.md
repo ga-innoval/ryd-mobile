@@ -1159,15 +1159,18 @@ en Ajustes, porque el repaso corre al volver de segundo plano.
   descarga y el del permiso viven en ella. Se avanza deslizando o con los botones.
   El ancho se mide con `onLayout` y se **recoloca al girar la tablet**, o el pager
   queda entre dos páginas.
-- **Salir del modal equivale a «Omitir»**: tocar el fondo o el botón de atrás de
-  Android lo da por completado y cierra. Mientras la descarga está en marcha no se
-  puede salir. **Un `Modal` de React Native tapa el toaster**, así que el error de
-  descarga va en el propio texto de la página («No se pudo descargar…») y no como
-  toast.
+- **Solo dos cosas lo dan por completado: «Omitir» y terminar los pasos** (la
+  descarga lista, o «Más tarde» / «Empezar a capturar» en el último). **Reiniciar la
+  app sin hacer ninguna de las dos lo vuelve a enseñar**, aunque se haya llegado a
+  la última página. Antes se marcaba **al entrar a la página 3**, y cerrar la app ahí
+  lo daba por visto: ese era el fallo. Cerrar el modal, además, no es posible: ni el
+  fondo ni el botón de atrás de Android lo cierran (`onRequestClose` vacío, que
+  Android exige). **Un `Modal` de React Native tapa el toaster**, así que el error de
+  descarga va en el propio texto de la página y no como toast.
 - **`OnboardingHost` recuerda que lo mostró** (`shown`) en vez de leer el candado en
-  cada render: la tercera página marca el onboarding como completado **al entrar**,
-  y con el candado a secas el modal desaparecería ahí, a mitad de la descarga. El
-  candado solo decide cuándo abrirlo; cerrarlo lo decide el modal. Se activa durante
+  cada render: la descarga marca el onboarding como completado **al terminar**,
+  antes de que el usuario cierre el modal, y con el candado a secas desaparecería
+  ahí. El candado solo decide cuándo abrirlo; cerrarlo lo decide el modal. Se activa durante
   el render y no en un efecto (`set-state-in-effect`).
 - **El indicador de paso es uno, fuera del pager, y se llena con el dedo**
   (`PageIndicator`): lee el desplazamiento del propio scroll en un valor compartido
@@ -1197,11 +1200,8 @@ en Ajustes, porque el repaso corre al volver de segundo plano.
   lista aún vacía se enseñaría el onboarding a quien ya lo hizo.
 - **El candado vive en `(app)/_layout`** (`onboardingGate`), el único sitio por el
   que se entra. El stack `onboarding` es hermano de `(app)` y `(auth)`, sin
-  cabecera, con `gestureEnabled: false` y el botón físico de Android bloqueado. **No redirige a la app al estar completado**: la tercera página lo
-  marca al entrar y echaría al usuario a mitad de la descarga.
-- **Completarlo es llegar a la última página**, deslizando o con los botones, y se marca **al entrar**; cerrar la app a
-  mitad de la descarga no lo repite. **«Omitir»** (páginas 1 y 2) lo marca igual y
-  entra a la app, como si se hubieran leído las tres.
+  cabecera, con `gestureEnabled: false` y el botón físico de Android bloqueado. **No redirige a la app al estar completado**: la descarga lo marca
+  al terminar y echaría al usuario antes de ver el resultado.
 - **«Permitir» avanza pase lo que pase** (`usePermissionStep`). Con el permiso ya
   negado iOS no vuelve a preguntar, así que lleva a Ajustes (`permissionAction`) y
   **avanza al volver** a la app. Probado en el simulador, incluida la vuelta de

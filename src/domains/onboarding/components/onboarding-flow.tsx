@@ -3,7 +3,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   useWindowDimensions,
   View,
   type NativeScrollEvent,
@@ -89,12 +88,9 @@ const PLANTS_ROWS: OnboardingRow[] = [
  * página, y lo de en medio —título, texto y tarjeta— se desliza en horizontal con
  * paginación.
  *
- * **Salir del modal —el fondo, el botón de atrás de Android— equivale a «Omitir»**:
- * lo da por completado y cierra. Mientras la descarga está en marcha no se puede
- * salir, o se perdería el resultado.
- *
- * **Completarlo es llegar a la última página**, deslizando o con los botones: se
- * marca al entrar, así que cerrar la app a mitad de la descarga no lo repite.
+ * **No se puede cerrar de otra forma**: ni tocando el fondo ni con el botón de
+ * atrás de Android. Solo «Omitir» o terminar los pasos lo dan por completado y lo
+ * cierran. Reiniciar la app sin hacer ninguna de las dos lo vuelve a enseñar.
  *
  * Una sola pantalla y no tres rutas porque el estado de la descarga y el del
  * permiso viven aquí. Y el indicador de paso lee el desplazamiento del propio
@@ -149,11 +145,6 @@ export function OnboardingFlow({ onClose }: { onClose: () => void }) {
     }
   };
 
-  // **Llegar a la última página es completarlo**, como se llegue.
-  useEffect(() => {
-    if (page === LAST && userId) markCompleted(userId);
-  }, [page, userId, markCompleted]);
-
   const finish = useCallback(() => {
     if (userId) markCompleted(userId);
     onClose();
@@ -171,10 +162,13 @@ export function OnboardingFlow({ onClose }: { onClose: () => void }) {
 
   const busy = camera.busy || notifications.busy || downloading;
 
-  // Con la descarga en marcha no se sale; lo demás equivale a «Omitir».
-  const dismiss = useCallback(() => {
-    if (!downloading) finish();
-  }, [downloading, finish]);
+  // **Terminar el último paso es completarlo**: la descarga lista cuenta aunque
+  // el usuario no llegue a pulsar «Empezar a capturar» y cierre la app. Llegar a
+  // la última página, en cambio, no: cerrar la app ahí tiene que volver a
+  // enseñarlo.
+  useEffect(() => {
+    if (done && userId) markCompleted(userId);
+  }, [done, userId, markCompleted]);
 
   const lastTitle = done
     ? "Todo está listo"
@@ -260,16 +254,11 @@ export function OnboardingFlow({ onClose }: { onClose: () => void }) {
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={dismiss}
+      // Obligatorio en Android y a propósito sin efecto: el botón de atrás no
+      // cierra el modal. Solo «Omitir» o terminar los pasos lo cierran.
+      onRequestClose={() => {}}
     >
       <View className="flex-1 items-center justify-center bg-black/55 px-6">
-        {/* El fondo: tocarlo sale, igual que «Omitir». */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={dismiss}
-          accessibilityLabel="Cerrar"
-        />
-
         <View
           style={{ maxHeight: windowHeight * 0.92 }}
           className="w-full max-w-[560px] overflow-hidden rounded-[28px] bg-background"

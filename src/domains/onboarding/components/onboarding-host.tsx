@@ -8,9 +8,9 @@ import { OnboardingFlow } from "./onboarding-flow";
  * de la sesión le toca. Va en `(app)/_layout`, el único sitio por el que se entra.
  *
  * **Recuerda que lo mostró** (`shown`) en vez de leer el candado en cada render:
- * la tercera página marca el onboarding como completado **al entrar**, y con el
- * candado a secas el modal desaparecería ahí, a mitad de la descarga. El candado
- * solo decide cuándo abrirlo; cerrarlo lo decide el propio modal.
+ * la descarga marca el onboarding como completado **al terminar**, antes de que
+ * el usuario cierre el modal, y con el candado a secas desaparecería ahí. El
+ * candado solo decide cuándo abrirlo; cerrarlo lo decide el propio modal.
  *
  * **No se presenta hasta que la app termina de montarse** (`ready`). Tras
  * instalar, la sesión ya está en el llavero y este layout monta en el primer
