@@ -546,6 +546,12 @@ piezas. Lo que no es obvio:
   minutos y si no, un «Sincronizado» sobreviviría a que capturara algo nuevo.
   **Sin nada capturado calla**, igual que el de guardado: decir «Sincronizado»
   sobre una evaluación en blanco sonaría a que algo salió.
+- **El botón de sincronizar se apaga mientras se guarda** (`saving` en
+  `SendEvaluationButton`): con «Guardando…», que es `saving` y también `pending` —la
+  espera del debounce—, no solo cuando SQLite ya escribe. El conteo de lo pendiente
+  se lee de SQLite y aún no refleja lo que está escribiéndose, así que encendido
+  podía mandar una captura a medias. Es un apagado y no un bloqueo de la cabecera:
+  `busy` sigue siendo solo la escritura.
 - **`busy` sigue siendo solo la escritura local.** Volver y guardar no se apagan
   mientras algo sube: bloquear la cabecera dejaría al evaluador atrapado hasta
   diez segundos —el `timeout` de `apiClient`— sin poder ni salir. Limpiar sí se

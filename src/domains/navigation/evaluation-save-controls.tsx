@@ -273,15 +273,24 @@ export function SendEvaluationButton({
   onPress,
   eligibility,
   sending,
+  saving,
 }: {
   onPress?: () => void;
   /** Qué dice `syncEligibility` de lo que hay capturado. */
   eligibility: SyncEligibility["kind"];
   /** Hay un envío en vuelo: la rueda gira y no se dispara otro encima. */
   sending: boolean;
+  /**
+   * La captura se está guardando. **Se apaga y no se deja pulsar**: el conteo de
+   * lo pendiente se lee de SQLite y todavía no refleja lo que está escribiéndose,
+   * así que el botón podría enseñarse encendido sobre una captura a medias —o
+   * apagado sobre una que acaba de quedar lista—. Dura milisegundos.
+   */
+  saving: boolean;
 }) {
-  const label =
-    eligibility === "blocked"
+  const label = saving
+    ? "Guardando: espera para sincronizar"
+    : eligibility === "blocked"
       ? "No se puede sincronizar: hay un dato por revisar"
       : eligibility === "nothing"
         ? "No hay nada por sincronizar"
@@ -291,7 +300,7 @@ export function SendEvaluationButton({
     <SyncButton
       onPress={onPress}
       loading={sending}
-      disabled={!onPress || eligibility !== "ready"}
+      disabled={!onPress || saving || eligibility !== "ready"}
       aria-label={label}
     />
   );

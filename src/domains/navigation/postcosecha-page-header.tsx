@@ -110,6 +110,10 @@ export function PostcosechaPageHeader({
   // mientras algo sube dejaría al evaluador atrapado hasta diez segundos sin
   // poder ni volver atrás. Limpiar sí se apaga, porque borra lo que viaja.
   const busy = status === "saving";
+  // «Guardando…» es `saving` y también `pending` —la espera del debounce—: el
+  // indicador las enseña igual, y el botón de sincronizar tiene que apagarse con
+  // las dos, no solo cuando SQLite ya está escribiendo.
+  const savingNow = status === "saving" || status === "pending";
   const sending = sendStatus === "sending";
   const disabled = busy || !actions;
 
@@ -179,6 +183,7 @@ export function PostcosechaPageHeader({
             onPress={actions?.send}
             eligibility={eligibility}
             sending={sending}
+            saving={savingNow}
           />
         </View>
       </View>
