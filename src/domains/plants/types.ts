@@ -146,6 +146,12 @@ export interface Plant extends Omit<PlantWithTratamientos, "tratamientos"> {
   tratamientosPending: string[];
   postcosechaPending: string[];
   /**
+   * Subconjunto de lo anterior que **rechazó el servidor** —encuesta cerrada o ya
+   * enviada por otro usuario—: la nube del chip va en rojo en vez de naranja.
+   */
+  tratamientosRejected: string[];
+  postcosechaRejected: string[];
+  /**
    * Si alguna de las dos listas trae algo.
    *
    * **No se enseña en la tarjeta**: ahí lo dice el icono de cada chip, que

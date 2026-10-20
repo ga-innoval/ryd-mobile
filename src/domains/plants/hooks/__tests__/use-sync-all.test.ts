@@ -9,6 +9,7 @@ import { upsertPlant } from "../../lib/db/plants.repository";
 import { upsertTratamiento } from "../../lib/db/tratamientos.repository";
 import {
   getPendingRespuestas,
+  markRespuestaRejected,
   saveRespuesta,
 } from "../../lib/db/respuestas.repository";
 import {
@@ -16,7 +17,7 @@ import {
   insertFoto,
 } from "../../lib/db/respuesta-fotos.repository";
 import { createComentarios } from "../../lib/comentarios";
-import { pushAll } from "../use-sync-all";
+import { pushAll, type SyncTick } from "../use-sync-all";
 import {
   pushPostcosechaBatch,
   pushRespuestasBatch,
@@ -230,6 +231,7 @@ describe("sincronizar todo", () => {
       plantaciones: 2,
       sincronizadas: 1,
       bloqueadas: 1,
+      rechazadas: 0,
     });
     expect(await getPendingRespuestas(db, "t2")).toHaveLength(2);
   });
@@ -311,7 +313,38 @@ describe("sincronizar todo", () => {
       plantaciones: 1,
       sincronizadas: 0,
       bloqueadas: 0,
+      // Rechazada en esta misma tanda: cuenta, aunque no estuviera en la cola
+      // al empezar.
+      rechazadas: 1,
     });
+  });
+
+  it("con la cola vacía y algo ya rechazado, lo cuenta en vez de no decir nada", async () => {
+    await saveRespuesta(db, {
+      tratamientoId: "t1",
+      seccion: "comentarios",
+      payload: notas("algo"),
+      updatedAtLocal: AYER,
+    });
+    await markRespuestaRejected(db, {
+      tratamientoId: "t1",
+      seccion: "comentarios",
+      updatedAtLocal: AYER,
+    });
+
+    const ticks: SyncTick[] = [];
+
+    expect(await pushAll(db, (tick) => ticks.push(tick))).toEqual({
+      plantaciones: 0,
+      sincronizadas: 0,
+      bloqueadas: 0,
+      rechazadas: 1,
+    });
+    // La plantación rechazada sale en la lista aunque no estuviera en la cola:
+    // es lo que enseña el diálogo cuando no hubo nada que mandar.
+    expect(ticks.at(-1)?.units.map((unit) => unit.status)).toEqual([
+      "rejected",
+    ]);
   });
 
   // Seguir con las nueve restantes serían noventa segundos de timeout para
@@ -362,6 +395,7 @@ describe("sincronizar todo", () => {
       plantaciones: 0,
       sincronizadas: 0,
       bloqueadas: 0,
+      rechazadas: 0,
     });
   });
 });

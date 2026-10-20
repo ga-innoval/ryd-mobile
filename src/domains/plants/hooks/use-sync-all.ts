@@ -15,6 +15,7 @@ import {
   type PostcosechaRespuestaRecord,
 } from "../lib/db/postcosecha-respuestas.repository";
 import {
+  getPlantIdsWithRejectedWork,
   getPlantsById,
   hasUnsyncedWorkForPlant,
 } from "../lib/db/plants.repository";
@@ -264,7 +265,31 @@ export const pushAll = async (
     tick();
   }
 
-  return { plantaciones: total, sincronizadas, bloqueadas: bloqueados.size };
+  // Después de mandar, no antes: una sección puede haberse rechazado en esta
+  // misma tanda, y las que ya venían rechazadas no estaban en la cola.
+  const conRechazo = await getPlantIdsWithRejectedWork(db);
+  const rechazadas = conRechazo.size;
+
+  // Las rechazadas salen en la lista, también las que no estaban en la cola: es
+  // lo que el diálogo enseña cuando no hubo nada que mandar.
+  for (const plantId of conRechazo) {
+    const existing = unitOf.get(plantId);
+    if (existing) {
+      existing.status = "rejected";
+      continue;
+    }
+
+    const plant = plants.get(plantId);
+    if (plant) units.push({ id: plantId, plant, status: "rejected" });
+  }
+  if (rechazadas > 0) tick();
+
+  return {
+    plantaciones: total,
+    sincronizadas,
+    bloqueadas: bloqueados.size,
+    rechazadas,
+  };
 };
 
 /** Las plantaciones de unos dueños bloqueados, sean tratamientos o evaluaciones. */

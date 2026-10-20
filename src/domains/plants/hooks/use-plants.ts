@@ -6,12 +6,14 @@ import { plantProgress } from "../lib/evaluation-progress";
 import {
   getTratamientoIdsWithErrors,
   getTratamientoIdsWithPendingSync,
+  getTratamientoIdsWithRejected,
   getTratamientoProgress,
 } from "../lib/db/respuestas.repository";
 import {
   getPostcosechaEmpacadas,
   getPostcosechaIdsWithErrors,
   getPostcosechaIdsWithPendingSync,
+  getPostcosechaIdsWithRejected,
   getPostcosechaProgress,
 } from "../lib/db/postcosecha-respuestas.repository";
 import { postcosechaKey } from "../lib/postcosecha-progress";
@@ -51,6 +53,8 @@ export function usePlants() {
         empacadas,
         pendientes,
         postcosechaPendientes,
+        rechazados,
+        postcosechaRechazados,
       ] = await Promise.all([
         getAllPlants(db, campos ?? []),
         getTratamientoIdsWithErrors(db),
@@ -60,6 +64,8 @@ export function usePlants() {
         getPostcosechaEmpacadas(db),
         getTratamientoIdsWithPendingSync(db),
         getPostcosechaIdsWithPendingSync(db),
+        getTratamientoIdsWithRejected(db),
+        getPostcosechaIdsWithRejected(db),
       ]);
 
       return plants.map((plant) => {
@@ -103,6 +109,12 @@ export function usePlants() {
             empacadas.has(postcosechaKey(plant.id, item.id)),
           ).map((item) => item.id),
           tratamientosPending: pendientesDeEste,
+          tratamientosRejected: tratamientos
+            .filter((tratamiento) => rechazados.has(tratamiento.id))
+            .map((tratamiento) => tratamiento.id),
+          postcosechaRejected: EVALS_POST_COSECHA.filter((item) =>
+            postcosechaRechazados.has(postcosechaKey(plant.id, item.id)),
+          ).map((item) => item.id),
           postcosechaPending: postcosechaPendientesDeEsta,
           // Derivado de las dos listas y no de una consulta aparte: una
           // plantación tiene algo que mandar exactamente cuando lo tiene alguno

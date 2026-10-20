@@ -25,6 +25,8 @@ type TratamientoChipProps = {
   hasError?: boolean;
   /** Le falta algo por mandar al servidor: secciones, fotografías o ambas. */
   pendingSync?: boolean;
+  /** Y lo que falta lo rechazó el servidor: la nube va en rojo. */
+  syncRejected?: boolean;
   /** Lo capturado, de 0 a 1. Solo lo enseña la variante `card` —llenándose—; en
    *  la cabecera el avance ya está a la vista en las propias secciones. */
   progress?: number;
@@ -46,6 +48,7 @@ export function TratamientoChip({
   isActive = false,
   hasError = false,
   pendingSync = false,
+  syncRejected = false,
   progress = 0,
 }: TratamientoChipProps) {
   if (variant === "header") {
@@ -75,6 +78,7 @@ export function TratamientoChip({
       onPress={onPress}
       fill={ROW_BACKGROUND}
       pendingSync={pendingSync}
+      syncRejected={syncRejected}
       progress={progress}
       // Con un dato imposible el chip ya está en rojo; un relleno verde encima
       // lo dejaría de dos colores sin querer decir nada nuevo.
@@ -99,9 +103,11 @@ export function TratamientoChip({
       // dice va en la etiqueta: sin esto, «pendiente de sincronizar» sería una
       // señal solo para quien la ve.
       accessibilityLabel={
-        pendingSync
-          ? `${tratamiento.name}, pendiente de sincronizar`
-          : tratamiento.name
+        syncRejected
+          ? `${tratamiento.name}, sincronización rechazada`
+          : pendingSync
+            ? `${tratamiento.name}, pendiente de sincronizar`
+            : tratamiento.name
       }
     >
       <Text

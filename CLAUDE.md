@@ -652,6 +652,15 @@ piezas. Lo que no es obvio:
   100: un número que solo toma dos valores finge una precisión que no existe.
   Partir el lote para poder contarlo sería multiplicar las peticiones de cada
   plantación, que es justo lo que se evita por la conexión en campo.
+- **Reintentar lo rechazado enseña el rechazo, no cierra el diálogo.** Lo rechazado
+  no entra en la cola, así que «sincronizar todo» con solo rechazos no encontraba
+  nada que mandar, el avance quedaba en `idle` y el diálogo se abría y se cerraba
+  de golpe, sin decir nada. `PushAllReport.rechazadas` —plantaciones con algo
+  rechazado, leídas **después** de mandar para contar también lo rechazado en esa
+  misma tanda— lo convierte en el estado `rejected`: «Sincronización rechazada»,
+  sin botón de reintentar. Se ofrece reintentar solo si falta más de lo que
+  explican los rechazos. No probado en la tablet: hace falta una encuesta
+  rechazada de verdad.
 - **La lista va por plantación y no baja a la captura.** Con dos tratamientos y
   uno con un dato imposible, lo limpio se manda y quien señala al otro es el chip
   de su tarjeta.

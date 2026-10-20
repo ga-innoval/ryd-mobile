@@ -193,6 +193,24 @@ export const getTratamientoIdsWithPendingSync = async (
 };
 
 /**
+ * Los tratamientos con algo **rechazado por el servidor** (sección o fotografía).
+ * Subconjunto de lo «sin sincronizar»: es lo que pinta la nube en rojo en vez de
+ * en naranja.
+ */
+export const getTratamientoIdsWithRejected = async (
+  db: SQLiteDatabase,
+): Promise<Set<string>> => {
+  const rows = await db.getAllAsync<{ tratamientoId: string }>(
+    `SELECT tratamientoId FROM respuestas WHERE syncStatus = ?
+      UNION
+     SELECT tratamientoId FROM respuesta_fotos WHERE syncStatus = ?`,
+    [SyncStatus.rejected_closed, SyncStatus.rejected_closed],
+  );
+
+  return new Set(rows.map((row) => row.tratamientoId));
+};
+
+/**
  * Si al tratamiento le queda algo que el servidor todavía no tiene.
  *
  * **Lo que protege de la poda de la descarga.** El pull borra los tratamientos

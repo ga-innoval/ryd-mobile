@@ -106,6 +106,36 @@ export const hasUnsyncedWorkForPlant = async (
 };
 
 /**
+ * Las plantaciones con algo **rechazado por el servidor** —encuesta cerrada o
+ * ya enviada por otro usuario—, de cualquiera de sus cuatro tablas.
+ *
+ * Es lo que le dice a «sincronizar todo» que, aunque la cola esté vacía, hay una
+ * noticia que dar: lo rechazado no entra en la cola (reintentarlo no cambia
+ * nada), y sin esto la tanda no encontraba nada que mandar, cerraba el diálogo
+ * en blanco y el evaluador se quedaba sin saber qué pasó.
+ */
+export const getPlantIdsWithRejectedWork = async (
+  db: SQLiteDatabase,
+): Promise<Set<string>> => {
+  const rows = await db.getAllAsync<{ plantId: string }>(
+    `SELECT t.plantId AS plantId FROM respuestas r
+       JOIN tratamientos t ON t.id = r.tratamientoId
+      WHERE r.syncStatus = $rejected
+     UNION
+     SELECT t.plantId FROM respuesta_fotos f
+       JOIN tratamientos t ON t.id = f.tratamientoId
+      WHERE f.syncStatus = $rejected
+     UNION
+     SELECT plantId FROM postcosecha_respuestas WHERE syncStatus = $rejected
+     UNION
+     SELECT plantId FROM postcosecha_fotos WHERE syncStatus = $rejected`,
+    { $rejected: SyncStatus.rejected_closed },
+  );
+
+  return new Set(rows.map((row) => row.plantId));
+};
+
+/**
  * `ON CONFLICT DO UPDATE` no es preferencia de estilo, es invariante de
  * corrección: con `foreign_keys = ON`, un `INSERT OR REPLACE` haría
  * DELETE + INSERT, dispararía la CASCADE de `tratamientos` y los borraría en

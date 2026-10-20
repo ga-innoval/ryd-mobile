@@ -68,7 +68,7 @@ function UnitStatus({ unit }: { unit: SyncUnit }) {
   if (unit.status === "done") {
     return <Icon as={CircleCheckIcon} size={18} className="text-primary" />;
   }
-  if (unit.status === "failed") {
+  if (unit.status === "failed" || unit.status === "rejected") {
     return <Icon as={CircleXIcon} size={18} className="text-destructive" />;
   }
   if (unit.status === "blocked") {
