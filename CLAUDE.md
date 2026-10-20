@@ -1322,6 +1322,19 @@ renombró) y `temporada` en español.
   babel — "Unexpected token '<'" en todo lo que importe `icon.tsx`. Al subir
   `nativewind`, este pin va detrás.
 
+- **`runOnJS` está deprecado: usar `scheduleOnRN`**, de `react-native-worklets`
+  (`scheduleOnRN(fn, ...args)`, sin la función intermedia de `runOnJS(fn)(args)`).
+  Reanimated 4 ya no lo reexporta. **`react-native-worklets` está declarada y fijada
+  exacta (`0.10.2`)** en `package.json`: antes llegaba solo como peer de Reanimated.
+  La versión no es la que sugiere `expo install` (`0.10.1`) **a propósito**: es la
+  que ya traía el lockfile y la que está compilada en el binario de desarrollo, y
+  Worklets comprueba que su parte JS, su plugin de Babel y su parte nativa coincidan.
+  Con la `0.10.1` instalada unos minutos salió «Mismatch between JavaScript code
+  version and Worklets Babel plugin version (0.10.1 vs. 0.10.2)» por el caché de
+  Metro: **tras cambiar la versión de Worklets hay que reiniciar con
+  `npx expo start -c`**. Y el binario de desarrollo no se puede mover de versión sin
+  recompilar. Otra vez `npm install` borró las dos entradas `@emnapi` del lockfile y
+  se repusieron desde `HEAD`.
 - **`useAnimatedKeyboard` está deprecado** en reanimated 4 (lo dice el propio
   typing: "Please use react-native-keyboard-controller instead"). Usar
   `useReanimatedKeyboardAnimation`, como ya hace

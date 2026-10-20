@@ -15,7 +15,6 @@ import Animated, {
   clamp,
   Extrapolation,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
@@ -23,6 +22,7 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import {
   Gesture,
   GestureDetector,
@@ -175,7 +175,7 @@ function GalleryContent({
    */
   const requestClose = useCallback(() => {
     exit.value = withTiming(0, { duration: EXIT_MS }, (finished) => {
-      if (finished) runOnJS(onClose)();
+      if (finished) scheduleOnRN(onClose);
     });
   }, [exit, onClose]);
 
@@ -205,7 +205,7 @@ function GalleryContent({
     translateX.value = withSpring(0, SPRING);
     translateY.value = withSpring(0, SPRING);
     savedScale.value = 1;
-    runOnJS(setIsZoomed)(false);
+    scheduleOnRN(setIsZoomed, false);
   }
 
   /**
@@ -250,7 +250,7 @@ function GalleryContent({
 
       savedScale.value = scale.value;
       clampTranslation();
-      runOnJS(setIsZoomed)(true);
+      scheduleOnRN(setIsZoomed, true);
     });
 
   // Mover la foto acercada. Solo con zoom: sin él, el arrastre es el de cerrar.
@@ -288,7 +288,7 @@ function GalleryContent({
       if (shouldDismiss) {
         // Se apaga donde se soltó. Devolverla al centro y desvanecerla
         // después se ve como un tirón.
-        runOnJS(requestClose)();
+        scheduleOnRN(requestClose);
         return;
       }
 
@@ -319,7 +319,7 @@ function GalleryContent({
         SPRING,
       );
       savedScale.value = DOUBLE_TAP_ZOOM;
-      runOnJS(setIsZoomed)(true);
+      scheduleOnRN(setIsZoomed, true);
     });
 
   const singleTap = Gesture.Tap().onEnd(() => {

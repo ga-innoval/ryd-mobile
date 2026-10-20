@@ -4,7 +4,6 @@ import { useWatch } from "react-hook-form";
 import Animated, {
   cancelAnimation,
   Easing,
-  runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
@@ -14,6 +13,7 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react-native";
 import { Icon } from "@/components/ui/icon";
 import { useAppearAnimation } from "@/lib/use-appear-animation";
@@ -128,7 +128,7 @@ export function EvaluationErrorButton({
     // Solo cruza al hilo de JS cuando el resultado cambia, no en cada frame de
     // scroll.
     (next, previous) => {
-      if (next !== previous) runOnJS(setWhere)(next);
+      if (next !== previous) scheduleOnRN(setWhere, next);
     },
   );
 

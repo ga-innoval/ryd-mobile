@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  runOnJS,
   useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import * as SliderPrimitive from "@rn-primitives/slider";
 import { Text } from "@/components/ui/text";
 
@@ -228,7 +228,7 @@ export function PercentSlider({
     })
     // Una sola vez, al soltar: es cuando el dato deja de ser un gesto en curso
     // y pasa a ser una respuesta.
-    .onEnd(() => runOnJS(onChange)(progress.value));
+    .onEnd(() => scheduleOnRN(onChange, progress.value));
 
   const fillStyle = useAnimatedStyle(() => ({
     width: `${progress.value}%`,
