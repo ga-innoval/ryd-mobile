@@ -27,6 +27,10 @@ const userSchema = z.object({
   fullName: z.string(),
   username: z.string(),
   initials: z.string(),
+  // Obligatorio y sin `default`: un perfil guardado antes de existir este campo
+  // no se completa con una lista vacía —enseñaría una app sin plantaciones—, se
+  // descarta y `init` pide iniciar sesión otra vez.
+  campos: z.array(z.number()),
 });
 
 // Solo datos no sensibles

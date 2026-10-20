@@ -11,12 +11,29 @@ import {
   syncPlantTratamientos,
 } from "./tratamientos.repository";
 
+/**
+ * Las plantaciones de la base, **solo las de los campos dados**.
+ *
+ * Cada usuario tiene su propia base, así que lo que hay aquí ya es de él; el
+ * filtro cubre el caso que eso no: a un usuario se le quita un campo y sus
+ * plantaciones siguen en la base local. **Se esconden, no se borran** —puede
+ * haber capturas sin mandar, y volver a darle el campo las recupera—. Sin
+ * `campoIds` no se filtra, que es lo que quieren los tests y nada más.
+ */
 export const getAllPlants = async (
   db: SQLiteDatabase,
+  campoIds?: readonly number[],
 ): Promise<PlantWithTratamientos[]> => {
-  const plants = await db.getAllAsync<PlantRecord>(
-    "SELECT * FROM plants ORDER BY name ASC",
-  );
+  const plants = campoIds
+    ? await db.getAllAsync<PlantRecord>(
+        `SELECT * FROM plants
+          WHERE campoId IN (${campoIds.map(() => "?").join(",")})
+          ORDER BY name ASC`,
+        [...campoIds],
+      )
+    : await db.getAllAsync<PlantRecord>(
+        "SELECT * FROM plants ORDER BY name ASC",
+      );
   const tratamientos = await getAllTratamientos(db);
 
   return attachTratamientos(plants, tratamientos);
@@ -99,11 +116,12 @@ export const upsertPlant = async (
   plant: PlantRecord,
 ): Promise<void> => {
   await db.runAsync(
-    `INSERT INTO plants (id, name, campo, cuadro, programa, portainjerto, anio, syncStatus)
-     VALUES ($id, $name, $campo, $cuadro, $programa, $portainjerto, $anio, $syncStatus)
+    `INSERT INTO plants (id, name, campo, campoId, cuadro, programa, portainjerto, anio, syncStatus)
+     VALUES ($id, $name, $campo, $campoId, $cuadro, $programa, $portainjerto, $anio, $syncStatus)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name,
        campo = excluded.campo,
+       campoId = excluded.campoId,
        cuadro = excluded.cuadro,
        programa = excluded.programa,
        portainjerto = excluded.portainjerto,
@@ -113,6 +131,7 @@ export const upsertPlant = async (
       $id: plant.id,
       $name: plant.name,
       $campo: plant.campo,
+      $campoId: plant.campoId,
       $cuadro: plant.cuadro,
       $programa: plant.programa,
       $portainjerto: plant.portainjerto,

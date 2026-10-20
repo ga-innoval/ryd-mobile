@@ -410,3 +410,34 @@ describe("getAllPlants", () => {
     ]);
   });
 });
+
+describe("getAllPlants filtrando por campos del usuario", () => {
+  let db: SQLiteDatabase;
+
+  beforeEach(async () => {
+    db = createInMemoryDb();
+    await runMigrations(db);
+    await syncPlantsBatch(db, [
+      buildEntry({ plant: buildRecord({ id: "a", campoId: 1 }) }),
+      buildEntry({ plant: buildRecord({ id: "b", campoId: 2 }) }),
+      buildEntry({ plant: buildRecord({ id: "c", campoId: 99 }) }),
+    ]);
+  });
+
+  it("solo devuelve las de sus campos", async () => {
+    const plants = await getAllPlants(db, [1, 99]);
+
+    expect(plants.map((p) => p.id).sort()).toEqual(["a", "c"]);
+  });
+
+  it("con varios campos permitidos junta los de todos", async () => {
+    expect((await getAllPlants(db, [1, 2, 99])).length).toBe(3);
+  });
+
+  it("sin campos no ve nada, y las de otro campo se esconden sin borrarse", async () => {
+    expect(await getAllPlants(db, [])).toEqual([]);
+    expect((await getAllPlants(db, [2])).map((p) => p.id)).toEqual(["b"]);
+    // Siguen en la base: volver a darle el campo las recupera.
+    expect((await getAllPlants(db)).length).toBe(3);
+  });
+});

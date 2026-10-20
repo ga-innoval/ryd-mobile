@@ -13,6 +13,7 @@ export interface RemotePlant {
   variedad: RemoteVariedad;
   portainjerto: string;
   campo: string;
+  campo_id: number;
   cuadro: string;
   anio: number;
   is_active: boolean;

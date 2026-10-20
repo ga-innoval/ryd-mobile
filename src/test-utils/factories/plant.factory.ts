@@ -5,6 +5,7 @@ export const buildPlant = (overrides = {}) => ({
   id: "eval-1",
   name: "1004-Freedom",
   campo: "Pozo Manuel",
+  campoId: 1,
   cuadro: "1A",
   programa: "Temprano",
   portainjerto: "Freedom",

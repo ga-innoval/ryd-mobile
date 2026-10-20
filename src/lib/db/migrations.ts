@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_VERSION = 10;
+const DATABASE_VERSION = 11;
 
 export async function runMigrations(db: SQLiteDatabase) {
   await db.execAsync("PRAGMA foreign_keys = ON");
@@ -292,10 +292,24 @@ export async function runMigrations(db: SQLiteDatabase) {
     currentVersion = 10;
   }
 
+  if (currentVersion === 10) {
+    // El id del campo de cada plantación, que es contra lo que se filtra por
+    // usuario (`getAllPlants`). `campo` es el nombre y se queda: es lo que se
+    // enseña.
+    //
+    // Nulable y sin `DEFAULT`: SQLite no puede añadir una columna `NOT NULL`
+    // sin valor por defecto, y no hay un id que inventar para las filas que ya
+    // existan. Esas filas no encajan en ningún filtro y desaparecen del
+    // listado hasta que la siguiente descarga completa las reescriba —que es lo
+    // correcto: no se sabe de qué campo son—.
+    await db.execAsync(`ALTER TABLE plants ADD COLUMN campoId INTEGER`);
+    currentVersion = 11;
+  }
+
   // Próxima migración. ej:
-  // if (currentVersion === 10) {
+  // if (currentVersion === 11) {
   //   await db.execAsync(`CREATE TABLE IF NOT EXISTS newTable (...)`);
-  //   currentVersion = 11;
+  //   currentVersion = 12;
   // }
 
   await db.execAsync(`PRAGMA user_version = ${currentVersion}`);

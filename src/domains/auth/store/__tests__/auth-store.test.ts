@@ -68,6 +68,7 @@ describe("logout()", () => {
         fullName: "full user name",
         username: "user-name",
         initials: "u",
+        campos: [1],
       },
     });
 

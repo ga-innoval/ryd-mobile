@@ -229,6 +229,8 @@ export interface PlantRecord {
   id: string;
   name: string;
   campo: string;
+  /** El id del campo, que es contra lo que se filtra por usuario. */
+  campoId: number;
   cuadro: string;
   programa: string;
   portainjerto: string;

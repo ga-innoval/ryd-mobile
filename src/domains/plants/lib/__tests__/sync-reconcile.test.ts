@@ -166,7 +166,10 @@ describe("reconcilePostcosecha", () => {
 
 describe("TERMINAL_REJECTIONS", () => {
   // Agregar uno es un cambio en los dos lados, así que la lista se mira aquí.
-  it("hoy solo la encuesta cerrada es terminal", () => {
-    expect(TERMINAL_REJECTIONS).toEqual(["encuesta_cerrada"]);
+  it("hoy son terminales la encuesta cerrada y la de otro usuario", () => {
+    expect(TERMINAL_REJECTIONS).toEqual([
+      "encuesta_cerrada",
+      "encuesta_de_otro_usuario",
+    ]);
   });
 });

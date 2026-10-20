@@ -6,6 +6,7 @@ export function mapRemotePlant(remote: RemotePlant): PlantRecord {
     id: remote.id,
     name: remote.variedad.name,
     campo: remote.campo,
+    campoId: remote.campo_id,
     cuadro: remote.cuadro,
     programa: remote.variedad.programa.name,
     portainjerto: remote.portainjerto,

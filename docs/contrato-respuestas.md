@@ -305,6 +305,29 @@ añadió para que el cliente pueda marcar la fotografía terminal igual que marc
 una sección. **Aceptado**: es lo que hace falta, y el alternativo —un 400
 genérico— la dejaría reintentándose sin fin.
 
+## Una encuesta es del primero que la envía
+
+**Regla del servidor: el primer usuario que sincroniza una encuesta se queda con
+ella.** La tablet puede compartirse, y dos evaluadores del mismo campo pueden
+capturar la misma encuesta cada uno en su copia local (cada usuario tiene su
+propia base: uno no ve lo del otro).
+
+- Al crear el ancla (`RespuestaTratamiento` / `RespuestaPostcosecha`) se guarda el
+  `evaluador`. **Si el ancla ya existe y su `evaluador` no es quien envía**, el
+  registro se rechaza **antes de escribir nada**.
+- En el `batch`: ese registro devuelve `{"status": "error", "code":
+  "encuesta_de_otro_usuario"}`, sin tumbar a los demás. En la subida de
+  fotografías: **409** con `{"code": "encuesta_de_otro_usuario"}`.
+- Es **terminal** para el cliente (`TERMINAL_REJECTIONS`): la fila sale de la cola
+  y se marca `rejected_closed`, igual que una encuesta cerrada. Reintentar no la
+  vuelve válida. El mismo usuario reenviando lo suyo sigue siendo idempotente.
+- La comprobación va **dentro de la misma transacción que el `get_or_create`**: si
+  dos usuarios llegan a la vez, solo uno crea el ancla y el otro la ve con dueño.
+
+Y de lectura: cada plantación del pull trae `campo_id` (el id numérico) además de
+`campo` (el nombre), y el login devuelve `campos`, la lista de ids a los que el
+usuario tiene acceso. La app filtra el listado por esa lista.
+
 ## Lo que el servidor guarda
 
 El ancla ya existe; alrededor, una tabla hija por cada cosa que se repite.

@@ -15,11 +15,31 @@ import { Directory, File, Paths, UploadType } from "expo-file-system";
 const PHOTOS_DIR_NAME = "respuesta-fotos";
 
 /**
+ * La subcarpeta del usuario con sesión. **Cada usuario tiene sus fotografías en
+ * la suya**, igual que tiene su propia base: `sweepOrphanPhotos` borra lo que no
+ * tiene fila, y con una carpeta común la descarga de un usuario tomaría por
+ * huérfanas las fotos del otro y las borraría.
+ *
+ * Estado de módulo y no un argumento porque la usan muchos llamadores y la fija
+ * un solo sitio (`activateUserScope`), antes de que se monte nada que toque
+ * fotos. Vacío —nadie activó un usuario— deja la carpeta de siempre.
+ */
+let userFolder = "";
+
+export function setPhotosUserFolder(folder: string): void {
+  userFolder = folder;
+}
+
+/** Los segmentos de la carpeta de fotos del usuario actual. */
+const photosSegments = (): string[] =>
+  userFolder ? [PHOTOS_DIR_NAME, userFolder] : [PHOTOS_DIR_NAME];
+
+/**
  * `Paths.document` y no `Paths.cache`: el sistema purga la caché, y estas fotos
  * pueden esperar días a que haya señal para subirse.
  */
 function photosDirectory(): Directory {
-  const directory = new Directory(Paths.document, PHOTOS_DIR_NAME);
+  const directory = new Directory(Paths.document, ...photosSegments());
   // Idempotente: crear lo que ya existe no lanza, así que no hace falta
   // preguntar antes.
   directory.create({ intermediates: true, idempotent: true });
@@ -35,7 +55,7 @@ function photosDirectory(): Directory {
  * apunta a la nada mañana aunque el archivo siga ahí.
  */
 export function photoUri(fileName: string): string {
-  return new File(Paths.document, PHOTOS_DIR_NAME, fileName).uri;
+  return new File(Paths.document, ...photosSegments(), fileName).uri;
 }
 
 /** Copia lo que devolvió el picker a la carpeta de la app. */
@@ -54,7 +74,7 @@ export async function copyPhotoInto(
  */
 export function deletePhotoFiles(fileNames: readonly string[]): void {
   for (const fileName of fileNames) {
-    const file = new File(Paths.document, PHOTOS_DIR_NAME, fileName);
+    const file = new File(Paths.document, ...photosSegments(), fileName);
     if (file.exists) file.delete();
   }
 }

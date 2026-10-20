@@ -1,5 +1,6 @@
 import { useSQLiteContext } from "expo-sqlite";
 import { useQuery } from "@tanstack/react-query";
+import { useAuthStore } from "@/domains/auth/store/auth-store";
 import { getAllPlants } from "../lib/db/plants.repository";
 import { plantProgress } from "../lib/evaluation-progress";
 import {
@@ -33,6 +34,10 @@ export const PLANTS_QUERY_KEY = ["plants"] as const;
  */
 export function usePlants() {
   const db = useSQLiteContext();
+  // Solo los campos del usuario: ver `getAllPlants`. La lista no entra en la
+  // clave —la caché se vacía al cambiar de sesión, y los campos de un usuario
+  // solo cambian al volver a iniciarla—.
+  const campos = useAuthStore((s) => s.user?.campos);
 
   return useQuery({
     queryKey: PLANTS_QUERY_KEY,
@@ -47,7 +52,7 @@ export function usePlants() {
         pendientes,
         postcosechaPendientes,
       ] = await Promise.all([
-        getAllPlants(db),
+        getAllPlants(db, campos ?? []),
         getTratamientoIdsWithErrors(db),
         getTratamientoProgress(db),
         getPostcosechaProgress(db),

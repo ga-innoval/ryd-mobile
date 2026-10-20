@@ -30,11 +30,13 @@ sincronización manual.
 - **Testing**: Jest + `@testing-library/react-native`, factories en
   `src/test-utils/factories/`
 
-## Estado actual del schema (v10) — leer antes de tocar la DB
+## Estado actual del schema (v11) — leer antes de tocar la DB
 
 `src/lib/db/migrations.ts` crea **seis tablas**:
 
-- `plants` (`id, name, campo, cuadro, programa, portainjerto, anio, syncStatus`)
+- `plants` (`id, name, campo, campoId, cuadro, programa, portainjerto, anio, syncStatus`).
+  `campoId` (v11, nulable) es el id del campo y es contra lo que se filtra por
+  usuario; `campo` es el nombre y se enseña
 - `tratamientos` (`id, plantId, name, description, temporada, isActive`), con
   `FOREIGN KEY (plantId) REFERENCES plants(id) ON DELETE CASCADE` e índice en
   `plantId`
@@ -1215,10 +1217,56 @@ en Ajustes, porque el repaso corre al volver de segundo plano.
 - **Los botones son los del resto de la app** (`Button` `lg`, como el del login), no
   uno propio: el primero que se hizo llevaba `h-16 rounded-full` y salía recortado
   porque `Button` trae `sm:h-9`, y de todas formas se veía distinto.
-- **Los usuarios que ya existían lo ven una vez** al actualizar. La base SQLite
-  **no es por usuario**: un segundo usuario ve las plantaciones del primero y
-  `logout` no las borra. Es anterior al onboarding y sigue sin resolverse.
+- **Los usuarios que ya existían lo ven una vez** al actualizar.
 - **Herramienta de desarrollo**: «Reiniciar onboarding» en el diálogo de la campana.
+
+## Multiusuario (una tablet, varios evaluadores)
+
+> **Qué hay:** cada usuario tiene su propia base, sus fotografías y lo que
+> persisten sus stores; el listado se filtra por los campos de su sesión; y el
+> servidor rechaza una encuesta que ya mandó otro. **Falta probarlo en la
+> tablet** con dos cuentas reales.
+
+- **Un archivo de SQLite por usuario**, no una columna `userId` en cada tabla
+  (`plantaciones-<id>.db`, `lib/user-scope.ts`). Se probó el plan con columnas y
+  se cambió por el alcance: con columnas, la cola del push, la poda, los
+  conteos, los guards y los recordatorios tendrían que acordarse de filtrar —y
+  olvidar una es enseñar o mandar datos ajenos en silencio—, además de
+  reconstruir las PK de `respuestas`. Con un archivo por usuario no hay nada que
+  recordar. **El que sale conserva lo suyo sin enviar** y lo recupera al volver.
+- **El `SQLiteProvider` ya no está en la raíz**: vive en `(app)/_layout`, dentro
+  de `UserScope` (`key={userId}`), que es donde se sabe quién es. Cambiar de
+  usuario es desmontar y montar de nuevo. Hasta que el scope está activo no se
+  pinta nada. Nada fuera de `(app)` puede usar `useSQLiteContext`.
+- **Lo que persiste un store y es del evaluador va por usuario**
+  (`userScopedJSONStorage`, `activateUserScope`): la marca de descarga —con la de
+  otro, la primera descarga de un usuario saldría incompleta sin aviso—, la de
+  sincronización y la bandeja. **Un store nuevo con datos de un evaluador se
+  añade a `SCOPED_STORES`.** Sin usuario activo ese almacenamiento no lee ni
+  escribe, y **el orden al activar importa**: primero se quita el usuario y se
+  vacían los stores, y luego se pone el nuevo y se rehidrata; al revés, `persist`
+  guardaría el estado en blanco encima de lo que tenía. `onboarding-store` ya
+  guardaba ids de usuario.
+- **Las fotografías, en una subcarpeta por usuario** (`setPhotosUserFolder`):
+  `sweepOrphanPhotos` borra lo que no tiene fila, y con una carpeta común la
+  descarga de uno borraría las fotos del otro.
+- **Al salir de la sesión** se vacía la caché de TanStack Query y se cancelan los
+  recordatorios (`cancelPostcosechaReminders`): son de lo que capturó ese usuario
+  y sonarían abriendo una evaluación que el siguiente no tiene. El repaso de
+  arranque los reprograma al volver.
+- **Los campos van en el perfil de la sesión** (`User.campos`, ids del login,
+  obligatorios: un perfil guardado sin ellos se descarta y pide iniciar sesión).
+  `getAllPlants(db, campoIds)` filtra por `campoId`; las de un campo que le
+  quitaron **se esconden, no se borran** —puede haber capturas sin mandar—.
+  Pendiente: `use-plant` y la ruta directa a una plantación no filtran; solo se
+  llega ahí desde el listado o desde un aviso.
+- **«El primero que sincroniza gana» es del servidor** (ver el contrato): el
+  código `encuesta_de_otro_usuario` es terminal y se marca con el mismo
+  `rejected_closed` que la encuesta cerrada, con el texto de las dos causas. No
+  hay estado propio: para el evaluador la acción es la misma —avisar al admin— y
+  uno nuevo obligaría a distinguirlo en chips, indicador y guards de la poda.
+- **Los datos anteriores a esto se pierden** (`plantaciones.db` ya no se abre): no
+  hay datos en producción y se reinstala la app de pruebas.
 
 ## Naming
 

@@ -36,6 +36,7 @@ const buildRemotePlant = (
   },
   portainjerto: "Freedom",
   campo: "Pozo Manuel",
+  campo_id: 7,
   cuadro: "1A",
   anio: 2026,
   is_active: true,
@@ -56,6 +57,7 @@ describe("mapRemotePlantEntry", () => {
       }),
     );
 
+    expect(entry.plant.campoId).toBe(7);
     expect(entry.tratamientos.map((t) => t.plantId)).toEqual([
       "plant-9",
       "plant-9",
