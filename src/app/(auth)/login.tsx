@@ -12,7 +12,7 @@ export default function LoginPage() {
   const { heroAnimatedStyle, formAnimatedStyle } = useLoginAnimations();
 
   return (
-    <View className="flex-1">
+    <View className="flex-1 bg-white">
       <Animated.View style={[{ height: heroHeight }, heroAnimatedStyle]}>
         <LoginHero />
       </Animated.View>
