@@ -4,7 +4,7 @@ export type PushReport = {
   enviadas: number;
   /** Fotografías que llegaron. */
   fotos: number;
-  /** Rechazadas sin vuelta —la encuesta está cerrada—, de los dos tipos. */
+  /** Rechazadas sin vuelta —encuesta cerrada o de otro usuario—, de los dos tipos. */
   rechazadas: number;
   /** Siguen esperando: un fallo que puede dejar de pasar, o algo ilegible. */
   pendientes: number;
@@ -48,7 +48,7 @@ export const formatPushSummary = ({
     partes.push(
       `${rechazadas} ${
         rechazadas === 1 ? "quedó rechazada" : "quedaron rechazadas"
-      }: la encuesta está cerrada.`,
+      }: el servidor no las aceptó (encuesta cerrada o ya enviada por otro usuario).`,
     );
   }
 

@@ -19,7 +19,19 @@ export type SyncProgress =
   /** Algo se quedó: rechazado, con un dato por revisar, o sin poder salir. */
   | { kind: "partial"; sincronizadas: number; total: number }
   /** Ni siquiera empezó: no hay red. */
-  | { kind: "offline" };
+  | { kind: "offline" }
+  /**
+   * Lo que había que mandar ya está, pero el servidor tiene **rechazadas**
+   * plantaciones: encuesta cerrada o ya enviada por otro usuario. Con la cola
+   * vacía es también el caso de reintentar lo rechazado, que no tiene nada que
+   * mandar y no debe cerrarse en silencio.
+   */
+  | {
+      kind: "rejected";
+      rechazadas: number;
+      sincronizadas: number;
+      total: number;
+    };
 
 export type PushAllReport = {
   /** Plantaciones que tenían algo que mandar. */
@@ -28,6 +40,8 @@ export type PushAllReport = {
   sincronizadas: number;
   /** Capturas que no se intentaron porque traen un dato imposible. */
   bloqueadas: number;
+  /** Plantaciones con algo rechazado por el servidor, de esta tanda o de antes. */
+  rechazadas: number;
 };
 
 /**
@@ -49,7 +63,14 @@ export type SyncUnit = {
    * cuadros y por sí solo no dice cuál es.
    */
   plant: PlantRecord;
-  status: "pending" | "running" | "done" | "failed" | "blocked";
+  status:
+    | "pending"
+    | "running"
+    | "done"
+    | "failed"
+    | "blocked"
+    // Lo rechazó el servidor: encuesta cerrada o ya enviada por otro usuario.
+    | "rejected";
 };
 
 /** Lo que el diálogo pinta, ya resuelto. `null` cuando no hay nada que enseñar. */
@@ -116,6 +137,23 @@ export function syncDialogView(progress: SyncProgress): SyncDialogView | null {
         dismissLabel: "Cerrar",
       };
 
+    case "rejected":
+      return {
+        tone: "warn",
+        title: "Sincronización rechazada",
+        detail: `El servidor no aceptó ${
+          progress.rechazadas === 1
+            ? "1 plantación"
+            : `${progress.rechazadas} plantaciones`
+        }: la encuesta está cerrada o ya la envió otro usuario. Contacta a un administrador.`,
+        percent:
+          progress.total === 0
+            ? null
+            : percent(progress.sincronizadas, progress.total),
+        retry: false,
+        dismissLabel: "Cerrar",
+      };
+
     case "offline":
       return {
         tone: "warn",
@@ -141,8 +179,27 @@ const percent = (done: number, total: number) =>
  * diálogo no puede decir «10 de 10» sobre una tarjeta que sigue marcada.
  */
 export function progressFromReport(report: PushAllReport): SyncProgress {
-  // Sin nada que mandar no hubo tanda. No debería pasar —el botón está apagado—
-  // pero decir «0 plantaciones sincronizadas» sería peor que callar.
+  // Lo rechazado manda sobre el resto, y sobre una cola vacía: reintentar lo
+  // rechazado no encuentra nada que mandar, y cerrar el diálogo sin decir nada
+  // deja al evaluador sin saber qué pasó.
+  //
+  // «Lo que falta» se explica entero por los rechazos cuando no hay más
+  // plantaciones sin sincronizar que plantaciones rechazadas: ahí reintentar no
+  // sirve de nada y el botón no se ofrece.
+  if (
+    report.rechazadas > 0 &&
+    report.rechazadas >= report.plantaciones - report.sincronizadas
+  ) {
+    return {
+      kind: "rejected",
+      rechazadas: report.rechazadas,
+      sincronizadas: report.sincronizadas,
+      total: report.plantaciones,
+    };
+  }
+
+  // Sin nada que mandar ni rechazado no hubo tanda. No debería pasar —el botón
+  // está apagado— pero decir «0 plantaciones sincronizadas» sería peor que callar.
   if (report.plantaciones === 0) return { kind: "idle" };
 
   if (report.sincronizadas === report.plantaciones) {

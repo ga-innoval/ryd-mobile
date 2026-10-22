@@ -28,6 +28,12 @@ type CaptureChipProps = {
    */
   pendingSync?: boolean;
   /**
+   * Lo que falta por mandar lo **rechazó el servidor** —encuesta cerrada o ya
+   * enviada por otro usuario—: la misma nube, en rojo. Solo tiene sentido con
+   * `pendingSync`; no se pinta sola.
+   */
+  syncRejected?: boolean;
+  /**
    * El fondo del renglón, en hex. **No es decoración**: las señales se montan
    * sobre la esquina del chip y sin relleno se les vería el borde cruzado por
    * detrás. Desde JS no hay forma de leer `tailwind.config`, así que va en hex.
@@ -60,6 +66,7 @@ export function CaptureChip({
   fillClassName,
   badge,
   pendingSync = false,
+  syncRejected = false,
   fill,
   className,
   accessibilityLabel,
@@ -122,7 +129,7 @@ export function CaptureChip({
               as={CloudSyncIcon}
               size={20}
               strokeWidth={2}
-              className="text-orange-500"
+              className={syncRejected ? "text-destructive" : "text-orange-500"}
               fill={fill}
             />
           )}

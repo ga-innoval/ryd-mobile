@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { persist } from "zustand/middleware";
+import { userScopedJSONStorage } from "@/lib/user-storage";
 import * as inbox from "../lib/notification-inbox";
 import type { AppNotification } from "../types";
 
@@ -52,7 +52,7 @@ export const useNotificationsInbox = create<InboxStore>()(
     }),
     {
       name: "notifications-inbox",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: userScopedJSONStorage(),
       partialize: (state) => ({ items: state.items }),
       // La fusión por defecto pisa lo que ya hay en memoria con lo leído del
       // disco, y el disco contesta tarde: un aviso que llega antes —el toque que

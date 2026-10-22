@@ -23,6 +23,15 @@ describe("uploadOutcome", () => {
     ).toEqual({ kind: "rejected" });
   });
 
+  it("la encuesta que ya mandó otro usuario también la saca", () => {
+    expect(
+      uploadOutcome({
+        status: 409,
+        body: '{"code":"encuesta_de_otro_usuario"}',
+      }),
+    ).toEqual({ kind: "rejected" });
+  });
+
   it("un archivo que ya no está cuenta como fallo, no como excepción", () => {
     expect(uploadOutcome(null)).toEqual({ kind: "missing" });
   });

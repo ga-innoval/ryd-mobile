@@ -344,6 +344,20 @@ export const getPostcosechaIdsWithPendingSync = async (
 };
 
 /** De quién es una captura de post-cosecha: la plantación y cuál de las cuatro. */
+/** Las evaluaciones con algo rechazado por el servidor: la nube en rojo. */
+export const getPostcosechaIdsWithRejected = async (
+  db: SQLiteDatabase,
+): Promise<Set<string>> => {
+  const rows = await db.getAllAsync<{ plantId: string; evalId: string }>(
+    `SELECT plantId, evalId FROM postcosecha_respuestas WHERE syncStatus = ?
+      UNION
+     SELECT plantId, evalId FROM postcosecha_fotos WHERE syncStatus = ?`,
+    [SyncStatus.rejected_closed, SyncStatus.rejected_closed],
+  );
+
+  return new Set(rows.map((row) => postcosechaKey(row.plantId, row.evalId)));
+};
+
 export type PostcosechaOwner = { plantId: string; evalId: string };
 
 /** La sección tal como se envió, que es contra lo que se compara al volver. */

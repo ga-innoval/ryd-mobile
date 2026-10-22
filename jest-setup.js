@@ -28,3 +28,10 @@ jest.mock("expo-notifications", () => ({
   IosAuthorizationStatus: { PROVISIONAL: 3 },
   SchedulableTriggerInputTypes: { DATE: "date" },
 }));
+
+// El mock oficial de AsyncStorage. `usePlants` lee los campos del usuario del
+// store de sesión, que persiste el perfil ahí, y con eso casi cualquier hook de
+// plantaciones arrastra AsyncStorage a su test sin tocarlo.
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);

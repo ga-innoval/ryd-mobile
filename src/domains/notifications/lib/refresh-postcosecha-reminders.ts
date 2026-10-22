@@ -42,3 +42,23 @@ export function refreshPostcosechaReminders(db: SQLiteDatabase): Promise<void> {
 
   return chain;
 }
+
+/**
+ * Cancela todos los recordatorios programados, **en la misma cola** que el
+ * repaso para que no se pisen.
+ *
+ * Es de cuando se cierra la sesión: los avisos son de lo que capturó **ese**
+ * usuario, y con otro en la tablet sonarían y abrirían una evaluación que no
+ * tiene. Al volver a iniciar sesión el repaso de arranque los reprograma.
+ */
+export function cancelPostcosechaReminders(): Promise<void> {
+  chain = chain.then(async () => {
+    try {
+      await syncReminders([]);
+    } catch (error) {
+      console.warn("No se pudieron cancelar los recordatorios", error);
+    }
+  });
+
+  return chain;
+}

@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { persist } from "zustand/middleware";
+import { userScopedJSONStorage } from "@/lib/user-storage";
 
 /**
  * Cuándo fue la última sincronización. **Nada más.**
@@ -32,7 +32,7 @@ export const useSyncStore = create<SyncStore>()(
     }),
     {
       name: "sync-store",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: userScopedJSONStorage(),
     },
   ),
 );

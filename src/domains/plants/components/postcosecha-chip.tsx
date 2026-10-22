@@ -26,6 +26,8 @@ type PostcosechaChipProps = {
   empacada?: boolean;
   /** Le falta algo por mandar al servidor: secciones, fotografías o ambas. */
   pendingSync?: boolean;
+  /** Y lo que falta lo rechazó el servidor: la nube va en rojo. */
+  syncRejected?: boolean;
 };
 
 /**
@@ -49,6 +51,7 @@ export function PostcosechaChip({
   hasError = false,
   empacada = false,
   pendingSync = false,
+  syncRejected = false,
 }: PostcosechaChipProps) {
   if (variant === "card") {
     // El de empaque solo mientras falte algo: para llegar al 100 % hay que
@@ -62,6 +65,7 @@ export function PostcosechaChip({
         onPress={onPress}
         fill={ROW_BACKGROUND}
         pendingSync={pendingSync}
+        syncRejected={syncRejected}
         testID={`post-cosecha-${evaluacion.id}`}
         progress={progress}
         fillClassName={hasError ? "bg-destructive/15" : "bg-leaf/20"}
@@ -89,7 +93,11 @@ export function PostcosechaChip({
         // dice va en la etiqueta: sin esto, «pendiente de sincronizar» sería una
         // señal solo para quien la ve.
         accessibilityLabel={`${evaluacion.title} ${evaluacion.subtitle}${
-          pendingSync ? ", pendiente de sincronizar" : ""
+          syncRejected
+            ? ", sincronización rechazada"
+            : pendingSync
+              ? ", pendiente de sincronizar"
+              : ""
         }`}
       >
         <Text numberOfLines={1} className="font-medium">

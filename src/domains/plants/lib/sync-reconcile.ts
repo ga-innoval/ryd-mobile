@@ -27,7 +27,15 @@ export type PushOutcome<K> = {
 };
 
 /**
- * Los códigos que **sacan la fila de la cola**. Hoy, uno.
+ * Los códigos que **sacan la fila de la cola**. Hoy, dos.
+ *
+ * `encuesta_de_otro_usuario` es la regla de «el primero que sincroniza gana»: la
+ * misma encuesta ya la mandó otro evaluador y el servidor no acepta la de este.
+ * Reintentar no cambia nada, así que sale de la cola; **se marca con el mismo
+ * `rejected_closed`** que la encuesta cerrada —misma consecuencia: rechazada, se
+ * conserva y no se poda—, y el texto de lo que pasó dice las dos causas. Un
+ * estado propio exigiría distinguirlos en los chips, el indicador y los guards
+ * de la poda, y para el evaluador la acción es la misma: avisar al admin.
  *
  * El servidor lo devuelve por tres puertas distintas —la encuesta cerrada de la
  * plantación, la plantación dada de baja y el tratamiento dado de baja—, y usa
@@ -40,7 +48,10 @@ export type PushOutcome<K> = {
  * elección está anotado en el contrato: un registro con forma inválida tampoco
  * tiene código, y ese sí se reintentaría para siempre.
  */
-export const TERMINAL_REJECTIONS: readonly string[] = ["encuesta_cerrada"];
+export const TERMINAL_REJECTIONS: readonly string[] = [
+  "encuesta_cerrada",
+  "encuesta_de_otro_usuario",
+];
 
 /**
  * **Empareja por llave natural, nunca por posición del arreglo.** Un servidor

@@ -71,12 +71,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       last_name,
       username: remoteUsername,
       initials,
+      campos,
     } = await loginRequest(username, password);
     const user = {
       id,
       fullName: getUserFullName(first_name, last_name),
       username: remoteUsername,
       initials,
+      campos,
     };
 
     await Promise.all([

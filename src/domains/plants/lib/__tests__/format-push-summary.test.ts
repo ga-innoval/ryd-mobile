@@ -37,7 +37,7 @@ describe("formatPushSummary", () => {
       "Se enviaron 2 secciones y 1 fotografía. 3 quedaron sin enviar.",
     );
     expect(resumen({ enviadas: 2, rechazadas: 2 })).toBe(
-      "Se enviaron 2 secciones. 2 quedaron rechazadas: la encuesta está cerrada.",
+      "Se enviaron 2 secciones. 2 quedaron rechazadas: el servidor no las aceptó (encuesta cerrada o ya enviada por otro usuario).",
     );
   });
 
@@ -49,7 +49,7 @@ describe("formatPushSummary", () => {
 
   it("junta las tres cosas cuando pasan las tres", () => {
     expect(resumen({ enviadas: 1, rechazadas: 1, pendientes: 1 })).toBe(
-      "Se envió 1 sección. 1 quedó rechazada: la encuesta está cerrada. 1 quedó sin enviar.",
+      "Se envió 1 sección. 1 quedó rechazada: el servidor no las aceptó (encuesta cerrada o ya enviada por otro usuario). 1 quedó sin enviar.",
     );
   });
 });

@@ -10,8 +10,6 @@ import { useEffect } from "react";
 import { useAuthStore } from "@/domains/auth/store/auth-store";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SQLiteProvider } from "expo-sqlite";
-import { runMigrations } from "@/lib/db/migrations";
 import { Toaster } from "@/components/toaster";
 
 // El mismo color que el splash nativo (`app.json`): si por un cuadro no hay nada
@@ -53,21 +51,21 @@ export default function RootLayout() {
     // Lo más afuera posible, para que también queden dentro el portal de los
     // menús y el toaster. Lo necesita cualquier control de gesture-handler
     // fuera de un `Modal` —hoy, la cabecera de las secciones—.
-    <GestureHandlerRootView
+    <GestureHandlerRootView 
       style={{ flex: 1, backgroundColor: SPLASH_BACKGROUND }}
     >
-      <SQLiteProvider databaseName="plantaciones.db" onInit={runMigrations}>
-        <SplashHider />
-        <QueryClientProvider client={queryClient}>
-          <KeyboardProvider>
-            <Slot />
-            {/* PortalHost Needs to be last child of your providers
+      <SplashHider />
+      {/* La base de datos ya no se abre aquí: es de cada usuario y se abre en
+          `(app)/_layout`, que es donde se sabe quién es. */}
+      <QueryClientProvider client={queryClient}>
+        <KeyboardProvider>
+          <Slot />
+          {/* PortalHost Needs to be last child of your providers
       https://reactnativereusables.com/docs/installation/manual */}
-            <PortalHost />
-          </KeyboardProvider>
-        </QueryClientProvider>
-        <Toaster />
-      </SQLiteProvider>
+          <PortalHost />
+        </KeyboardProvider>
+      </QueryClientProvider>
+      <Toaster />
     </GestureHandlerRootView>
   );
 }

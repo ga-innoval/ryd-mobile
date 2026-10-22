@@ -159,6 +159,7 @@ export const PlantCard = memo(function PlantCard({
                 tratamiento={trat}
                 hasError={item.tratamientosWithError.includes(trat.id)}
                 pendingSync={item.tratamientosPending.includes(trat.id)}
+                syncRejected={item.tratamientosRejected.includes(trat.id)}
                 progress={trat.progress}
                 onPress={() =>
                   router.push({
@@ -188,6 +189,7 @@ export const PlantCard = memo(function PlantCard({
                 hasError={item.postcosechaWithError.includes(evaluacion.id)}
                 empacada={item.postcosechaEmpacada.includes(evaluacion.id)}
                 pendingSync={item.postcosechaPending.includes(evaluacion.id)}
+                syncRejected={item.postcosechaRejected.includes(evaluacion.id)}
                 onPress={() =>
                   router.push({
                     pathname: "/postcosecha/[id]",
