@@ -16,6 +16,11 @@
       "bundleIdentifier": "com.innoval.ryd",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "icon": {
+        "dark": "./assets/ios-icon-dark.png",
+        "light": "./assets/ios-icon-light.png",
+        "tinted": "./assets/ios-icon-tinted.png"
       }
     },
     "android": {
@@ -35,6 +40,15 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/logo-foreground.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#f5f2eb"
+        }
+      ],
       "expo-secure-store",
       "expo-image",
       [

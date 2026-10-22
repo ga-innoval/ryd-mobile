@@ -1,13 +1,12 @@
 import { View } from "react-native";
-import { Leaf } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
-import { Icon } from "@/components/ui/icon";
 import { UserMenu } from "@/components/user-menu";
 import { SyncBlock } from "../plants/components/sync-block";
 import { DownloadBlock } from "../plants/components/download-block";
 import { HeaderBase } from "./header-base";
 import { SeparatorLine } from "@/components/ui/separator-line";
 import { NotificationsBell } from "@/domains/notifications/components/notifications-bell";
+import { Image } from "expo-image";
 
 type PlantsPageHeaderProps = {
   section?: string;
@@ -25,8 +24,11 @@ export function PlantsPageHeader({
   return (
     <HeaderBase>
       <View className="flex-row items-center gap-2">
-        <Icon as={Leaf} size={18} className="text-leaf" />
-        <Text className="text-primary-foreground font-bold">CapExp</Text>
+        <Image
+          className="h-8 w-8"
+          source={require("../../../assets/images/logo-light.png")}
+        />
+        <Text className="text-primary-foreground font-bold -m-0.5">CapExp</Text>
         {section && (
           <>
             <Text className="text-primary-foreground/40">/</Text>

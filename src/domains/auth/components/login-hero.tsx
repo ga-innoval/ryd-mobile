@@ -27,9 +27,10 @@ export function LoginHero() {
       <View className="absolute inset-0 bg-green-950 opacity-50" />
       <View className="absolute inset-0 items-center justify-center">
         <View className="flex-row items-center gap-3">
-          <View className="p-3 bg-white/20 rounded-full">
-            <Icon as={LeafIcon} className="p-4 text-leaf" />
-          </View>
+          <Image
+            className="h-16 w-16"
+            source={require("../../../../assets/images/logo-light.png")}
+          />
           <Text variant="h1" className="text-white tracking-wide">
             Captura Experimental
           </Text>
