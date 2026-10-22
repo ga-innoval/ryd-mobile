@@ -40,6 +40,15 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/logo-foreground.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#f5f2eb"
+        }
+      ],
       "expo-secure-store",
       "expo-image",
       [
