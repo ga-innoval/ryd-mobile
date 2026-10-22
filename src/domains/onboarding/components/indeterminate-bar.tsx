@@ -49,9 +49,11 @@ export function IndeterminateBar() {
       accessibilityRole="progressbar"
       accessibilityLabel="Descargando"
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      className="h-2.5 overflow-hidden rounded-full bg-primary/20"
+      className="h-1 overflow-hidden rounded-full bg-primary/20"
     >
-      <Animated.View style={[style, { width: width * SEGMENT, height: "100%" }]}>
+      <Animated.View
+        style={[style, { width: width * SEGMENT, height: "100%" }]}
+      >
         <View className="h-full rounded-full bg-primary" />
       </Animated.View>
     </View>

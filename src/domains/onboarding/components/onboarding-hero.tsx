@@ -53,8 +53,14 @@ export function OnboardingHero({
     beat.value = pulsing
       ? withRepeat(
           withSequence(
-            withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-            withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+            withTiming(1, {
+              duration: 1000,
+              easing: Easing.inOut(Easing.ease),
+            }),
+            withTiming(0, {
+              duration: 1000,
+              easing: Easing.inOut(Easing.ease),
+            }),
           ),
           -1,
         )
@@ -87,7 +93,7 @@ export function OnboardingHero({
               as={icon}
               size={size * ICON}
               strokeWidth={done ? 2.4 : 1.8}
-              className={done ? "text-foreground" : "text-primary"}
+              className={done ? "text-white" : "text-primary"}
             />
 
             {badge !== undefined && (

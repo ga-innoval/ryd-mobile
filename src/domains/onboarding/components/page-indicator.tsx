@@ -51,7 +51,7 @@ function Segment({
 
   // El ancho animado va en un `Animated.View` y el color en el `View` de dentro.
   return (
-    <View className="h-1.5 w-10 overflow-hidden rounded-full bg-border">
+    <View className="h-1 w-6 overflow-hidden rounded-full bg-border">
       <Animated.View style={[{ height: "100%" }, fill]}>
         <View className="flex-1 bg-primary" />
       </Animated.View>
