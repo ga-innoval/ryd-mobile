@@ -84,16 +84,13 @@ export function OnboardingHero({
         >
           <View
             style={{ width: inner, height: inner, borderRadius: inner / 2 }}
-            className={cn(
-              "items-center justify-center",
-              done ? "bg-leaf" : "bg-white",
-            )}
+            className={cn("items-center justify-center bg-white")}
           >
             <Icon
               as={icon}
               size={size * ICON}
               strokeWidth={done ? 2.4 : 1.8}
-              className={done ? "text-white" : "text-primary"}
+              className={"text-primary"}
             />
 
             {badge !== undefined && (
