@@ -18,7 +18,12 @@ export function PrimaryAction({
   return (
     <Button
       onPress={onPress}
-      disabled={disabled}
+      // **Nunca `undefined`.** El botón de la última página no recibía `disabled`
+      // mientras los de las dos primeras sí (`busy`), y como React reutiliza la
+      // misma vista al cambiar de página, la prop pasaba de `false` a `undefined`:
+      // en Android el botón dejaba de responder salvo justo sobre su texto.
+      // Probado en la tablet: con `false` explícito responde en toda su área.
+      disabled={disabled ?? false}
       size="lg"
       accessibilityLabel={label}
     >
